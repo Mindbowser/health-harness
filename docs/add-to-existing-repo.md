@@ -23,6 +23,9 @@ Create `.mb-harness/compliance.json`:
 **Default is `hipaa`** (assume PHI — the safe choice). Use `pci` / `gdpr` / `none` only if the repo
 genuinely handles no health data (and say why in `notes`).
 
+> **Shortcut:** just type **`/start`** — it detects this is an existing repo, sets the profile, and
+> runs the step below for you. Steps 3–5 are what it routes into.
+
 ## 3. Make it agent-ready — run `/onboard-existing-codebase`
 
 This is the brownfield front door. It will:

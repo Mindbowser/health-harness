@@ -37,7 +37,8 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
 
 - `process/`: `align`, `to-prd`, `to-issues`, `tdd`.
 - `governance/`: `compliance-profile`, `phi-redaction-check` (static, pre-export), `safe-logging` (runtime).
-- `archetypes/`: `scaffold-from-boilerplate` (greenfield), `onboard-existing-codebase` (brownfield).
+- `archetypes/`: `start` (router — detect archetype + route), `scaffold-from-boilerplate` (greenfield),
+  `onboard-existing-codebase` (brownfield).
 - `authoring/`: `writing-great-skills`.
 - **Tooling:** `bin/redaction-scan.js` — the deterministic scanner behind `phi-redaction-check`
   (profile-driven, default `hipaa`; tested via `npm test`).

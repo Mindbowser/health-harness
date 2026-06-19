@@ -48,9 +48,10 @@ installed, the skills auto-discover — type `/align` to start, or let the agent
 git clone https://github.com/pravinuttarwar/mb-harness.git
 ```
 
-**Adding it to an existing/old repo?** Follow the one-pager: **`docs/add-to-existing-repo.md`**
-(declare a compliance profile → `/onboard-existing-codebase` → build with the loop). Works on any
-stack; it won't rewrite your code.
+**Just type `/start`.** It detects whether you're in a new repo, an existing/customer repo, or a Studio
+handover, sets the compliance profile, and routes you to the right front door — so you don't have to
+pick. (Adding it to an existing/old repo specifically? The one-pager: **`docs/add-to-existing-repo.md`**.)
+Works on any stack; it won't rewrite your code.
 
 (Distribution mechanics — plugin reference vs. `setup-mb-harness` — are evolving; see `docs/authoring.md`.)
 
