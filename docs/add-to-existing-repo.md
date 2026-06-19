@@ -7,11 +7,11 @@ discipline + healthcare guardrails on top; it does **not** rewrite your code or 
 
 ```bash
 claude plugin marketplace add pravinuttarwar/mb-harness --scope project
-claude plugin install mb-harness@mb-harness --scope project
+claude plugin install mb-harness@mindbowser --scope project
 ```
 
 Commit the resulting `.claude/settings.json` so your whole team gets it. Restart Claude Code (or
-`/reload-plugins`); verify with `claude plugin details mb-harness@mb-harness` (→ Skills 11). You keep
+`/reload-plugins`); verify with `claude plugin details mb-harness@mindbowser` (→ Skills 11). You keep
 any repo-specific skills you already have — the harness adds the shared ones on top.
 
 ## 2. Declare what data the repo handles (30 seconds)

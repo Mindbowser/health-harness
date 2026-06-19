@@ -46,7 +46,7 @@ Run these two commands **inside your project directory** (requires the `claude` 
 claude plugin marketplace add pravinuttarwar/mb-harness --scope project
 
 # 2. Install the plugin
-claude plugin install mb-harness@mb-harness --scope project
+claude plugin install mb-harness@mindbowser --scope project
 ```
 
 This writes `.claude/settings.json` (the marketplace source + the enabled plugin). **Commit that file**
@@ -54,14 +54,14 @@ This writes `.claude/settings.json` (the marketplace source + the enabled plugin
 on the next session, so restart Claude Code (or run `/reload-plugins`), then verify:
 
 ```bash
-claude plugin details mb-harness@mb-harness   # → Skills (11)
+claude plugin details mb-harness@mindbowser   # → Skills (11)
 ```
 
 Now just type **`/start`** — it detects new vs existing repo, sets the compliance profile (default
 `hipaa`), and routes you to the right front door. Or invoke skills directly: `/align`, `/to-prd`,
 `/to-issues`, `/tdd`. Works on any stack; it won't rewrite your code.
 
-**Updating later:** `claude plugin marketplace update mb-harness && claude plugin update mb-harness`
+**Updating later:** `claude plugin marketplace update mindbowser && claude plugin update mb-harness`
 (restart to apply). **Personal trial only?** Use `--scope local` instead of `--scope project` — it
 writes to the gitignored `.claude/settings.local.json` and isn't shared with the team.
 
