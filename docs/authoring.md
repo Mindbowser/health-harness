@@ -1,18 +1,19 @@
 # Authoring & distribution
 
-The authoring *contract* lives in `skills/authoring/writing-great-skills/SKILL.md` (read it first).
+The authoring *contract* lives in `skills/writing-great-skills/SKILL.md` (read it first).
 This file covers the repo-level mechanics around it.
 
-## Layout
+## Layout — FLAT (one level)
 
 ```
-skills/<category>/<skill-name>/SKILL.md   # one dir per skill, kebab-case
-skills/<category>/<skill-name>/*.md       # optional supporting files (methods, templates, glossaries)
+skills/<skill-name>/SKILL.md   # one dir per skill, kebab-case, directly under skills/
+skills/<skill-name>/*.md       # optional supporting files (methods, templates, glossaries)
 ```
 
-Categories today: `process/` (the Build Loop), `governance/` (healthcare compliance), `archetypes/`
-(per-genesis front doors — greenfield/handover/brownfield), `authoring/` (meta). Add a category only
-when a skill genuinely doesn't fit an existing one.
+**Do not nest skills in category subfolders.** Claude Code discovers plugin skills at
+`skills/<name>/SKILL.md` only (one level) — `skills/process/align/SKILL.md` is NOT found. Grouping
+(process / governance / archetypes / authoring) is a *labelling* concept we keep in docs, not a
+directory structure.
 
 ## Frontmatter contract
 
@@ -33,13 +34,13 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
   on top of these org-wide ones. Local adds; central wins for shared names.
 - **Versioning:** semver tags on this repo; a project can pin a version and upgrade deliberately.
 
-## Built so far
+## Built so far (grouped by role; all live flat under `skills/`)
 
-- `process/`: `align`, `to-prd`, `to-issues`, `tdd`.
-- `governance/`: `compliance-profile`, `phi-redaction-check` (static, pre-export), `safe-logging` (runtime).
-- `archetypes/`: `start` (router — detect archetype + route), `scaffold-from-boilerplate` (greenfield),
-  `onboard-existing-codebase` (brownfield).
-- `authoring/`: `writing-great-skills`.
+- **Build Loop:** `align`, `to-prd`, `to-issues`, `tdd`.
+- **Governance:** `compliance-profile`, `phi-redaction-check` (static, pre-export), `safe-logging` (runtime).
+- **Entry / front doors:** `start` (router — detect new vs existing + route),
+  `scaffold-from-boilerplate` (new repo), `onboard-existing-codebase` (existing repo).
+- **Authoring:** `writing-great-skills`.
 - **Tooling:** `bin/redaction-scan.js` — the deterministic scanner behind `phi-redaction-check`
   (profile-driven, default `hipaa`; tested via `npm test`).
 - **Guide:** `docs/add-to-existing-repo.md` — the one-pager for dropping the harness into any repo.

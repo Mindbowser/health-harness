@@ -58,23 +58,28 @@ it won't rewrite your code.
 ## Structure
 
 ```
-.claude-plugin/plugin.json   # discovery manifest
-CLAUDE.md                    # org-wide agent instructions (read by every agent here)
+.claude-plugin/              # plugin.json + marketplace.json (CLI discovery)
+CLAUDE.md                    # org-wide agent instructions
 CONTEXT.md                   # shared vocabulary — single source of truth for terms
-docs/authoring.md            # how to write a good skill
-skills/
-  process/                   # the Build Loop — stack-agnostic, install everywhere
-    align/ to-prd/ to-issues/ tdd/
-  governance/                # healthcare differentiator (compliance-as-skills) — coming
-  authoring/
-    writing-great-skills/    # the meta-skill: how to write skills here
+docs/                        # authoring guide + the add-to-existing-repo one-pager
+bin/redaction-scan.js        # the deterministic redaction scanner (+ test/)
+skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
+  start/                       # router: detect new vs existing → route to a front door
+  scaffold-from-boilerplate/   # front door — new repo
+  onboard-existing-codebase/   # front door — existing repo
+  align/ to-prd/ to-issues/ tdd/          # the Build Loop
+  compliance-profile/ phi-redaction-check/ safe-logging/   # healthcare governance
+  writing-great-skills/        # the meta-skill: how to write skills here
 ```
+
+> **Skills are flat by design.** Claude Code discovers plugin skills at `skills/<name>/SKILL.md` (one
+> level) — category subfolders are NOT scanned. We keep the grouping as labels above, not directories.
 
 ## Contributing a skill
 
-Read `skills/authoring/writing-great-skills/SKILL.md` first, then `docs/authoring.md`. Every skill is
-reviewed against that meta-skill (checkable criteria, no duplication, explicit anti-patterns) and
-dog-fooded once before merge.
+Read `skills/writing-great-skills/SKILL.md` first, then `docs/authoring.md`. Every skill is reviewed
+against that meta-skill (checkable criteria, no duplication, explicit anti-patterns) and dog-fooded
+once before merge.
 
 ## Credit
 
