@@ -1,0 +1,59 @@
+---
+name: phi-redaction-check
+description: Scan anything customer-facing for PHI/PII, secrets, and disallowed content before it leaves the repo; block on a hit.
+---
+
+Scan content that is about to leave the repo — a customer-facing doc, a demo, a handover, generated
+code, a commit — for **PHI/PII, secrets, and other disallowed classes**, and **block** if anything is
+found. This is the safety part of the harness: it's what lets us ship AI-built software fast in a
+regulated domain without leaking. A hit is a hard fail, not a warning.
+
+## Driven by the compliance profile
+
+Read `.mb-harness/compliance.json` first (see `/compliance-profile`). The `dataClasses` there decide
+which families below are enforced. **`secrets` is always enforced**, even for profile `none`.
+
+## What to scan for, by class
+
+- **secrets** (always) — API keys, OAuth/JWT tokens, AWS keys (`AKIA…`), private keys
+  (`-----BEGIN … PRIVATE KEY-----`), DB connection strings, passwords in config/code/logs.
+- **phi** (`hipaa`) — patient names tied to records, MRNs, SSNs, dates of birth, addresses, phone
+  numbers, and health facts attached to an individual.
+- **pii** (`hipaa`/`gdpr`) — real person names, personal emails/phones, postal addresses, national IDs.
+- **pan** (`pci`) — primary account numbers / card numbers (13–19 digits, Luhn-valid), CVV, expiry.
+- **commercial** (Studio/sales-derived artifacts) — deal $ amounts, deal stages (`Closed Won/Lost`),
+  sentiment/win-probability, MB staff names, other-customer names. *(This is the class our existing
+  `redaction-validator.js` already implements.)*
+
+## Process
+
+1. **Read the profile** to get the active `dataClasses` and `allow` list.
+2. **Prefer the deterministic scanner.** If the repo provides a redaction scanner (the generalized
+   port of mbi-studio's `redaction-validator.js`), RUN IT — don't eyeball. It returns
+   `{ file, line, class, snippet }` hits and a pass/fail. Pattern matching is more reliable than reading.
+3. **Scope the scan** to what's actually leaving: the export dir / staged diff / the artifact in hand —
+   not `node_modules`, build output, or `.git`.
+4. **Respect `allow`** — exact-string exemptions only (confirmed false positives).
+5. **On any hit: BLOCK.** Report file:line + class + snippet. Do not redact-in-place silently and
+   proceed — surface it so a human fixes the source (or adds a true false-positive to `allow`).
+6. **No real data as the fix.** Replace leaked PHI/PII in fixtures/examples with **synthetic**
+   fake-but-realistic data; never just move the real value elsewhere.
+
+## Anti-patterns
+
+- ❌ "Looks fine to me" instead of running the scanner. Manual reading misses encodings and edge cases.
+- ❌ Treating a hit as a warning and shipping anyway.
+- ❌ Adding real regulated values to `allow` to pass the check.
+- ❌ Scanning built/vendored dirs (false positives) or, worse, skipping the actual export.
+
+## Completion criteria
+
+- [ ] The active `dataClasses` from the profile were all scanned.
+- [ ] The deterministic scanner ran (or its absence is flagged as a gap to fix), scoped to the export.
+- [ ] Zero hits remain, OR every remaining match is a confirmed false positive in `allow`.
+- [ ] Any test/example data is synthetic, not real.
+
+> **Backing implementation (to port):** mbi-studio's `openclaw-scripts/prototype/lib/redaction-validator.js`
+> already implements the `commercial` classes (currency/stage/staff/sentiment/other-customer) with a
+> clean `scanText`/`validate` API and a CLI. Generalizing it with the `phi`/`pii`/`pan`/`secrets`
+> classes above, profile-driven, is the deterministic scanner this skill should run.

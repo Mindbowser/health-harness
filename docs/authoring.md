@@ -10,8 +10,9 @@ skills/<category>/<skill-name>/SKILL.md   # one dir per skill, kebab-case
 skills/<category>/<skill-name>/*.md       # optional supporting files (methods, templates, glossaries)
 ```
 
-Categories today: `process/` (the Build Loop), `governance/` (healthcare compliance), `authoring/`
-(meta). Add a category only when a skill genuinely doesn't fit an existing one.
+Categories today: `process/` (the Build Loop), `governance/` (healthcare compliance), `archetypes/`
+(per-genesis front doors — greenfield/handover/brownfield), `authoring/` (meta). Add a category only
+when a skill genuinely doesn't fit an existing one.
 
 ## Frontmatter contract
 
@@ -32,10 +33,17 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
   on top of these org-wide ones. Local adds; central wins for shared names.
 - **Versioning:** semver tags on this repo; a project can pin a version and upgrade deliberately.
 
+## Built so far
+
+- `process/`: `align`, `to-prd`, `to-issues`, `tdd`.
+- `governance/`: `compliance-profile`, `phi-redaction-check`.
+- `archetypes/`: `scaffold-from-boilerplate` (greenfield front door).
+- `authoring/`: `writing-great-skills`.
+
 ## Roadmap (not yet built)
 
-- `governance/` skills: `phi-redaction-check`, `compliance-profile`, `secrets-scan`
-  (generalize mbi-studio's `redaction-validator.js`).
-- Archetype front doors: `scaffold-from-boilerplate` (greenfield, first), `from-studio-handover`,
-  `onboard-existing-codebase` (brownfield), `import-issues`, `from-design`.
+- **Deterministic scanner** behind `phi-redaction-check` — port + generalize mbi-studio's
+  `redaction-validator.js` with the `phi`/`pii`/`pan`/`secrets` classes (profile-driven).
+- Other archetype front doors: `from-studio-handover`, `onboard-existing-codebase` (brownfield),
+  plus the ingestion inputs `import-issues`, `from-design`.
 - `diagnosing-bugs`, `handoff`, `codebase-design` / `improve-codebase-architecture`, stack packs.
