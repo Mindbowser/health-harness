@@ -3,14 +3,16 @@
 Works on **any** repo — a customer's old codebase, a half-finished project, anything. It adds a
 discipline + healthcare guardrails on top; it does **not** rewrite your code or impose MB boilerplate.
 
-## 1. Install the harness (pick one)
+## 1. Install the harness (run inside your repo)
 
-- **As a Claude Code plugin** — point Claude Code at `github.com/pravinuttarwar/mb-harness`
-  (`/plugin` → add from the GitHub URL). The skills (`/align`, `/tdd`, …) appear automatically.
-- **Or clone + reference** — `git clone https://github.com/pravinuttarwar/mb-harness.git` somewhere,
-  and symlink/copy its `skills/` into your repo's `.claude/skills/`. (Quick, always works.)
+```bash
+claude plugin marketplace add pravinuttarwar/mb-harness --scope project
+claude plugin install mb-harness@mb-harness --scope project
+```
 
-You keep any repo-specific skills you already have; the harness adds the shared ones on top.
+Commit the resulting `.claude/settings.json` so your whole team gets it. Restart Claude Code (or
+`/reload-plugins`); verify with `claude plugin details mb-harness@mb-harness` (→ Skills 11). You keep
+any repo-specific skills you already have — the harness adds the shared ones on top.
 
 ## 2. Declare what data the repo handles (30 seconds)
 

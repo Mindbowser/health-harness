@@ -37,23 +37,36 @@ an existing codebase. `/start` picks the door for you. See `CONTEXT.md`.
 8. **The harness is the healthcare differentiator.** Compliance + redaction guardrails are not
    overhead — they're what let us ship fast *and* safely. See `skills/governance/`.
 
-## Install
+## Install in your project (CLI)
 
-Add this plugin to a repo's Claude Code config (or clone it and reference the skills dir). Once
-installed, the skills auto-discover — type `/align` to start, or let the agent invoke `/tdd`,
-`/to-issues`, etc. on its own.
+Run these two commands **inside your project directory** (requires the `claude` CLI):
 
 ```bash
-# clone alongside your project
-git clone https://github.com/pravinuttarwar/mb-harness.git
+# 1. Register the harness marketplace for this repo
+claude plugin marketplace add pravinuttarwar/mb-harness --scope project
+
+# 2. Install the plugin
+claude plugin install mb-harness@mb-harness --scope project
 ```
 
-**Just type `/start`.** It detects whether you're in a new repo or an existing one, sets the compliance
-profile, and routes you to the right front door — so you don't have to pick. (Adding it to an
-existing/old repo specifically? The one-pager: **`docs/add-to-existing-repo.md`**.) Works on any stack;
-it won't rewrite your code.
+This writes `.claude/settings.json` (the marketplace source + the enabled plugin). **Commit that file**
+— then everyone who clones the repo gets the harness automatically, no per-person setup. Skills load
+on the next session, so restart Claude Code (or run `/reload-plugins`), then verify:
 
-(Distribution mechanics — plugin reference vs. `setup-mb-harness` — are evolving; see `docs/authoring.md`.)
+```bash
+claude plugin details mb-harness@mb-harness   # → Skills (11)
+```
+
+Now just type **`/start`** — it detects new vs existing repo, sets the compliance profile (default
+`hipaa`), and routes you to the right front door. Or invoke skills directly: `/align`, `/to-prd`,
+`/to-issues`, `/tdd`. Works on any stack; it won't rewrite your code.
+
+**Updating later:** `claude plugin marketplace update mb-harness && claude plugin update mb-harness`
+(restart to apply). **Personal trial only?** Use `--scope local` instead of `--scope project` — it
+writes to the gitignored `.claude/settings.local.json` and isn't shared with the team.
+
+> Adding it to an existing/old repo specifically? The step-by-step one-pager is
+> **`docs/add-to-existing-repo.md`**.
 
 ## Structure
 
