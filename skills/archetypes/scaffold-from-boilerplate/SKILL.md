@@ -20,8 +20,9 @@ at project birth, before any `/align`.
 3. **Wire the gate.** Ensure a single one-command gate exists and passes on the empty project
    (typecheck + build + tests, e.g. `pnpm verify`), with a coverage ratchet if the stack supports it.
    *Feedback loops are the quality ceiling — the project is not ready without this.*
-4. **Set the compliance profile.** Run `/compliance-profile` to write `.mb-harness/compliance.json`
-   (ask which profile applies; default to asking, never silently `none` for a customer/healthcare repo).
+4. **Set the compliance profile.** Run `/compliance-profile` to write `.mb-harness/compliance.json`.
+   **Default to `hipaa`** (the MB fail-safe); only set a lighter profile if the user confirms the repo
+   handles no PHI.
 5. **Install the harness.** Reference the `mb-harness` plugin and add a repo `CLAUDE.md` that states the
    stack, the gate command, and the active compliance profile.
 6. **Verify it boots.** Install deps, run the gate green, confirm the dev server starts. Commit the
@@ -31,7 +32,7 @@ at project birth, before any `/align`.
 
 - ❌ Pushing to or branching the MB boilerplate repos. Clone fresh, re-init.
 - ❌ Leaving the gate unwired ("we'll add tests later") — then no AFK build is safe.
-- ❌ Skipping the compliance profile, or defaulting it to `none` on a customer/healthcare project.
+- ❌ Skipping the compliance profile, or defaulting it to `none` (the default is `hipaa`).
 - ❌ Scaffolding *and* starting to build features in one go. Scaffold, then `/align` first.
 
 ## Completion criteria

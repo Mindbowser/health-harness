@@ -1,0 +1,14 @@
+{
+  "name": "mb-harness",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MB Health Harness — the Build Loop discipline + healthcare governance, as Claude Code skills.",
+  "bin": {
+    "mb-redaction-scan": "bin/redaction-scan.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "scan": "node bin/redaction-scan.js"
+  },
+  "license": "UNLICENSED"
+}

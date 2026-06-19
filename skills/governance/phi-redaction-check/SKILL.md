@@ -35,9 +35,10 @@ standard scan — see the Studio-only note below.
 ## Process
 
 1. **Read the profile** to get the active `dataClasses` and `allow` list.
-2. **Prefer the deterministic scanner.** If the repo provides a redaction scanner (the generalized
-   port of mbi-studio's `redaction-validator.js`), RUN IT — don't eyeball. It returns
-   `{ file, line, class, snippet }` hits and a pass/fail. Pattern matching is more reliable than reading.
+2. **Run the deterministic scanner — don't eyeball.** The harness ships it at
+   `bin/redaction-scan.js`: `node bin/redaction-scan.js --path <export-dir>` (it auto-loads
+   `.mb-harness/compliance.json`, defaults to `hipaa`, exit 1 on hits, returns
+   `{ file, line, class, snippet }`). Pattern matching is more reliable than reading.
 3. **Scope the scan** to what's actually leaving: the export dir / staged diff / the artifact in hand —
    not `node_modules`, build output, or `.git`.
 4. **Respect `allow`** — exact-string exemptions only (confirmed false positives).
@@ -60,9 +61,9 @@ standard scan — see the Studio-only note below.
 - [ ] Zero hits remain, OR every remaining match is a confirmed false positive in `allow`.
 - [ ] Any test/example data is synthetic, not real.
 
-> **Backing implementation (to build):** the deterministic scanner this skill runs is a new,
-> profile-driven scanner whose default classes are **`secrets` + `phi`/`pii`** (+ `pan` for `pci`) —
-> what a real delivery repo needs. Reuse the **API shape + scanning machinery** from mbi-studio's
-> `openclaw-scripts/prototype/lib/redaction-validator.js` (clean `scanText`/`validate`, file-walk, CLI,
-> per-line hits) — but its `commercial` patterns stay Studio-only, behind the opt-in class. Don't ship
-> currency/stage/sentiment patterns into client repos.
+> **Backing implementation (built):** `bin/redaction-scan.js` in this repo — zero-dep, profile-driven,
+> default classes `secrets` + `phi`/`pii` (+ `pan` for `pci`), with `commercial` behind the opt-in
+> class. API: `scanText` / `validate` / `loadConfig` / `classesForProfile`; CLI `--path`/`--profile`.
+> Tested in `test/redaction-scan.test.js` (`npm test`). Names/free-text PII can't be regex'd — pass
+> known strings via `deny` in `compliance.json`; this catches patterned identifiers (SSN, email, phone,
+> card, keys, MRN/DOB labels). Modeled on mbi-studio's `redaction-validator.js`, scoped to delivery repos.

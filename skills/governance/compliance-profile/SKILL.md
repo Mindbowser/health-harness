@@ -32,29 +32,34 @@ The profile lives at `.mb-harness/compliance.json` at the repo root:
 
 | `profile` | Enforced classes | Use for |
 |---|---|---|
-| `hipaa` | `phi`, `pii`, `secrets` | Anything touching patient / health data |
+| `hipaa` **(default)** | `phi`, `pii`, `secrets` | Anything touching patient / health data — the MB default |
 | `pci` | `pan`, `pii`, `secrets` | Payment-card data |
 | `gdpr` | `pii`, `secrets` | EU personal data, no health/payment |
 | `none` | `secrets` | Internal tools, no regulated data (secrets are *always* enforced) |
 
+**The default is `hipaa`.** Mindbowser is a healthcare firm, so the fail-safe assumption is that a repo
+handles PHI. A repo only runs under a lighter profile when someone *explicitly* downgrades it (and says
+why). Absent config ⇒ treat as `hipaa`, don't treat as `none`.
+
 ## Process
 
 1. **Read first.** If `.mb-harness/compliance.json` exists, load it and obey it — do not re-ask.
-2. **If absent, set it.** Ask the user (or infer from the engagement) which profile applies; confirm
-   the data classes; write the file. **`secrets` is always included** regardless of profile.
+2. **If absent, default to `hipaa`** and write the file (record that it was defaulted). Only set a
+   lighter profile when the user explicitly confirms the repo handles no PHI — capture the reason in
+   `notes`. **`secrets` is always included** regardless of profile.
 3. **Surface it.** Note the active profile in the repo's `CLAUDE.md` so every agent session sees it.
 4. **Re-evaluate on scope change.** Productionizing a prototype with real data, or a customer adding a
    payments feature, changes the profile — update the file.
 
 ## Anti-patterns
 
-- ❌ Proceeding with no profile on a customer/healthcare repo. Absent ≠ `none`; ask.
+- ❌ Treating an absent profile as `none`. Absent ⇒ `hipaa` (the fail-safe default); downgrade only on explicit confirmation.
 - ❌ Putting real regulated data in `allow` to silence the check. `allow` is for false positives only.
 - ❌ Duplicating the profile in multiple files. The JSON is the single source of truth.
 
 ## Completion criteria
 
-- [ ] `.mb-harness/compliance.json` exists with a valid `profile` and explicit `dataClasses`.
+- [ ] `.mb-harness/compliance.json` exists with a valid `profile` and explicit `dataClasses` (defaulted to `hipaa` if not deliberately chosen).
 - [ ] `secrets` is in `dataClasses`.
 - [ ] The active profile is reflected in the repo `CLAUDE.md`.
 - [ ] `allow` contains only confirmed false-positive strings (no real regulated data).

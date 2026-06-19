@@ -39,11 +39,11 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
 - `governance/`: `compliance-profile`, `phi-redaction-check` (static, pre-export), `safe-logging` (runtime).
 - `archetypes/`: `scaffold-from-boilerplate` (greenfield front door).
 - `authoring/`: `writing-great-skills`.
+- **Tooling:** `bin/redaction-scan.js` — the deterministic scanner behind `phi-redaction-check`
+  (profile-driven, default `hipaa`; tested via `npm test`).
 
 ## Roadmap (not yet built)
 
-- **Deterministic scanner** behind `phi-redaction-check` — port + generalize mbi-studio's
-  `redaction-validator.js` with the `phi`/`pii`/`pan`/`secrets` classes (profile-driven).
 - Other archetype front doors: `from-studio-handover`, `onboard-existing-codebase` (brownfield),
   plus the ingestion inputs `import-issues`, `from-design`.
 - `diagnosing-bugs`, `handoff`, `codebase-design` / `improve-codebase-architecture`, stack packs.

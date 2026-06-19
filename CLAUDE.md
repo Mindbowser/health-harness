@@ -32,9 +32,9 @@ Software here is built in five phases. Know which one you're in.
 
 ## Governance (healthcare — non-negotiable)
 
-- **Respect the repo's `compliance-profile`** (e.g. `hipaa`, `pci`, `none`). When set, never emit real
-  PHI/PII/secrets into code, tests, fixtures, logs, commits, or customer-facing artifacts — use
-  synthetic, fake-but-realistic data.
+- **Respect the repo's `compliance-profile`** (`hipaa` | `pci` | `gdpr` | `none`). **The default is
+  `hipaa`** — absent config means assume PHI, not `none`. Never emit real PHI/PII/secrets into code,
+  tests, fixtures, logs, commits, or customer-facing artifacts — use synthetic, fake-but-realistic data.
 - **Run the redaction check before anything leaves the repo** (customer-facing docs, handover, demos).
 - **On a customer's codebase:** respect THEIR conventions and IP. Do not impose MB boilerplate, do not
   exfiltrate code, do not rewrite architecture you weren't asked to.
