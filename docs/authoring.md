@@ -36,7 +36,7 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
 ## Built so far
 
 - `process/`: `align`, `to-prd`, `to-issues`, `tdd`.
-- `governance/`: `compliance-profile`, `phi-redaction-check`.
+- `governance/`: `compliance-profile`, `phi-redaction-check` (static, pre-export), `safe-logging` (runtime).
 - `archetypes/`: `scaffold-from-boilerplate` (greenfield front door).
 - `authoring/`: `writing-great-skills`.
 
