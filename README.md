@@ -22,8 +22,8 @@ engineer gets the same skills (`/align`, `/to-prd`, `/to-issues`, `/tdd`, …) a
 | **4. Build (AFK)** (`/tdd`) | Agent (Dev oversees) | TDD red-green-refactor, run the gate, loop until done. |
 | **5. QA** | Dev + BA/PM | Fresh-context review + manual QA. Where human taste is imposed. |
 
-**The middle of the loop is invariant; the *front door* varies by archetype** — greenfield from MB
-boilerplate, a Studio prototype to productionize, or a customer's existing codebase. See `CONTEXT.md`.
+**The middle of the loop is invariant; the *front door* varies** — a new repo from MB boilerplate, or
+an existing codebase. `/start` picks the door for you. See `CONTEXT.md`.
 
 ## Non-negotiable principles
 
@@ -48,10 +48,10 @@ installed, the skills auto-discover — type `/align` to start, or let the agent
 git clone https://github.com/pravinuttarwar/mb-harness.git
 ```
 
-**Just type `/start`.** It detects whether you're in a new repo, an existing/customer repo, or a Studio
-handover, sets the compliance profile, and routes you to the right front door — so you don't have to
-pick. (Adding it to an existing/old repo specifically? The one-pager: **`docs/add-to-existing-repo.md`**.)
-Works on any stack; it won't rewrite your code.
+**Just type `/start`.** It detects whether you're in a new repo or an existing one, sets the compliance
+profile, and routes you to the right front door — so you don't have to pick. (Adding it to an
+existing/old repo specifically? The one-pager: **`docs/add-to-existing-repo.md`**.) Works on any stack;
+it won't rewrite your code.
 
 (Distribution mechanics — plugin reference vs. `setup-mb-harness` — are evolving; see `docs/authoring.md`.)
 

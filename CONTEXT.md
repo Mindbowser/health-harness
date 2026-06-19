@@ -46,15 +46,15 @@ needs a term not defined here, add it here rather than redefining it locally.
 ## Archetypes — the variable "front door"
 
 The middle of the Build Loop is invariant; how a project is *born* changes where you enter and what
-you must do first.
+you must do first. From a developer's seat there are **two** front doors (`/start` picks one):
 
-- **Greenfield (from MB boilerplate)** — a new repo started from MB's modifiable boilerplate. Enters at
-  Align; the gate ships in the boilerplate. *Most common archetype.*
-- **Studio handover** — a Mindbowser Studio prototype handed to engineering to productionize. Enters at
-  Slice (alignment already happened in Studio); ingest the handover doc + spec; flag faked parts.
-- **Brownfield (customer codebase)** — the customer's existing repo. Comprehend it first, write a repo
-  CLAUDE.md, and **HARD-GATE: establish a one-command feedback loop before any AFK build.** Respect
-  their conventions, IP, and compliance — do not impose MB boilerplate.
+- **New repo (greenfield)** — started from MB's modifiable boilerplate. Enters at Align; the gate ships
+  in the boilerplate. *Most common archetype.* Door: `/scaffold-from-boilerplate`.
+- **Existing repo (brownfield)** — any repo that already has code: a customer's codebase, an old
+  project, OR a Studio prototype handed over for productionizing (to the receiving dev it's just a repo
+  with code + a handover doc to read as context). Comprehend it first, write a repo CLAUDE.md, and
+  **HARD-GATE: establish a one-command feedback loop before any AFK build.** Respect its conventions,
+  IP, and compliance — do not impose MB boilerplate. Door: `/onboard-existing-codebase`.
 - **Requirements source** — orthogonal to the above: Jira/Linear stories, Figma, a prototype, or the
   code itself. An *input* to Align/Slice (ingest + reshape into vertical slices), not a separate workflow.
 

@@ -11,33 +11,34 @@ ingest a handover. It also makes sure the compliance profile is set, which every
 
 ## Process
 
-1. **Detect the archetype** from the working directory:
-   - **Empty / no source** (just `.git`, maybe a README) → **greenfield**.
-   - **Has a Studio handover** (`handover.md` + `spec.json`, or a Studio marker) → **Studio handover**.
-   - **Has existing source code** (any stack) → **brownfield**.
+1. **Detect the archetype** from the working directory — two cases:
+   - **Empty / no source** (just `.git`, maybe a README) → **new repo (greenfield)**.
+   - **Has existing source code** (any stack) → **existing repo**.
 2. **Confirm with the user** — state the detected archetype and why; let them correct it. Never route
-   blind (a near-empty repo might still be a brownfield clone mid-setup).
+   blind (a near-empty repo might still be an existing clone mid-setup).
 3. **Ensure the compliance profile is set.** If `.mb-harness/compliance.json` is missing, run
-   `/compliance-profile` (default `hipaa`). Every archetype needs this before work starts.
+   `/compliance-profile` (default `hipaa`). Both paths need this before work starts.
 4. **Route to the front door:**
 
    | Archetype | Front door |
    |---|---|
-   | Greenfield (new repo) | `/scaffold-from-boilerplate` |
-   | Existing / customer repo | `/onboard-existing-codebase` |
-   | Studio prototype → productionize | `/from-studio-handover` *(not built yet — until then, treat as brownfield: `/onboard-existing-codebase` and read the prototype's `handover.md`/`spec.json` as context)* |
+   | New repo | `/scaffold-from-boilerplate` |
+   | Existing repo (incl. a handed-over project that already has code) | `/onboard-existing-codebase` |
 
 5. **Hand off.** Once the front door's completion criteria are met, the project enters the Build Loop at
-   `/align`. The loop is identical for every archetype from there.
+   `/align`. The loop is identical for both archetypes from there.
+
+> A project handed over with code already in it arrives, to you, as an **existing repo** — take the
+> existing-repo door and read any included docs/spec as context. There's no separate path to learn.
 
 ## Anti-patterns
 
 - ❌ Routing without confirming the detected archetype.
 - ❌ Skipping the compliance profile because "we'll set it later".
-- ❌ Sending an existing/customer repo to `/scaffold-from-boilerplate` (wrong door — it's brownfield).
+- ❌ Sending an existing repo to `/scaffold-from-boilerplate` (wrong door — it's the existing-repo path).
 
 ## Completion criteria
 
-- [ ] The archetype is detected AND confirmed by the user.
+- [ ] The archetype is detected (new vs existing) AND confirmed by the user.
 - [ ] `.mb-harness/compliance.json` exists (default `hipaa`).
 - [ ] The correct front-door skill has been invoked.

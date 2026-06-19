@@ -46,5 +46,8 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
 
 ## Roadmap (not yet built)
 
-- The `from-studio-handover` front door, plus the ingestion inputs `import-issues`, `from-design`.
+- The ingestion inputs `import-issues`, `from-design`.
+  *(A Studio prototype handover is NOT a dev-facing front door — to the receiving dev it's just an
+  existing repo, handled by `/onboard-existing-codebase`. Studio's internal handover generation is a
+  Studio concern, out of scope here.)*
 - `diagnosing-bugs`, `handoff`, `codebase-design` / `improve-codebase-architecture`, stack packs.
