@@ -1,0 +1,17 @@
+{
+  "name": "mb-harness",
+  "owner": {
+    "name": "Mindbowser"
+  },
+  "metadata": {
+    "description": "Mindbowser's AI software-delivery discipline (the Build Loop) and healthcare governance skills."
+  },
+  "plugins": [
+    {
+      "name": "mb-harness",
+      "source": "./",
+      "description": "MB Health Harness — the Build Loop discipline + healthcare governance, as Claude Code skills.",
+      "version": "0.1.0"
+    }
+  ]
+}
