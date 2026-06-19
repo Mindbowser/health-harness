@@ -7,6 +7,10 @@ Break a PRD (or plan, or a set of Jira/Linear stories) into **issues**, each ide
 slice**, with explicit blocking relationships so agents can work them in parallel. Phase 3 of the
 Build Loop. Dev/Tech-lead-led — slicing is an architectural act.
 
+**Confirm the sprint before writing.** Read `.mb-harness/current-sprint` and state: "Writing issues to
+`.mb-harness/sprints/<sprint-id>/<feature-slug>/issues.md` (and pushing to the tracker) — correct?"
+Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set <id>` first.
+
 ## Process
 
 1. **Gather context** — the PRD from `/to-prd`, plus any existing tracker stories. If the input is

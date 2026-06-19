@@ -16,6 +16,17 @@ The default failure mode of an agent is to eagerly produce a plan from a thin pr
 front-loads the disagreement: cheap now, expensive later. Whoever will build (human or agent) must
 *inherit this alignment*, not just a doc written from it.
 
+## Confirm the sprint first (safety — before anything else)
+
+Never file silently — a misfiled artifact in a stale sprint is a quiet, expensive mistake.
+1. Read `.mb-harness/current-sprint`. State plainly: **"Aligning feature `<feature-slug>` under sprint
+   `<sprint-id>` → artifacts go to `.mb-harness/sprints/<sprint-id>/<feature-slug>/`. Correct?"** and
+   wait for a yes or a redirect.
+2. If `current-sprint` is **unset** (or the user says it's stale), stop and have them run
+   `/sprint set <id>` first. Don't guess the sprint.
+3. You'll write `align.md` to that feature folder now; `/to-prd` and `/to-issues` add `prd.md` and
+   `issues.md` alongside it.
+
 ## Process
 
 1. **Read what you were given** — the idea, ticket, Jira stories, transcript, Figma, or prototype.

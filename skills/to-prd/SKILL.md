@@ -12,6 +12,10 @@ into stale guidance. Phase 2 of the Build Loop.
 There must be a real alignment to capture. If you weren't part of an `/align` session and only have a
 thin prompt, run `/align` first — do not invent a design concept from nothing.
 
+**Confirm the sprint before writing.** Read `.mb-harness/current-sprint` and state: "Writing the PRD
+to `.mb-harness/sprints/<sprint-id>/<feature-slug>/prd.md` — correct?" Wait for a yes/redirect; if the
+sprint is unset, have the user run `/sprint set <id>` first. Don't file silently.
+
 ## Process
 
 1. **Draft from the alignment**, not from your imagination. Every decision in the PRD should trace to

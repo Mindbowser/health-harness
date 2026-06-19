@@ -65,4 +65,17 @@ you must do first. From a developer's seat there are **two** front doors (`/star
 - **PHI / PII** — protected health / personally identifiable information. Never emitted into code,
   tests, fixtures, logs, commits, or customer-facing artifacts — use synthetic data.
 - **Redaction check** — the gate scanning anything customer-facing for PHI/PII, secrets, and other
-  disallowed content before it leaves the repo.
+  disallowed content before it leaves the repo. Skill: `/phi-redaction-check`.
+- **Audit trail / audit log** — a tamper-evident, retained record of *who accessed or changed ePHI,
+  when* (HIPAA audit controls, §164.312(b)). Stores references (user id, record id, action), **never
+  PHI values**. Distinct from operational logs (see safe-logging — that keeps PHI *out*; this *records
+  access*). Skill: `/audit-logging`.
+
+## Sprint terms
+
+- **Sprint** — a time-boxed batch of many features. The tracker (Jira/Linear) owns the sprint + its
+  stories; the harness keeps a thin local container at `.mb-harness/sprints/<id>/` to file each
+  feature's `align.md`/`prd.md`/`issues.md`. The **active sprint** is in `.mb-harness/current-sprint`
+  (set via `/sprint set`). `/align` always confirms which sprint it's filing under before writing.
+- **Feature** — one coherent unit of work within a sprint = one Build Loop (`/align`→`/to-prd`→
+  `/to-issues`). A sprint has several. **Align per feature, never one align for the whole sprint.**
