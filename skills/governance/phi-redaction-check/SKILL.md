@@ -15,15 +15,22 @@ which families below are enforced. **`secrets` is always enforced**, even for pr
 
 ## What to scan for, by class
 
-- **secrets** (always) — API keys, OAuth/JWT tokens, AWS keys (`AKIA…`), private keys
+In a real client/delivery repo the classes that matter are **secrets + PHI/PII** (and PAN for
+payments). There is no deal data in a delivery repo, so the commercial classes are **not** part of the
+standard scan — see the Studio-only note below.
+
+- **secrets** (always, every repo) — API keys, OAuth/JWT tokens, AWS keys (`AKIA…`), private keys
   (`-----BEGIN … PRIVATE KEY-----`), DB connection strings, passwords in config/code/logs.
 - **phi** (`hipaa`) — patient names tied to records, MRNs, SSNs, dates of birth, addresses, phone
   numbers, and health facts attached to an individual.
 - **pii** (`hipaa`/`gdpr`) — real person names, personal emails/phones, postal addresses, national IDs.
 - **pan** (`pci`) — primary account numbers / card numbers (13–19 digits, Luhn-valid), CVV, expiry.
-- **commercial** (Studio/sales-derived artifacts) — deal $ amounts, deal stages (`Closed Won/Lost`),
-  sentiment/win-probability, MB staff names, other-customer names. *(This is the class our existing
-  `redaction-validator.js` already implements.)*
+
+> **Studio-only (opt-in, not for client repos):** the `commercial` class — deal $ amounts, deal stages
+> (`Closed Won/Lost`), sentiment/win-probability, MB staff, other-customer names — guards *sales-derived*
+> artifacts (Studio prototypes) where pipeline data could leak. It only applies when a repo explicitly
+> adds `"commercial"` to its `dataClasses`. Don't enable it on a normal delivery repo. This is the class
+> mbi-studio's `redaction-validator.js` already implements.
 
 ## Process
 
@@ -53,7 +60,9 @@ which families below are enforced. **`secrets` is always enforced**, even for pr
 - [ ] Zero hits remain, OR every remaining match is a confirmed false positive in `allow`.
 - [ ] Any test/example data is synthetic, not real.
 
-> **Backing implementation (to port):** mbi-studio's `openclaw-scripts/prototype/lib/redaction-validator.js`
-> already implements the `commercial` classes (currency/stage/staff/sentiment/other-customer) with a
-> clean `scanText`/`validate` API and a CLI. Generalizing it with the `phi`/`pii`/`pan`/`secrets`
-> classes above, profile-driven, is the deterministic scanner this skill should run.
+> **Backing implementation (to build):** the deterministic scanner this skill runs is a new,
+> profile-driven scanner whose default classes are **`secrets` + `phi`/`pii`** (+ `pan` for `pci`) —
+> what a real delivery repo needs. Reuse the **API shape + scanning machinery** from mbi-studio's
+> `openclaw-scripts/prototype/lib/redaction-validator.js` (clean `scanText`/`validate`, file-walk, CLI,
+> per-line hits) — but its `commercial` patterns stay Studio-only, behind the opt-in class. Don't ship
+> currency/stage/sentiment patterns into client repos.
