@@ -37,13 +37,13 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
 
 - `process/`: `align`, `to-prd`, `to-issues`, `tdd`.
 - `governance/`: `compliance-profile`, `phi-redaction-check` (static, pre-export), `safe-logging` (runtime).
-- `archetypes/`: `scaffold-from-boilerplate` (greenfield front door).
+- `archetypes/`: `scaffold-from-boilerplate` (greenfield), `onboard-existing-codebase` (brownfield).
 - `authoring/`: `writing-great-skills`.
 - **Tooling:** `bin/redaction-scan.js` — the deterministic scanner behind `phi-redaction-check`
   (profile-driven, default `hipaa`; tested via `npm test`).
+- **Guide:** `docs/add-to-existing-repo.md` — the one-pager for dropping the harness into any repo.
 
 ## Roadmap (not yet built)
 
-- Other archetype front doors: `from-studio-handover`, `onboard-existing-codebase` (brownfield),
-  plus the ingestion inputs `import-issues`, `from-design`.
+- The `from-studio-handover` front door, plus the ingestion inputs `import-issues`, `from-design`.
 - `diagnosing-bugs`, `handoff`, `codebase-design` / `improve-codebase-architecture`, stack packs.

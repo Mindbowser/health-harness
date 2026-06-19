@@ -48,6 +48,10 @@ installed, the skills auto-discover — type `/align` to start, or let the agent
 git clone https://github.com/pravinuttarwar/mb-harness.git
 ```
 
+**Adding it to an existing/old repo?** Follow the one-pager: **`docs/add-to-existing-repo.md`**
+(declare a compliance profile → `/onboard-existing-codebase` → build with the loop). Works on any
+stack; it won't rewrite your code.
+
 (Distribution mechanics — plugin reference vs. `setup-mb-harness` — are evolving; see `docs/authoring.md`.)
 
 ## Structure
