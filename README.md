@@ -25,6 +25,46 @@ engineer gets the same skills (`/align`, `/to-prd`, `/to-issues`, `/tdd`, …) a
 **The middle of the loop is invariant; the *front door* varies** — a new repo from MB boilerplate, or
 an existing codebase. `/start` picks the door for you. See `CONTEXT.md`.
 
+## How it flows (sprint → release)
+
+A human picks the story; `/align` works on that one feature; `/to-issues` pushes per-repo slices back to
+the tracker; devs pull the top **unblocked** slice and build it with `/tdd`. Governance runs automatically.
+
+```mermaid
+flowchart TD
+    SETUP["🔧 One-time per repo: /start<br/>onboard or scaffold · set compliance-profile (hipaa) · ensure the gate"]
+    SETUP -.->|first time only| S
+
+    subgraph PLAN["🗓️ Sprint planning — PM/BA + devs"]
+        S["/sprint set Sprint-42"] --> IMP["/import-issues<br/>pull stories + bugs from Jira"]
+        IMP --> PICK{"Pick a feature<br/>(human chooses — not the tool)"}
+    end
+
+    PICK -->|small / clear| TDD
+    PICK -->|sizable / ambiguous| ALIGN
+
+    subgraph LOOP["🎯 Align & slice — per feature (PM + the dev who builds it)"]
+        ALIGN["/align ACME-101<br/>shared design concept + API contract"] --> PRD["/to-prd → prd.md"]
+        PRD --> ISS["/to-issues<br/>vertical slices + Given/When/Then criteria"]
+    end
+
+    ISS -->|push back| JIRA[("Jira board<br/>per-repo sub-tasks + blocking (a DAG)")]
+
+    subgraph BLD["🔨 Build — per repo, in parallel"]
+        JIRA --> GRAB{"Dev pulls the top UNBLOCKED<br/>sub-task in their repo"}
+        GRAB --> TDD["/tdd in that repo<br/>red → green → refactor · gate green"]
+        TDD --> GOV["governance (automatic):<br/>safe-logging · audit-logging · redaction"]
+        GOV --> PR["PR → review → merge"]
+        PR -->|unblocks the next slice| GRAB
+    end
+
+    PR --> QA["✅ QA — fresh context<br/>tests → code → manual · criteria pass · demoable end-to-end"]
+    QA --> REL["🚀 Release<br/>gate green across repos · /phi-redaction-check · deploy"]
+```
+
+> Reading it: **plan → pick a feature → align that one feature → slice into per-repo issues → devs grab
+> unblocked slices → TDD-build → QA → release.** Small/clear tickets skip align and go straight to `/tdd`.
+
 ## Non-negotiable principles
 
 1. **Feedback loops are the quality ceiling.** No one-command gate → no good agent output.
