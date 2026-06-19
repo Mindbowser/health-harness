@@ -42,15 +42,17 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
   (runtime — keep PHI *out*), `audit-logging` (runtime — *record* ePHI access for HIPAA).
 - **Entry / front doors:** `start` (router — detect new vs existing + route),
   `scaffold-from-boilerplate` (new repo), `onboard-existing-codebase` (existing repo).
+- **Tracker:** `import-issues` (PULL stories/bugs from Jira/Linear; PUSH-back lives in `to-issues`).
 - **Authoring:** `writing-great-skills`.
 - **Tooling:** `bin/redaction-scan.js` — the deterministic scanner behind `phi-redaction-check`
   (profile-driven, default `hipaa`; tested via `npm test`).
-- **Guide:** `docs/add-to-existing-repo.md` — the one-pager for dropping the harness into any repo.
+- **Guides:** `docs/add-to-existing-repo.md` (drop-in one-pager), `docs/multi-repo.md` (FE/BE/infra
+  workspace pattern), `docs/jira.md` (tracker connection + round-trip).
 
 ## Roadmap (not yet built)
 
-- The ingestion inputs `import-issues`, `from-design`.
+- `from-design` (Figma/prototype ingestion).
+- Workspace-awareness for `/start` + `/sprint` (detect a multi-repo workspace vs a single repo).
   *(A Studio prototype handover is NOT a dev-facing front door — to the receiving dev it's just an
-  existing repo, handled by `/onboard-existing-codebase`. Studio's internal handover generation is a
-  Studio concern, out of scope here.)*
+  existing repo, handled by `/onboard-existing-codebase`.)*
 - `diagnosing-bugs`, `handoff`, `codebase-design` / `improve-codebase-architecture`, stack packs.

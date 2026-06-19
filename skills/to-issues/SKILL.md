@@ -24,8 +24,17 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
    — unblocked issues can run in parallel. Put genuine prefactoring first.
 5. **Quiz the user** on the breakdown before publishing: titles, what each builds end-to-end, the
    blocking graph, and which stories each slice covers. Adjust on feedback.
-6. **Publish** to the tracker in dependency order, each issue carrying: parent/PRD reference,
-   "what to build" (end-to-end behavior), acceptance criteria, and blocked-by.
+6. **Publish back to the tracker** (the PUSH half of the round-trip — `docs/jira.md`). Using the
+   configured tracker MCP (Jira/Linear), in dependency order:
+   - **Enrich each parent story** with detailed **acceptance criteria in Given/When/Then** form (these
+     double as the `/tdd` behavior list) + **links to the spec** (`prd.md`, `api-contract.md`).
+   - **Create the vertical slices as sub-tasks**, tagged per repo (FE/BE/infra), each with "what to
+     build" (end-to-end behavior), its acceptance criteria, and **blocked-by** links (incl. cross-repo).
+   - Tag with the sprint id; mark that it went through the harness.
+   - **Idempotent:** match existing issues by key and *update* them — never create duplicates on a re-run.
+   - If no tracker MCP is connected, write `issues.md` and print the issues for manual entry instead.
+   - **Governance:** a tracker ticket is third-party-visible — run `/phi-redaction-check` on the text
+     you push (criteria, comments). Reference records by id; no PHI/PII/secrets in a ticket.
 
 ## Anti-patterns
 
@@ -40,6 +49,8 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
 - [ ] Every issue has acceptance criteria and a blocked-by list (a real DAG, not a chain).
 - [ ] Prefactoring, if any, is sequenced first.
 - [ ] The user approved the breakdown before publishing.
+- [ ] Parent stories were enriched with Given/When/Then acceptance criteria + spec links; slices pushed
+      as per-repo sub-tasks with blocking (idempotent). Pushed text passed `/phi-redaction-check`.
 - [ ] Issues reference the PRD; the PRD can now be closed (avoid doc-rot).
 
 Next: the agent picks unblocked issues and builds them with `/tdd`.
