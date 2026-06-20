@@ -20,8 +20,10 @@ it — their conventions, their architecture, their IP.
    exists, write one: stack + versions, the run command, the test command, an architecture sketch, the
    conventions to follow (theirs, not MB's), known gotchas, and the seams for the change at hand.
 2b. **Write `.mb-harness/project.json`** — the durable project facts later skills read (don't make them
-   re-derive): repos/submodules + paths, stack, default branch, the gate command, and the tracker coords
-   (`jira.projectKey` / `cloudId` / `site`) if known. See CONTEXT.md for the shape.
+   re-derive): repos/submodules + paths, stack, default branch, the gate command, the tracker coords
+   (`jira.projectKey` / `cloudId` / `site`), and the **`git` convention** — observe existing branches/PRs
+   to capture `baseBranch`, `branchPattern`, `prTarget` (e.g. CH branches a feature off `dev`, PRs to
+   `dev`). `/tdd` uses this so it branches + opens PRs *their* way, not MB's. See CONTEXT.md for the shape.
 2c. **Set `.gitignore`** — add `.mb-harness/sprints/` and `.mb-harness/current-sprint` (scratch/volatile,
    not committed). `project.json` + `compliance.json` + `CLAUDE.md` ARE committed (durable config). The
    PRD/align notes live only locally; their durable form is the Jira ticket.

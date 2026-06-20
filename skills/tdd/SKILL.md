@@ -83,6 +83,20 @@ Put this in the **PR description**, and post a short **Jira comment** on the tic
 "acceptance criteria met." **Run `/phi-redaction-check` on the text first** — a PR/ticket is
 third-party-visible; synthetic examples only, no real PHI/secrets.
 
+## Branch + PR — the skill drives git, you approve the push
+
+Don't make the human do the git plumbing — but **never push without an OK.**
+- **At the start of build, create the working branch yourself** — off the repo's **base branch**, using
+  its **naming convention** (read `.mb-harness/project.json` `git` block / look at existing branches —
+  e.g. CH branches a feature off `dev`; do **not** impose MB's `fix/<KEY>` if the repo does otherwise).
+  Respect the existing flow (brownfield rule).
+- **During:** small, conventional commits referencing the ticket key.
+- **At the end (slice green + proof ready): open the PR** — title + the verification summary as the
+  description, **targeting the repo's PR base** (e.g. `dev`/`QA`, not `main`, if that's their flow),
+  linked to the Jira ticket. **Pushing + opening the PR is outward → do it only on the user's explicit
+  OK.** Never `--force`. Use `gh` if available; otherwise stage the branch+commits and hand the user the
+  exact push/PR command.
+
 ## Anti-patterns
 
 - ❌ **Horizontal TDD** — writing all tests first, then all implementation. Produces imagined, brittle

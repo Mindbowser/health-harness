@@ -85,6 +85,7 @@ re-query Jira for the project key every run).
     "repos": [ {"name":"be","path":".","role":"backend"},
                {"name":"fe","path":"FE/…","role":"frontend","submodule":true} ],
     "stack": "Node/TypeScript",
+    "git": { "baseBranch": "dev", "branchPattern": "<type>/<KEY>-<slug>", "prTarget": "dev" },
     "defaultBranch": "main",
     "gate": "npm test",
     "productDoc": "docs/…",
