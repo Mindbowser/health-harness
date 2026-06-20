@@ -71,6 +71,30 @@ you must do first. From a developer's seat there are **two** front doors (`/star
   PHI values**. Distinct from operational logs (see safe-logging — that keeps PHI *out*; this *records
   access*). Skill: `/audit-logging`.
 
+## The `.mb-harness/` config — one home per fact
+
+Three files, split by how often they change. Skills **read these instead of re-deriving** (e.g. don't
+re-query Jira for the project key every run).
+
+- **`project.json`** — *durable* project facts. Written once by the front door (`/start` →
+  onboard/scaffold), read by everyone after. Shape:
+  ```json
+  {
+    "name": "EHRConnect AWS Marketplace BE",
+    "jira": { "projectKey": "COH", "cloudId": "…", "site": "https://…atlassian.net" },
+    "repos": [ {"name":"be","path":".","role":"backend"},
+               {"name":"fe","path":"FE/…","role":"frontend","submodule":true} ],
+    "stack": "Node/TypeScript",
+    "defaultBranch": "main",
+    "gate": "npm test",
+    "productDoc": "docs/…",
+    "figma": "<url or 'mcp'>"
+  }
+  ```
+- **`compliance.json`** — the governance profile (see Governance terms). Separate, on purpose.
+- **`current-sprint`** — *volatile*: ONLY the active sprint (id, name, dates). **Project/Jira coords do
+  NOT belong here** — they go in `project.json`.
+
 ## Sprint terms
 
 - **Sprint** — a time-boxed batch of many features. The tracker (Jira/Linear) owns the sprint + its

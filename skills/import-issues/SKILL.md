@@ -12,8 +12,10 @@ Connection setup: `docs/jira.md`.
 
 1. **Find the tracker tools.** Use the configured tracker MCP (Jira/Linear) — the search/JQL + get-issue
    tools. If no tracker MCP is connected, say so and accept the stories pasted by the user (then continue).
-2. **Scope the query.** By default, the **active sprint** (read `.mb-harness/current-sprint`) for the
-   relevant project/team — e.g. JQL `sprint in openSprints() AND project = <KEY>`. Narrow by assignee/epic if asked.
+2. **Scope the query.** Read the Jira coords (`projectKey`, `cloudId`, `site`) from
+   `.mb-harness/project.json` — don't re-derive them every run. If `project.json` is missing those, find
+   them once via the MCP and **write them back** so the next run is instant. Then query the **active
+   sprint** (`.mb-harness/current-sprint`) — e.g. JQL `sprint in openSprints() AND project = <KEY>`.
 3. **Request a LEAN field set — do not pull full descriptions for the list.** Ask the tracker for only
    `key, issuetype, status, assignee, summary` (e.g. JQL search with `fields=summary,status,assignee,issuetype`).
    Full descriptions blow the context window — a sprint of 50+ issues will overflow. Pull the **full

@@ -17,6 +17,9 @@ it — their conventions, their architecture, their IP.
 2. **Write a repo `CLAUDE.md`.** Capture what you learned so every future agent session inherits it:
    stack + versions, the one-command to run, the one-command to test, an architecture sketch, the
    conventions to follow (theirs, not MB's), known gotchas, and the seams for the change at hand.
+2b. **Write `.mb-harness/project.json`** — the durable project facts later skills read (don't make them
+   re-derive): repos/submodules + paths, stack, default branch, the gate command, and the tracker coords
+   (`jira.projectKey` / `cloudId` / `site`) if known. See CONTEXT.md for the shape.
 3. **Establish the feedback loop — HARD GATE.** Find the existing gate (tests / typecheck / lint /
    build). Run it.
    - If a working one-command gate exists and passes → record it in `CLAUDE.md`.
