@@ -180,10 +180,3 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
 Read `skills/writing-great-skills/SKILL.md` first, then `docs/authoring.md`. Every skill is reviewed
 against that meta-skill (checkable criteria, no duplication, explicit anti-patterns) and dog-fooded
 once before merge.
-
-## Credit
-
-The discipline is adapted from **Matt Pocock / AI Hero**'s harness-engineering work and his public
-skills library ([`github.com/mattpocock/skills`](https://github.com/mattpocock/skills)). We fork the
-*discipline*, not the library — the content, vocabulary, gates, and healthcare/PHI governance are
-Mindbowser's. Thank you, Matt.
