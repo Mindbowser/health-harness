@@ -59,6 +59,9 @@ After alignment + slicing, write the result back so the tracker reflects reality
 ## Closeout — lifecycle transitions + worklog (from `/tdd`)
 
 The tracker should reflect where the work actually is, and carry the time spent:
+- **Pre-flight:** before starting, check the ticket's status — if it's already **at/past review** (*In
+  Review* / *Ready for QA* / *QA* / *Done* / *Closed* / *Resolved* / *Cancelled*; match the category, not
+  the label), **warn and confirm** before working. Catches wrong keys, reopened/finished work.
 - **Start:** when build begins, move the ticket to **In Progress** (this also anchors the worklog clock).
 - **End:** when the PR is open, move it to **In Review** (= *Ready for QA* — one status in our flow) and
   **comment** the PR link + "acceptance criteria met" + the criteria→test summary.

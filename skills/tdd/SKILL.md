@@ -86,8 +86,15 @@ third-party-visible; synthetic examples only, no real PHI/secrets.
 ## Branch + PR — the skill drives git, you approve the push
 
 Don't make the human do the git plumbing — but **never push without an OK.**
-- **At the start of build, move the ticket to _In Progress_** (via the tracker MCP) and **create the
-  working branch yourself** — off the repo's **base branch**, using its **naming convention** (read
+- **Pre-flight the ticket status — warn before working on something already done/in QA.** Before anything,
+  read the ticket's current status via the tracker MCP. If it's **at or past review** — *In Review* /
+  *Ready for QA* / *QA* / *Done* / *Closed* / *Resolved* / *Cancelled* (status names vary by board — match
+  the **category**, not the exact label) — **STOP and warn**: *"ACME-123 is in `<status>` — it looks done
+  or already under QA. Start work on it anyway?"* Proceed only on the user's explicit confirmation. This
+  catches the wrong ticket key, re-opening finished work, and double-assignment. (A genuine reopen/bugfix
+  is fine once confirmed — then transition back to *In Progress*.)
+- **Then move the ticket to _In Progress_** (via the tracker MCP) and **create the working branch
+  yourself** — off the repo's **base branch**, using its **naming convention** (read
   `.health-harness/project.json` `git` block / look at existing branches — e.g. CH branches a feature off
   `dev`; do **not** impose MB's `fix/<KEY>` if the repo does otherwise). Respect the existing flow
   (brownfield rule). The _In Progress_ transition also **anchors the worklog clock** (its timestamp is the
@@ -141,6 +148,7 @@ reports two figures and the user decides; **don't nudge them up or down.**
 - ❌ Mocking internals / asserting on private state — couples tests to implementation.
 - ❌ Refactoring while a test is red.
 - ❌ Declaring done without running the full gate.
+- ❌ Starting work on a ticket already in QA/Done/Closed without warning + explicit confirmation.
 
 ## Per-cycle checklist (checkable completion)
 
@@ -153,5 +161,6 @@ reports two figures and the user decides; **don't nudge them up or down.**
 - [ ] Green was earned by working behavior — no test deleted/weakened/skipped, no gate bypassed.
 - [ ] No destructive/irreversible action taken; work is on a branch, not force-pushed.
 - [ ] PR + Jira carry the proof: criteria→test map, gate-green, before/after evidence (redaction-checked).
+- [ ] Ticket status pre-flighted: not already in QA/Done/Closed (or the user explicitly confirmed a reopen).
 - [ ] Ticket lifecycle moved: **In Progress** at start → **In Review** (= Ready for QA) at PR open.
 - [ ] Worklog logged at the **user-confirmed** time (or the repo opted out via `timeTracking.logWork:false`).
