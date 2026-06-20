@@ -47,14 +47,20 @@ is unset or looks stale (then have them run `/sprint set <id>`). The goal is to 
 4. **Healthcare check** — note any PHI/PII the item touches + the repo `compliance-profile`.
 5. **Reflect back** the understanding + the acceptance criteria (Given/When/Then) and get a yes.
 
-## Roles — who drives (same skill, two modes)
+## Two modes — state which one (it decides whether you do feasibility)
 
-- **Refinement** (before the sprint; story still thin): **PM/BA drives**, the engineer who'll build it is
-  in the room. Goal: the story is *ready*.
-- **Pick-up** (a dev is starting the item now): **engineer drives**, PM consulted only on a genuine
-  product/security fork. Goal: design locked against the code.
+- **AUTHOR mode** — a **PM/BA** turning intent into **business** acceptance criteria (Given/When/Then),
+  usually solo/async. Do **NOT** deep-dive the code. **Flag** feasibility/technical questions for the
+  engineer; don't resolve them. Output → criteria on the Jira story.
+- **BUILD-PREP mode** — an **engineer** about to build, grounding the ticket in the **current code**
+  (read live files at HEAD, not a snapshot). Add the **technical** criteria (error handling, contract,
+  edge cases, security/PHI) and **do the feasibility here**. Surface genuine forks; pull in the PM only
+  on a product/policy fork.
 
-State which mode you're in so the right people are involved.
+Rule of thumb: **business stories** → a PM AUTHORs solo, the engineer's BUILD-PREP is light (confirm +
+edge cases). **Technical tickets** (bugs, refactors, infra) → the engineer drives; criteria are
+inherently technical. **Feasibility is a BUILD-PREP job, never an AUTHOR-mode deep-dive.** The builder
+must *inherit* the criteria before coding — a clear PM-written ticket satisfies that without a meeting.
 
 ## Anti-patterns
 

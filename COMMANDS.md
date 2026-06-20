@@ -57,3 +57,53 @@ EACH SPRINT:
 The harness only *adds a command at two ceremonies* you already run — **refinement** (`/align` → criteria)
 and **daily dev** (`/tdd`). Everything else (planning, review, QA, demo, retro) is your normal Agile,
 with a governance gate (`/phi-redaction-check`) at the edges.
+
+---
+
+## How each step happens — alone vs. meeting
+
+Most work is **async/solo**; meetings are few.
+
+| Step | Setting |
+|---|---|
+| PM writes business story + acceptance criteria | **PM solo / async** |
+| Backlog refinement | **meeting** — but only for sizable/ambiguous items (clear stories: PM solo) |
+| Sprint planning (commit + estimates) | **meeting** (PM + eng + QA) |
+| Engineer pick-up align, build, code review, QA | **solo / async** (with AI) |
+| Demo / review, Retro | **meeting** (team, + client for demo) |
+
+## Two `align` modes — and when feasibility happens
+
+| Mode | Who | Does | Feasibility? |
+|---|---|---|---|
+| **AUTHOR** | PM/BA | intent → **business** Given/When/Then; flag tech questions | **No** — flag only |
+| **BUILD-PREP** | Engineer | ground in current code → add **technical** criteria | **Yes** — done here |
+
+Business story → PM AUTHORs solo, engineer's BUILD-PREP is light. Technical ticket (bug/refactor/infra)
+→ engineer drives. The builder must *inherit* the criteria before coding — a clear PM-written ticket
+satisfies that **without a meeting**.
+
+## Estimation & velocity (with AI)
+
+- **Engineer estimates** (after BUILD-PREP) → **PM verifies** at planning → **velocity is re-baselined empirically.**
+- Points no longer encode *coding time* — they encode **review + QA + integration + test/gate setup + ambiguity.**
+  That's where time goes now (typing collapses; judging AI output + passing the gate doesn't).
+- **Why the PM verifies:** the risk flips to *under-estimating review/QA*. A "2-hour" AI build can be a
+  "1-day" review+QA on regulated code. The estimate must reflect the human-loop work, not the keystrokes.
+
+## Where the LLM gets project context
+
+Three layers, each with one home:
+- **Architecture / code** → the repo **`CLAUDE.md`** (written by `/onboard-existing-codebase`; a *living*
+  doc — update it when architecture shifts, e.g. in retro).
+- **Product / domain** → a maintained product doc (personas, glossary) — for AUTHOR-mode criteria.
+- **The actual current code** → `align` (BUILD-PREP) and `/tdd` **read live files at HEAD every time**,
+  not a snapshot. So "only up to last sprint" is a non-issue **if you `git pull` and work in the live
+  repo** (a stale clone is the only way it goes out of date).
+
+### Specs / Figma / screenshots
+- **Text spec** → acceptance criteria in the ticket + `align.md`.
+- **Screenshots** → attach to the ticket (the agent reads images); store feature visuals in
+  `.mb-harness/sprints/<sprint>/<feature>/assets/`.
+- **Figma** → the agent can't read a Figma *URL*. Either **export frames as PNGs** and attach, or wire a
+  **Figma MCP** (dev mode) so the agent reads designs directly. For UI-heavy work, prefer the Figma MCP.
