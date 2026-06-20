@@ -85,7 +85,8 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
   on a product/policy fork.
   **It's a code-grounded reality check — and that's the point:** grounding the criteria in real code
   routinely uncovers **latent business/product decisions, false feasibility assumptions, and edge cases**
-  the PM's criteria never resolved (COH-258 surfaced a security fork + 2 assumptions that didn't hold).
+  the PM's criteria never resolved (e.g. grounding a bug-fix once surfaced a security fork + 2 feasibility
+  assumptions that didn't hold).
   When it surfaces a **business/product** decision, **route it back to the PM/architect — or raise it in
   refinement/sprint planning — and do NOT start `/tdd` until it's resolved.** A dev must not silently
   decide a business question. Running BUILD-PREP *before* planning is a great way to surface these early

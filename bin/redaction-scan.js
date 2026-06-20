@@ -189,7 +189,7 @@ function validate(paths, opts) {
 }
 
 // Files changed vs the index (staged) or a base ref (changed) — so the per-PR scan only sees YOUR
-// change, not 261 pre-existing fixtures. Returns relative paths; validate() filters to text files.
+// change, not the pre-existing fixtures already in the repo. Returns relative paths; validate() filters to text files.
 function gitChangedFiles(mode, base) {
   const { execSync } = require('child_process');
   const cmd = mode === 'staged'

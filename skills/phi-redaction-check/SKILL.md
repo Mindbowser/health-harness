@@ -37,7 +37,7 @@ standard scan — see the Studio-only note below.
 1. **Read the profile** to get the active `dataClasses` and `allow` list.
 2. **Run the deterministic scanner — and scan the DIFF, not the whole repo.** The per-PR gate must flag
    only what *your change* introduces; on a real repo a whole-tree scan drowns in pre-existing fixtures
-   (one CH repo: 261 baseline hits). Use:
+   (a real repo can carry hundreds of pre-existing baseline hits). Use:
    - `node bin/redaction-scan.js --staged` (pre-commit) or `--changed <base>` (vs a branch) → only
      changed files. **This is the routine per-PR/per-commit default.**
    - `--path <dir>` → whole-tree, **only for a deliberate baseline audit**, never the routine gate.

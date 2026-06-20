@@ -25,7 +25,7 @@ test('ASK outward / mutating (user approves)', () => {
 test('DEFER normal local work (no decision)', () => {
   assert.strictEqual(decideBash('npm test'), null);
   assert.strictEqual(decideBash('git commit -m "wip"'), null);
-  assert.strictEqual(decideBash('git switch -c fix/COH-258'), null);
+  assert.strictEqual(decideBash('git switch -c fix/ACME-123'), null);
   assert.strictEqual(decideBash('node bin/redaction-scan.js --staged'), null);
   assert.strictEqual(decideBash('ls -la'), null);
 });

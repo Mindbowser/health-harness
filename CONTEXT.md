@@ -80,8 +80,8 @@ re-query Jira for the project key every run).
   onboard/scaffold), read by everyone after. Shape:
   ```json
   {
-    "name": "EHRConnect AWS Marketplace BE",
-    "jira": { "projectKey": "COH", "cloudId": "…", "site": "https://…atlassian.net" },
+    "name": "Acme Patient Portal",
+    "jira": { "projectKey": "ACME", "cloudId": "…", "site": "https://…atlassian.net" },
     "repos": [ {"name":"be","path":".","role":"backend"},
                {"name":"fe","path":"FE/…","role":"frontend","submodule":true} ],
     "stack": "Node/TypeScript",
