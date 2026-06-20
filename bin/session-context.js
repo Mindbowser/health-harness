@@ -70,7 +70,8 @@ async function updateNudge() {
     if (latest) { try { fs.mkdirSync(path.dirname(cacheFile), { recursive: true }); fs.writeFileSync(cacheFile, JSON.stringify({ ts: Date.now(), latest })); } catch { /* ignore */ } }
   }
   if (latest && cmpVersion(latest, installed) > 0) {
-    return `⬆️ Mindbowser Health Harness ${latest} is available (you're on ${installed}) — restart Claude Code to update.`;
+    return `⬆️ Update available: Mindbowser Health Harness ${latest} (you're on ${installed}). `
+      + 'Run `claude plugin marketplace update mindbowser` then restart Claude Code (or just restart if auto-update is on).';
   }
   return '';
 }
