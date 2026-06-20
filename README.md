@@ -149,6 +149,14 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
 your approval, and the catastrophic ones are blocked outright. Tested in `test/outward-guard.test.js`.
 
+## Sound cues (optional)
+
+**Spoken voice** cues for lifecycle events — **Claude waiting** ("Your turn.", People), the **safety gate**
+("Approval needed.", Integrity), **task done** ("Done.", Excellence), **sub-agent done** (Customer).
+**Off by default**; turn on per-person with `export MB_HARNESS_SOUNDS=voice` (or `=chime` for tones).
+Voice is built-in on macOS/Windows and falls back to a bundled chime on Linux without TTS — never silent,
+never clinical-alarm-like. Drop in MB-recorded clips to brand the voice; details in `sounds/README.md`.
+
 ## Install in your project (CLI)
 
 Run these two commands **inside your project directory** (requires the `claude` CLI):
@@ -193,7 +201,10 @@ CONTEXT.md                   # shared vocabulary — single source of truth for 
 docs/                        # authoring guide + the add-to-existing-repo one-pager
 bin/redaction-scan.js        # the deterministic redaction scanner (+ test/)
 bin/worklog-suggest.js       # suggests a Jira worklog time from git activity (+ test/)
-hooks/                       # the wall — outward-guard.js PreToolUse hook (+ test/)
+bin/play-sound.js            # optional spoken-voice cues, opt-in/silent by default (+ test/)
+bin/gen-sounds.js            # generates the cross-platform fallback chime .wav files
+sounds/                      # generated chimes + drop-in MB voice/clip overrides (opt-in)
+hooks/                       # outward-guard.js (the wall) + sound cues (Notification/Stop/SubagentStop)
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
   start/                       # router: detect new vs existing → route to a front door
   scaffold-from-boilerplate/   # front door — new repo
