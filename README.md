@@ -17,7 +17,7 @@ engineer gets the same skills (`/align`, `/to-prd`, `/to-issues`, `/tdd`, …) a
 | Phase | SDLC | Who | What |
 |---|---|---|---|
 | **1. Align** (`/align`) | Requirements→Design | PM/BA + Dev | Relentless interview → a shared design concept + **acceptance criteria**. `/align` detects the item level (epic/story/bug) and **orchestrates phases 2–3 as sub-steps.** |
-| **2. PRD** (`/to-prd`) | Design | *(orchestrated by `/align`)* | Alignment → a disposable destination doc. |
+| **2. PRD** (`/to-prd`) | Design | *(orchestrated by `/align`)* | **Epics / large features only:** consolidate the alignment into a disposable `prd.md` to slice from (local, gitignored — Jira keeps the record). |
 | **3. Slice** (`/to-issues`) | Design | *(orchestrated by `/align`)* | Break into **vertical slices** (schema→API→UI→tests) → Jira sub-tasks with blocking. |
 | **4. Build (AFK)** (`/tdd`) | Implementation+Testing | Engineer + AI | Ticket → *In Progress*; TDD red-green-refactor; gate green; governance; PR + worklog → *In Review*. |
 | **5. QA** | Testing | QA + PM | Verify the acceptance criteria in the running app. Where human taste is imposed. |
@@ -30,9 +30,11 @@ existing codebase — and `/start` picks it for you. See `CONTEXT.md` and `COMMA
 ## How it flows (Agile ceremony → SDLC phase)
 
 The harness **slots into the Scrum cadence you already run** — it doesn't replace it. A human picks the
-*item*; `/align` refines it (orchestrating PRD + slicing) and pushes vertical slices to Jira; devs grab
-the top **unblocked** slice and build it with `/tdd`, which drives the ticket's lifecycle and logs time.
-Governance and the wall run automatically throughout.
+*item*; **`/align` runs in two personas** — a PM/BA refines it (AUTHOR), a dev grounds it in code at
+pick-up (BUILD-PREP) — and it pushes vertical slices to **Jira, the kept spec**. Devs grab the top
+**unblocked** slice and build it with `/tdd`, which drives the ticket's lifecycle and logs time.
+Governance and the wall run automatically throughout. (A consolidation `prd.md` is written only for
+**epics / multi-slice features** — local, disposable scaffolding for slicing; the durable record is Jira.)
 
 ```mermaid
 flowchart TD
@@ -43,18 +45,21 @@ flowchart TD
         SP["/sprint set · /import-issues<br/>pull this sprint's stories + bugs from Jira"] --> PICK{"Human picks ONE item<br/>(epic · story · bug)"}
     end
 
-    subgraph REFINE["🎯 REFINEMENT · Design — /align orchestrates"]
+    subgraph REFINE["🎯 REFINEMENT · Design — PM/BA runs /align (AUTHOR)"]
         direction TB
-        AL["/align the item<br/>detects level → shared concept + acceptance criteria"]
-        AL --> AP["↳ /to-prd · disposable prd.md"]
-        AP --> AS["↳ /to-issues · vertical slices + Given/When/Then"]
+        AL["/align — business acceptance criteria<br/>(detects epic · story · bug)"]
+        AL --> BIG{"epic /<br/>multi-slice?"}
+        BIG -->|yes| PRD["prd.md — consolidation scaffolding<br/>local · disposable · → child stories"]
+        BIG -->|no| SL["/to-issues — vertical slices + Given/When/Then"]
+        PRD --> SL
     end
 
-    JIRA[("🗂️ Jira board · To Do<br/>per-repo sub-tasks + blocking DAG")]
+    JIRA[("🗂️ Jira · To Do — THE KEPT SPEC<br/>criteria on the story + sliced sub-tasks (blocking DAG)")]
 
-    subgraph BUILD["🔨 SPRINT EXECUTION · Implementation + Testing — per slice (AFK)"]
+    subgraph BUILD["🔨 SPRINT EXECUTION · Implementation + Testing — Dev + AI (AFK)"]
         direction TB
-        GRAB["grab top UNBLOCKED slice"] --> WIP["Jira → In Progress<br/>⚠ pre-flight: warn if already in QA/Done"]
+        GRAB["grab top UNBLOCKED slice"] --> BP["/align (BUILD-PREP) · Dev<br/>ground in live code → technical criteria + feasibility"]
+        BP --> WIP["Jira → In Progress<br/>⚠ pre-flight: warn if already in QA/Done"]
         WIP --> TDD["/tdd · red → green → refactor · gate green<br/>governance: safe-logging · audit · redaction"]
         TDD --> PRW["open PR + log worklog<br/>Jira → In Review (= Ready for QA)"]
     end
@@ -67,20 +72,27 @@ flowchart TD
 
     REL["🚀 RELEASE · Deployment<br/>gate green across repos · redaction + audit check · deploy → Jira Done"]
 
-    SETUP -.->|first time only| PLAN
-    PICK -->|sizable / ambiguous| REFINE
+    SETUP -.->|first time only| SP
+    PICK -->|sizable / ambiguous| AL
     PICK -->|small / clear| JIRA
-    REFINE --> JIRA
-    JIRA --> BUILD
-    PRW --> VERIFY
+    SL --> JIRA
+    JIRA --> GRAB
+    PRW --> CR
     QA --> REL
     REL -.->|next item| PICK
 ```
 
 > **Reading it (left = Agile ceremony, right = SDLC phase):** onboard once → at planning pull the sprint
-> and pick one item → `/align` refines + slices it into Jira → devs build unblocked slices with `/tdd`
+> and pick one item → a PM/BA `/align`s it (AUTHOR) into Jira criteria + slices → a dev `/align`s it again
+> at pick-up (BUILD-PREP) for technical criteria + feasibility → builds unblocked slices with `/tdd`
 > (ticket walks **To Do → In Progress → In Review**, worklog logged) → review + QA verify the criteria →
 > release (→ **Done**). Small/clear items skip refinement and go straight to the board.
+>
+> **What to use, and where it lives:** you touch two verbs — **`/align`** (refine) and **`/tdd`** (build).
+> `/to-prd` + `/to-issues` are sub-steps `/align` runs. **`align.md` / `prd.md` are local, disposable,
+> gitignored** working notes under `.health-harness/sprints/` (a `prd.md` is written only for epics/large
+> features) — **not** the source of truth. **Jira is the kept spec** the whole org reads: acceptance
+> criteria on the story + the sliced sub-tasks. Rule of thumb: **refine in `/align`, read the truth in Jira.**
 >
 > **The wall runs across every lane:** push, PR, Jira writes, and a commit on the base branch all stop
 > for your approval; catastrophic actions are blocked outright.
