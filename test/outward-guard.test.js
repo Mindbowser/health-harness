@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard } = require('../hooks/outward-guard.js');
 
 const action = (d) => (d ? d.action : null);
 
@@ -37,6 +37,28 @@ test('MCP writes ASK, reads DEFER', () => {
   assert.strictEqual(action(decideMcp('mcp__atlassian__addCommentToJiraIssue')), 'ask');
   assert.strictEqual(decideMcp('mcp__atlassian__getJiraIssue'), null);
   assert.strictEqual(decideMcp('mcp__atlassian__searchJiraIssuesUsingJql'), null);
+});
+
+test('commit on a base branch ASKs; feature branch / initial commit defer', () => {
+  const onMain = { hasHistory: true, branch: 'main', bases: ['main', 'master'] };
+  const onMaster = { hasHistory: true, branch: 'master', bases: ['main', 'master'] };
+  const onDev = { hasHistory: true, branch: 'dev', bases: ['main', 'master', 'dev'] };  // configured baseBranch
+  const onFeature = { hasHistory: true, branch: 'fix/ACME-123', bases: ['main', 'master', 'dev'] };
+  // base branches → ASK
+  assert.strictEqual(action(decideCommitGuard('git commit -m "wip"', onMain)), 'ask');
+  assert.strictEqual(action(decideCommitGuard('git commit --amend', onMaster)), 'ask');
+  assert.strictEqual(action(decideCommitGuard('git commit -m x', onDev)), 'ask');
+  // feature branch → defer
+  assert.strictEqual(decideCommitGuard('git commit -m x', onFeature), null);
+  // initial commit (no history) → defer
+  assert.strictEqual(decideCommitGuard('git commit -m init', { hasHistory: false }), null);
+  // unknown git state → defer
+  assert.strictEqual(decideCommitGuard('git commit -m x', null), null);
+  // non-commit command → defer even on a base branch
+  assert.strictEqual(decideCommitGuard('git status', onMain), null);
+  // wired through decide() with injected state
+  assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onMain)), 'ask');
+  assert.strictEqual(decide('Bash', { command: 'git commit -m x' }, onFeature), null);
 });
 
 test('decide() routes by tool_name; unknown tools defer', () => {

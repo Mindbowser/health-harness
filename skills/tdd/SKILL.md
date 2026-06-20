@@ -90,6 +90,10 @@ Don't make the human do the git plumbing — but **never push without an OK.**
   its **naming convention** (read `.health-harness/project.json` `git` block / look at existing branches —
   e.g. CH branches a feature off `dev`; do **not** impose MB's `fix/<KEY>` if the repo does otherwise).
   Respect the existing flow (brownfield rule).
+- **Never commit on the base branch.** A freshly-cloned repo sits on `main`/`master` (or the configured
+  `baseBranch`). Branch **before** the first commit — never let work land on the base. The wall enforces
+  this: a `git commit` while HEAD is on a base branch **ASKs**, so an accidental on-base commit stops for
+  your approval. (The repo's very first commit, when there's no history yet, is allowed.)
 - **During:** small, conventional commits referencing the ticket key.
 - **At the end (slice green + proof ready): open the PR** — title + the verification summary as the
   description, **targeting the repo's PR base** (e.g. `dev`/`QA`, not `main`, if that's their flow),
