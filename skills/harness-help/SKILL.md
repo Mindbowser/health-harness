@@ -37,7 +37,8 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
 
 **All commands:** `/role` · `/start` · `/scaffold-from-boilerplate` · `/onboard-existing-codebase` ·
 `/compliance-profile` · `/sprint` · `/import-issues` · `/align` · `/to-prd` · `/to-issues` · `/tdd` ·
-`/phi-redaction-check` · `/safe-logging` · `/audit-logging` · `/writing-great-skills` · `/harness-help`.
+`/phi-redaction-check` · `/safe-logging` · `/audit-logging` · `/writing-great-skills` · `/harness-help` ·
+`/harness-update`.
 
 **Hooks & tools (run under the hood — you don't call these directly):**
 - **The wall** — `hooks/outward-guard.js`, a `PreToolUse` hook. **Blocks** catastrophic actions

@@ -176,7 +176,7 @@ plugin brings **both the skills and the wall hook** (`hooks/outward-guard.js`, a
 They load on the next session, so restart Claude Code (or run `/reload-plugins`), then verify:
 
 ```bash
-claude plugin details health-harness@mindbowser   # → Skills (16) + a PreToolUse hook (the wall)
+claude plugin details health-harness@mindbowser   # → Skills (17) + a PreToolUse hook (the wall)
 ```
 
 Now just type **`/start`** — it detects new vs existing repo, sets the compliance profile (default
@@ -225,6 +225,7 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
   role/                        # your persona (PM / engineer) — picks the /align mode
   writing-great-skills/        # the meta-skill: how to write skills here
   harness-help/                # in-plugin guide (/harness-help) — usable without repo access
+  harness-update/              # one-step plugin update (/harness-update)
 ```
 
 > **Skills are flat by design.** Claude Code discovers plugin skills at `skills/<name>/SKILL.md` (one
