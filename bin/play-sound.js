@@ -18,11 +18,18 @@
 
 const EVENTS = ['waiting', 'gate', 'done', 'subagent'];
 
-// A Notification fires both when Claude just wants attention and when the wall asks for approval.
-// Classify by the message so the two get distinct cues.
+// Which events make a sound by default. The Notification hook also fires on idle / auth pings
+// (`idle_prompt`, `auth_success`) which classify as 'waiting' — those feel random ("your turn" with
+// nothing there), and "Claude finished → your turn" is already covered by the Stop → 'done' cue. So
+// 'waiting' is OFF by default; re-enable per-user with sounds.json `{ "events": { "waiting": true } }`.
+const DEFAULT_EVENT_ON = { waiting: false, gate: true, done: true, subagent: true };
+
+// A Notification fires for permission prompts AND idle/auth/elicitation pings. Classify by the message:
+// approval/permission/elicitation → 'gate' (a real ask); everything else (idle, auth, attention) →
+// 'waiting' (muted by default).
 function classifyNotification(message) {
   const m = String(message || '').toLowerCase();
-  if (/\b(approv|permission|permit|allow|grant|confirm|deny|denied|block|wall|outward)/.test(m)) return 'gate';
+  if (/\b(approv|permission|permit|allow|grant|confirm|deny|denied|block|wall|outward|elicit)/.test(m)) return 'gate';
   return 'waiting';
 }
 
@@ -37,6 +44,7 @@ function classifyNotification(message) {
 function decideSound(event, cfg) {
   if (!cfg || !cfg.enabled) return { action: 'off', reason: 'disabled' };
   if (!EVENTS.includes(event)) return { action: 'off', reason: 'unknown-event' };
+  if (cfg.events && cfg.events[event] === false) return { action: 'off', reason: 'event-muted' };
   const asClip = (p) => (p ? { action: 'clip', target: p } : null);
   const voiceRes = asClip(cfg.voiceClip && cfg.voiceClip[event]);
   const chimeRes = asClip(cfg.clip && cfg.clip[event]);
@@ -66,7 +74,7 @@ function resolveMode(envFlag, fileCfg) {
   return { enabled, mode: mode || (cfg.mode === 'chime' ? 'chime' : 'voice') }; // default voice
 }
 
-module.exports = { decideSound, classifyNotification, resolveMode, EVENTS };
+module.exports = { decideSound, classifyNotification, resolveMode, EVENTS, DEFAULT_EVENT_ON };
 
 // ── CLI / hook entry ────────────────────────────────────────────────────────────
 if (require.main === module) {
@@ -139,6 +147,7 @@ function main() {
   const cfg = {
     enabled,
     mode,
+    events: { ...DEFAULT_EVENT_ON, ...(fileCfg.events || {}) },
     voiceClip: Object.fromEntries(EVENTS.map((e) => [e, findVoiceClip(e)])),
     clip: Object.fromEntries(EVENTS.map((e) => [e, findClip(e)])),
     tts: { available: ttsAvailable, phrase: phrases },

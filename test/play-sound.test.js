@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decideSound, classifyNotification, resolveMode, EVENTS } = require('../bin/play-sound.js');
+const { decideSound, classifyNotification, resolveMode, EVENTS, DEFAULT_EVENT_ON } = require('../bin/play-sound.js');
 
 const PHR = { waiting: 'Your turn.', gate: 'Approval needed.', done: 'Done.', subagent: 'Sub-task complete.' };
 const base = {
@@ -61,6 +61,29 @@ test('classifyNotification splits gate (approval) from waiting (attention)', () 
   assert.strictEqual(classifyNotification('blocked: force-push'), 'gate');
   assert.strictEqual(classifyNotification('Claude is waiting for your input'), 'waiting');
   assert.strictEqual(classifyNotification(''), 'waiting');
+});
+
+test('per-event mute: waiting is OFF by default (idle pings stay silent); gate/done on', () => {
+  assert.deepStrictEqual(DEFAULT_EVENT_ON, { waiting: false, gate: true, done: true, subagent: true });
+  const withEvents = (ev) => withCfg({ events: ev });
+  // default: waiting muted, gate/done/subagent play
+  assert.strictEqual(decideSound('waiting', withEvents(DEFAULT_EVENT_ON)).action, 'off');
+  assert.strictEqual(decideSound('waiting', withEvents(DEFAULT_EVENT_ON)).reason, 'event-muted');
+  assert.notStrictEqual(decideSound('gate', withEvents(DEFAULT_EVENT_ON)).action, 'off');
+  assert.notStrictEqual(decideSound('done', withEvents(DEFAULT_EVENT_ON)).action, 'off');
+  // user re-enables waiting
+  assert.notStrictEqual(decideSound('waiting', withEvents({ ...DEFAULT_EVENT_ON, waiting: true })).action, 'off');
+  // user mutes done
+  assert.strictEqual(decideSound('done', withEvents({ ...DEFAULT_EVENT_ON, done: false })).action, 'off');
+  // no events map → nothing muted (back-compat)
+  assert.notStrictEqual(decideSound('waiting', base).action, 'off');
+});
+
+test('classifyNotification: idle/auth → waiting (muted by default), permission/elicit → gate', () => {
+  assert.strictEqual(classifyNotification('Claude needs your permission to run git push'), 'gate');
+  assert.strictEqual(classifyNotification('MCP server requests elicitation'), 'gate');
+  assert.strictEqual(classifyNotification('Claude is waiting for your input'), 'waiting'); // idle → muted by default
+  assert.strictEqual(classifyNotification('Authenticated successfully'), 'waiting');        // auth → muted by default
 });
 
 test('resolveMode: ON by default in voice mode; env disables/overrides config', () => {

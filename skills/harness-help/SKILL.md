@@ -48,10 +48,11 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
 - **Worklog suggester** — `bin/worklog-suggest.js`, proposes a Jira worklog time from your git activity
   (used by `/tdd`; you confirm the number).
 - **Sound cues** — `bin/play-sound.js` + the `Notification`/`Stop`/`SubagentStop` hooks **speak** a short
-  phrase when Claude's waiting ("Your turn."), the wall asks ("Approval needed."), a task's done, or a
-  sub-agent finishes. Plays bundled voice clips (`sounds/voice/`) on every OS — no TTS install.
-  **ON by default.** To turn it off: **`export MB_HARNESS_SOUNDS=off`** (or `=chime` for tones instead of
-  voice; team-wide off via `.health-harness/sounds.json` `{"enabled":false}`). See `sounds/README.md`.
+  phrase when the wall asks ("Approval needed."), a task's done ("Done."), or a sub-agent finishes.
+  (The "Your turn" idle cue is **off by default** — it fires on idle/auth pings; enable with `sounds.json`
+  `{"events":{"waiting":true}}`.) Plays bundled voice clips (`sounds/voice/`) on every OS — no TTS install.
+  **ON by default.** To turn it off: **`export MB_HARNESS_SOUNDS=off`** (or `=chime` for tones; team-wide
+  off via `.health-harness/sounds.json` `{"enabled":false}`). See `sounds/README.md`.
 
 **Updating the harness.** Restarting Claude Code does **not** fetch a new version on its own. Either turn
 on **auto-update** (`/plugin` → Marketplaces → `mindbowser` → enable auto-update; then it updates at

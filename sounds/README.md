@@ -20,12 +20,20 @@ Team-wide off (committed): `.health-harness/sounds.json` → `{ "enabled": false
 `hooks.json` fires `bin/play-sound.js` on each event. **Default = spoken voice** (a short phrase);
 **chime mode** plays a tone instead.
 
-| Event | Hook | EPIC value | Spoken (voice mode) | Tone (chime mode) |
-|---|---|---|---|---|
-| **Claude waiting** for you | `Notification` | People | "Your turn." | rising chime |
-| **Safety gate** — the wall asks/denies | `Notification` (approval msg) | Integrity | "Approval needed." | falling chime |
-| **Task done** | `Stop` | Excellence | "Done." | success chime |
-| **Sub-agent done** | `SubagentStop` | Customer | "Sub-task complete." | soft tick |
+| Event | Hook | EPIC value | Spoken (voice mode) | Tone (chime mode) | Default |
+|---|---|---|---|---|---|
+| **Claude waiting** for you | `Notification` | People | "Your turn." | rising chime | **off** |
+| **Safety gate** — the wall asks/denies | `Notification` (approval msg) | Integrity | "Approval needed." | falling chime | on |
+| **Task done** | `Stop` | Excellence | "Done." | success chime | on |
+| **Sub-agent done** | `SubagentStop` | Customer | "Sub-task complete." | soft tick | on |
+
+> **Why "Claude waiting" is off by default:** the `Notification` hook also fires on **idle** and **auth**
+> pings (`idle_prompt`, `auth_success`), so it would say "Your turn" when *nothing* actually happened.
+> Completion ("your turn") is already covered by **Done.** (`Stop`). Toggle any event in
+> `.health-harness/sounds.json`:
+> ```json
+> { "enabled": true, "mode": "voice", "events": { "waiting": true, "subagent": false } }
+> ```
 
 ## Voice across platforms — bundled clips, no install
 
