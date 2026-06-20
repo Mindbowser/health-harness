@@ -3,6 +3,28 @@
 How to get the harness onto everyone's machine and keep it current. (Verified against Claude Code's
 plugin docs — see links at the bottom.)
 
+## Editors & agents — where the harness runs
+
+The harness is a **Claude Code plugin**, so it runs wherever **Claude Code** runs — **the editor is just
+the window, Claude Code is the agent.** Same flow, same quality, everywhere it's Claude Code:
+
+| Developer's editor | How to get the full harness | Native agent? |
+|---|---|---|
+| **VS Code** | The **Claude Code VS Code extension** (it *is* Claude Code) — or run `claude` in the integrated terminal. | — |
+| **Cursor** | Run the **`claude` CLI in Cursor's integrated terminal**. Full skills + wall + sounds + auto-update. | ❌ Cursor's own Composer/agent won't load Claude Code plugins. |
+| **Antigravity** (or any IDE w/ a terminal) | Same — run **`claude` in its terminal**. | ❌ its native (Gemini) agent won't load the plugin. |
+| **Terminal / SSH** | `claude` directly. | — |
+
+**The rule for the team:** pick any editor you like, but **use Claude Code as the agent** (its VS Code
+extension, or `claude` in the editor's terminal). The harness travels with Claude Code, identically.
+
+**What does NOT work:** the **native agents** of Cursor (Composer) or Antigravity are *different agents* —
+they don't read Claude Code's `SKILL.md`, `hooks.json`, marketplace, or settings, so the harness's
+**skills, the wall, redaction scanner, sounds, and auto-update won't load there.** The *discipline*
+(Build Loop, vertical slices, TDD, governance) is portable and could be re-expressed as Cursor rules, but
+you'd lose the **enforcement** (the deterministic wall + gates) — so for consistent quality, standardize
+on Claude Code as the agent rather than reimplementing per tool.
+
 ## First rule: use the **GitHub** marketplace, not a local path
 
 Only **GitHub** marketplaces support **auto-update**; a local-path marketplace never auto-updates and must
