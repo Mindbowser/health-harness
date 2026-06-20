@@ -208,10 +208,11 @@ CONTEXT.md                   # shared vocabulary — single source of truth for 
 docs/                        # guides: jira, rollout (+ managed-settings), authoring, multi-repo, mental-model
 bin/redaction-scan.js        # the deterministic redaction scanner (+ test/)
 bin/worklog-suggest.js       # suggests a Jira worklog time from git activity (+ test/)
-bin/play-sound.js            # optional spoken-voice cues, opt-in/silent by default (+ test/)
+bin/play-sound.js            # optional spoken-voice cues, on by default (+ test/)
 bin/gen-sounds.js            # generates the cross-platform fallback chime .wav files
+bin/session-context.js       # SessionStart hook — injects compliance/sprint/gate status (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
-hooks/                       # outward-guard.js (the wall) + sound cues (Notification/Stop/SubagentStop)
+hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart context
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
   start/                       # router: detect new vs existing → route to a front door
   scaffold-from-boilerplate/   # front door — new repo

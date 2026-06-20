@@ -43,6 +43,8 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
 - **The wall** — `hooks/outward-guard.js`, a `PreToolUse` hook. **Blocks** catastrophic actions
   (force-push, `rm -rf /`, drop/truncate table, …) and **asks** before outward ones (push, PR, MCP/Jira
   writes, a commit on the base branch). Always on once the plugin is installed.
+- **Session context** — `bin/session-context.js`, a `SessionStart` hook. Injects a one-line status each
+  session (compliance profile · active sprint · gate), or nudges `/start` on an un-onboarded repo.
 - **Redaction scanner** — `bin/redaction-scan.js`, the deterministic PHI/PII/secrets scan behind
   `/phi-redaction-check`.
 - **Worklog suggester** — `bin/worklog-suggest.js`, proposes a Jira worklog time from your git activity
