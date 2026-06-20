@@ -5,7 +5,7 @@ needs a term not defined here, add it here rather than redefining it locally.
 
 ## The discipline
 
-- **MB Health Harness** — Mindbowser's discipline for building software with AI agents, plus the
+- **Mindbowser Health Harness** — Mindbowser's discipline for building software with AI agents, plus the
   healthcare safety guardrails that make it fast *and* safe. This repo *is* the harness.
 - **Build Loop** — the five-phase method: Align → PRD → Slice → Build (AFK) → QA.
 - **Harness engineer** — a Mindbowser engineer who works inside this discipline (the role we're

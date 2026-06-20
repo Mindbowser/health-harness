@@ -1,6 +1,6 @@
 ---
 name: writing-great-skills
-description: How to author a skill for the MB Health Harness — structure, frontmatter, completion criteria, anti-patterns.
+description: How to author a skill for the Mindbowser Health Harness — structure, frontmatter, completion criteria, anti-patterns.
 disable-model-invocation: true
 ---
 

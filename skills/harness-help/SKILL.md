@@ -1,6 +1,6 @@
 ---
 name: harness-help
-description: Show what the MB Health Harness is and how to use it — the in-plugin guide, no repo access needed.
+description: Show what the Mindbowser Health Harness is and how to use it — the in-plugin guide, no repo access needed.
 disable-model-invocation: true
 argument-hint: "(optional) a section to expand — e.g. 'governance', 'commands'"
 ---

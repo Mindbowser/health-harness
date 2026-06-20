@@ -1,4 +1,4 @@
-# MB Health Harness
+# Mindbowser Health Harness
 
 > Mindbowser's discipline for building **healthcare products with AI agents** — a repeatable build loop
 > plus healthcare-compliance guardrails, installed in every project, improved by everyone.
@@ -11,7 +11,7 @@ falling. That's the whole idea here.
 software *good*. The fundamentals haven't moved in 20+ years: tight **feedback loops**, **tests you
 trust**, **small reversible steps**, **clear interfaces / deep modules**, and **human review where taste
 lives**. Generating code faster doesn't suspend any of that — it *raises the stakes*, because an agent
-produces broken work as fast as good work. The MB Health Harness doesn't invent a new process; it
+produces broken work as fast as good work. The Mindbowser Health Harness doesn't invent a new process; it
 **re-applies those timeless engineering fundamentals as a repeatable discipline**, so a team can move
 *fast* with agents and *not fall*.
 

@@ -1,6 +1,6 @@
-# MB Health Harness — agent instructions
+# Mindbowser Health Harness — agent instructions
 
-You are working in a Mindbowser project that has installed the **MB Health Harness**. Follow this
+You are working in a Mindbowser project that has installed the **Mindbowser Health Harness**. Follow this
 discipline. It overrides ad-hoc habits. Keep it lean; detail lives in `CONTEXT.md` and each skill.
 
 ## The Build Loop

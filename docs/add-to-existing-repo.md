@@ -1,4 +1,4 @@
-# Add MB Health Harness to an existing repo — one-pager
+# Add Mindbowser Health Harness to an existing repo — one-pager
 
 Works on **any** repo — a customer's old codebase, a half-finished project, anything. It adds a
 discipline + healthcare guardrails on top; it does **not** rewrite your code or impose MB boilerplate.

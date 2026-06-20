@@ -1,5 +1,5 @@
 {
-  "//": "MB Health Harness — org-wide rollout via Claude Code managed settings. Deploy via MDM to the OS path in docs/rollout.md (e.g. macOS: /Library/Application Support/ClaudeCode/managed-settings.json). Registers the marketplace, enables the plugin, and auto-updates it at startup for everyone; users can't disable it.",
+  "//": "Mindbowser Health Harness — org-wide rollout via Claude Code managed settings. Deploy via MDM to the OS path in docs/rollout.md (e.g. macOS: /Library/Application Support/ClaudeCode/managed-settings.json). Registers the marketplace, enables the plugin, and auto-updates it at startup for everyone; users can't disable it.",
   "extraKnownMarketplaces": {
     "mindbowser": {
       "source": { "source": "github", "repo": "Mindbowser/health-harness" },
