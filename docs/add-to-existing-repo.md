@@ -6,7 +6,7 @@ discipline + healthcare guardrails on top; it does **not** rewrite your code or 
 ## 1. Install the harness (run inside your repo)
 
 ```bash
-claude plugin marketplace add pravinuttarwar/mb-harness --scope project
+claude plugin marketplace add Mindbowser/mb-harness --scope project
 claude plugin install mb-harness@mindbowser --scope project
 ```
 
