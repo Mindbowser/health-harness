@@ -46,6 +46,12 @@ is unset or looks stale (then have them run `/sprint set <id>`). The goal is to 
    **product/security/policy** fork to the right owner (architect/PM), not just the dev.
 4. **Healthcare check** — note any PHI/PII the item touches + the repo `compliance-profile`.
 5. **Reflect back** the understanding + the acceptance criteria (Given/When/Then) and get a yes.
+6. **Write the criteria where they belong — don't make the human run a second command:**
+   - **AUTHOR mode (PM refining a ticket):** **update the Jira ticket** with the agreed Given/When/Then
+     via the tracker MCP — show them, confirm once (it's an outward write), `/phi-redaction-check` the
+     text first (no PHI/secrets in a ticket), then push. *This is the refinement output — the PM is done;
+     no separate `/to-issues` needed.*
+   - **BUILD-PREP mode (engineer):** save `align.md`; slicing into sub-tasks happens next in `/to-issues`.
 
 ## Two modes — state which one (it decides whether you do feasibility)
 
@@ -81,4 +87,5 @@ to build in a repo → BUILD-PREP. The user can override in one word. Read `.mb-
 - [ ] Depth matched the ambiguity (neither over- nor under-aligned).
 - [ ] Acceptance criteria (Given/When/Then) proposed and confirmed.
 - [ ] Genuine forks (if any) decided by the right owner; PHI/compliance noted.
-- [ ] Shared understanding confirmed → next is `/to-prd`.
+- [ ] Criteria written back — **AUTHOR**: onto the Jira ticket (PM is done); **BUILD-PREP**: into
+      `align.md`, next is `/to-issues` (only a multi-story *feature* needs `/to-prd` first).

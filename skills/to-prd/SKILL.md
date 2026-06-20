@@ -7,6 +7,15 @@ Convert the shared design concept from `/align` into a **PRD**: a destination do
 the agent point at. It is *disposable* — closed/archived once sliced into issues — so it never rots
 into stale guidance. Phase 2 of the Build Loop.
 
+## Who / when / where — and when to SKIP
+
+- **Who:** the **PM/BA** (it's a product artifact).
+- **When:** only for a **multi-story feature/epic** that needs a shared destination beyond per-ticket
+  criteria. **SKIP it for a single ticket or a bug** — there, the acceptance criteria from `/align`
+  (written onto the Jira ticket) ARE the spec; a separate PRD is redundant ceremony.
+- **Where:** `.mb-harness/sprints/<sprint-id>/<feature-slug>/prd.md` — the feature folder. Disposable;
+  close it once `/to-issues` has sliced it.
+
 ## Prerequisite
 
 There must be a real alignment to capture. If you weren't part of an `/align` session and only have a
