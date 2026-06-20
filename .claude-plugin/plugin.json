@@ -1,7 +1,7 @@
 {
   "name": "health-harness",
-  "version": "0.1.28",
-  "description": "MB Health Harness — Mindbowser's AI software-delivery discipline (the Build Loop) and healthcare governance, as Claude Code skills.",
+  "version": "0.1.29",
+  "description": "MB Health Harness — Mindbowser's agent-agnostic discipline for building healthcare products with AI: the Build Loop + healthcare-compliance guardrails. Packaged as Claude Code skills.",
   "author": {
     "name": "Mindbowser"
   },

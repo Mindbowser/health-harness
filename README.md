@@ -1,16 +1,20 @@
 # MB Health Harness
 
-> Mindbowser's discipline for building software *with* AI agents — packaged as Claude Code skills,
-> installed in every project, improved by everyone.
+> Mindbowser's discipline for building **healthcare products with AI agents** — a repeatable build loop
+> plus healthcare-compliance guardrails, installed in every project, improved by everyone.
+> **The discipline is agent-agnostic;** this repo packages it as Claude Code skills.
 
 A **harness** is a safety rig: it's what lets you move fast on dangerous terrain without falling.
-That's the whole idea here. Shipping AI-built software in **healthcare** is dangerous terrain —
-PHI, HIPAA, client IP, regulated data. The MB Health Harness is the set of guardrails + a repeatable
-workflow that let a Mindbowser engineer move *fast* with agents and *not fall*: a tight feedback-loop
-gate, compliance profiles, a redaction check, and a disciplined build loop.
+That's the whole idea here. Building **healthcare products with AI** is dangerous terrain — PHI, HIPAA,
+client IP, regulated data. The MB Health Harness is the set of guardrails + a repeatable workflow that
+let a Mindbowser engineer move *fast* with agents and *not fall*: a tight feedback-loop gate, compliance
+profiles, a redaction check, and a disciplined build loop.
 
-This repo is a [Claude Code](https://claude.com/claude-code) **plugin**. Install it once and every
-engineer gets the same skills (`/align`, `/to-prd`, `/to-issues`, `/tdd`, …) and the same standards.
+**The method is agent-agnostic** — the Build Loop, the gate, vertical slices, and the governance
+guardrails work with any capable AI coding agent. What's tool-specific is only the *packaging*: this repo
+is a [Claude Code](https://claude.com/claude-code) **plugin**, so the install steps, skills, and the
+enforcement hook below are Claude Code mechanics. Install it once and every engineer gets the same skills
+(`/align`, `/to-prd`, `/to-issues`, `/tdd`, …) and the same standards.
 
 ## The Build Loop (the method)
 

@@ -6,12 +6,12 @@ aligned, sliced, acceptance-tested unit of work.
 
 ## How the connection works — an MCP server (recommended)
 
-Claude Code talks to Jira/Linear through an **MCP server**, which gives the agent tools to search
+The agent talks to Jira/Linear through an **MCP server**, which gives it tools to search
 (JQL), read, create, update, and comment on issues. Configure it once per workspace (`.mcp.json` at the
 workspace root, or `claude mcp add`), so the whole team's sessions share it.
 
 - **Jira Cloud →** Atlassian's **official remote MCP server** (OAuth login; no API token in the repo).
-  Add it as a remote MCP in Claude Code and authenticate in the browser.
+  Add it as a remote MCP in your agent and authenticate in the browser.
 - **Jira Server/Data Center, or stricter control →** a **community Jira MCP** run locally (Docker/uvx)
   with a scoped **API token** in an env var (never committed).
 - **Linear →** Linear's MCP server (the skills are tracker-agnostic — they use whatever issue tools exist).
