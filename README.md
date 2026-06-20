@@ -20,14 +20,15 @@ enforcement hook below are Claude Code mechanics. Install it once and every engi
 
 | Phase | SDLC | Who | What |
 |---|---|---|---|
-| **1. Align** (`/align`) | Requirements→Design | PM/BA + Dev | Relentless interview → a shared design concept + **acceptance criteria**. Two personas: **AUTHOR** (PM/BA, at refinement — business criteria) and **BUILD-PREP** (Dev, at pick-up — technical criteria + feasibility). Detects the item level (epic/story/bug) and **orchestrates phases 2–3 as sub-steps.** |
+| **1. Align** (e.g. `/align ACME-258`) | Requirements→Design | PM/BA + Dev | Relentless interview → a shared design concept + **acceptance criteria**. Two personas: **AUTHOR** (PM/BA, at refinement — business criteria) and **BUILD-PREP** (Dev, at pick-up — technical criteria + feasibility). Detects the item level (epic/story/bug) and **orchestrates phases 2–3 as sub-steps.** |
 | **2. PRD** (`/to-prd`) | Design | *(orchestrated by `/align`)* | **Epics / large features only:** consolidate the alignment into a disposable `prd.md` to slice from (local, gitignored — Jira keeps the record). |
-| **3. Slice** (`/to-issues`) | Design | *(orchestrated by `/align`)* | Break into **vertical slices** (schema→API→UI→tests) → Jira sub-tasks with blocking. |
-| **4. Build (AFK)** (`/tdd`) | Implementation+Testing | Engineer + AI | Pre-flight (warn if the ticket is already in QA/Done) → *In Progress*; TDD red-green-refactor; gate green; governance; PR + worklog → *In Review*. |
+| **3. Slice** (`/to-issues`) | Design | *(orchestrated by `/align`)* | Break into **vertical slices** (schema→API→UI→tests) → Jira sub-tasks with blocking (e.g. `ACME-259`, `ACME-260`). |
+| **4. Build (AFK)** (`/tdd`) | Implementation+Testing | Engineer + AI | Build the grabbed slice (e.g. sub-task `ACME-259`): pre-flight (warn if already in QA/Done) → *In Progress*; TDD red-green-refactor; gate green; governance; PR + worklog → *In Review*. |
 | **5. QA** | Testing | QA + PM | Verify the acceptance criteria in the running app. Where human taste is imposed. |
 
-**Operationally you touch just two verbs** — `/align <item>` (refine: criteria + slices pushed to Jira)
-and `/tdd` (build). PRD and slicing are sub-steps `/align` runs, so nobody memorizes which command fits.
+**Operationally you touch just two verbs** — `/align <item>` (refine: criteria + slices pushed to Jira,
+e.g. `/align ACME-258`) and `/tdd` (build the grabbed slice, e.g. sub-task `ACME-259`). PRD and slicing
+are sub-steps `/align` runs, so nobody memorizes which command fits.
 **The middle of the loop is invariant; the *front door* varies** — a new repo from MB boilerplate or an
 existing codebase — and `/start` picks it for you. See `CONTEXT.md` and `COMMANDS.md`.
 
@@ -46,25 +47,25 @@ flowchart TD
 
     subgraph PLAN["📋 SPRINT PLANNING · Requirements"]
         direction TB
-        SP["/sprint set · /import-issues<br/>pull this sprint's stories + bugs from Jira"] --> PICK{"Human picks ONE item<br/>(epic · story · bug)"}
+        SP["/sprint set · /import-issues<br/>pull this sprint's stories + bugs from Jira"] --> PICK{"Human picks ONE item<br/>e.g. story ACME-258"}
     end
 
     subgraph REFINE["🎯 REFINEMENT · Design — PM/BA runs /align (AUTHOR)"]
         direction TB
-        AL["/align — business acceptance criteria<br/>(detects epic · story · bug)"]
+        AL["/align ACME-258<br/>→ business acceptance criteria"]
         AL --> BIG{"epic /<br/>multi-slice?"}
         BIG -->|yes| PRD["prd.md — consolidation scaffolding<br/>local · disposable · → child stories"]
-        BIG -->|no| SL["/to-issues — vertical slices + Given/When/Then"]
+        BIG -->|no| SL["/to-issues → sub-tasks ACME-259, ACME-260 …<br/>vertical slices + Given/When/Then"]
         PRD --> SL
     end
 
-    JIRA[("🗂️ Jira · To Do — THE KEPT SPEC<br/>criteria on the story + sliced sub-tasks (blocking DAG)")]
+    JIRA[("🗂️ Jira · To Do — THE KEPT SPEC<br/>story ACME-258 + sub-tasks ACME-259/260 (blocking DAG)")]
 
     subgraph BUILD["🔨 SPRINT EXECUTION · Implementation + Testing — Dev + AI (AFK)"]
         direction TB
-        GRAB["grab top UNBLOCKED slice"] --> BP["/align (BUILD-PREP) · Dev<br/>ground in live code → technical criteria + feasibility"]
+        GRAB["grab top UNBLOCKED slice<br/>e.g. sub-task ACME-259"] --> BP["/align ACME-259 (BUILD-PREP) · Dev<br/>ground in live code → technical criteria + feasibility"]
         BP --> WIP["Jira → In Progress<br/>⚠ pre-flight: warn if already in QA/Done"]
-        WIP --> TDD["/tdd · red → green → refactor · gate green<br/>governance: safe-logging · audit · redaction"]
+        WIP --> TDD["/tdd · build sub-task ACME-259<br/>red → green → refactor · gate green<br/>governance: safe-logging · audit · redaction"]
         TDD --> PRW["open PR + log worklog<br/>Jira → In Review (= Ready for QA)"]
     end
 
