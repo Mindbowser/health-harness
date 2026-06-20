@@ -95,6 +95,13 @@ re-query Jira for the project key every run).
 - **`current-sprint`** — *volatile*: ONLY the active sprint (id, name, dates). **Project/Jira coords do
   NOT belong here** — they go in `project.json`.
 
+**Git policy — what's committed vs ignored:**
+- **Commit** (durable, team-shared): the repo `CLAUDE.md`, `.mb-harness/project.json`, `.mb-harness/compliance.json`.
+- **Gitignore** (scratch/volatile): `.mb-harness/sprints/` (the `align.md`/**`prd.md`**/`issues.md`) and
+  `.mb-harness/current-sprint`. The PRD is **disposable** — its durable form is the **Jira ticket
+  criteria**, not a committed file. Don't commit working docs (doc-rot + clutters a client repo). The
+  front door adds these ignore rules to `.gitignore`.
+
 ## Sprint terms
 
 - **Sprint** — a time-boxed batch of many features. The tracker (Jira/Linear) owns the sprint + its

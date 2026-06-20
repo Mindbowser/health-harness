@@ -22,6 +22,9 @@ it — their conventions, their architecture, their IP.
 2b. **Write `.mb-harness/project.json`** — the durable project facts later skills read (don't make them
    re-derive): repos/submodules + paths, stack, default branch, the gate command, and the tracker coords
    (`jira.projectKey` / `cloudId` / `site`) if known. See CONTEXT.md for the shape.
+2c. **Set `.gitignore`** — add `.mb-harness/sprints/` and `.mb-harness/current-sprint` (scratch/volatile,
+   not committed). `project.json` + `compliance.json` + `CLAUDE.md` ARE committed (durable config). The
+   PRD/align notes live only locally; their durable form is the Jira ticket.
 3. **Establish the feedback loop — HARD GATE.** Find the existing gate (tests / typecheck / lint /
    build). Run it.
    - If a working one-command gate exists and passes → record it in `CLAUDE.md`.
