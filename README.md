@@ -51,7 +51,7 @@ Governance and the wall run automatically throughout. (A consolidation `prd.md` 
 
 ```mermaid
 flowchart TD
-    SETUP["🔧 ONBOARDING · Inception — once per repo<br/>/start → scaffold | onboard · /compliance-profile · establish the gate"]
+    SETUP["🔧 ONBOARDING · Inception — once per repo<br/>/start → scaffold | onboard · /compliance-profile · connect tracker + git · establish the gate"]
 
     subgraph PLAN["📋 SPRINT PLANNING · Requirements"]
         direction TB

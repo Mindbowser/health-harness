@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { buildContext } = require('../bin/session-context.js');
+const { buildContext, cmpVersion } = require('../bin/session-context.js');
 
 test('un-onboarded repo (no compliance) → /start nudge', () => {
   const c = buildContext({ compliance: null });
@@ -23,6 +23,14 @@ test('non-hipaa → no PHI note; missing sprint/gate get sensible placeholders',
   assert.doesNotMatch(c, /PHI governance ON/);
   assert.match(c, /sprint: none set/);
   assert.match(c, /gate: NOT set/);
+});
+
+test('cmpVersion compares semver-ish versions for the update nudge', () => {
+  assert.strictEqual(cmpVersion('0.1.57', '0.1.53'), 1);   // latest > installed → nudge
+  assert.strictEqual(cmpVersion('0.1.53', '0.1.57'), -1);  // up to date / ahead → no nudge
+  assert.strictEqual(cmpVersion('0.1.57', '0.1.57'), 0);
+  assert.strictEqual(cmpVersion('0.2.0', '0.1.99'), 1);
+  assert.strictEqual(cmpVersion('1.0.0', '0.9.9'), 1);
 });
 
 test('pci repo names the profile, no PHI note', () => {

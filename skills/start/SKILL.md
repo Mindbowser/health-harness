@@ -18,14 +18,22 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    blind (a near-empty repo might still be an existing clone mid-setup).
 3. **Ensure the compliance profile is set.** If `.health-harness/compliance.json` is missing, run
    `/compliance-profile` (default `hipaa`). Both paths need this before work starts.
-4. **Route to the front door:**
+4. **Connect the tracker + confirm git identity (once per project/person).** Set these up *here*, not
+   mid-build:
+   - **Tracker (Jira/Linear) MCP** — verify it's connected (the agent can "list issues in the current
+     sprint"). If not, set it up per `docs/jira.md` (or proceed in **paste-mode**). Record the Jira coords
+     (`projectKey`, `cloudId`, `site`) in `.health-harness/project.json` so `/align`, `/import-issues`, and
+     the `/tdd` worklog don't re-derive them. **Don't hard-block** if it can't connect — note paste-mode.
+   - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
+     commits, PRs, and the harness usage metrics); set it if it's missing or personal.
+5. **Route to the front door:**
 
    | Archetype | Front door |
    |---|---|
    | New repo | `/scaffold-from-boilerplate` |
    | Existing repo (incl. a handed-over project that already has code) | `/onboard-existing-codebase` |
 
-5. **Hand off.** Once the front door's completion criteria are met, the project enters the Build Loop at
+6. **Hand off.** Once the front door's completion criteria are met, the project enters the Build Loop at
    `/align`. The loop is identical for both archetypes from there.
 
 > **The feedback-loop gate check is NOT skippable.** A repo with great docs (CLAUDE.md, ARCHITECTURE.md)
@@ -43,9 +51,11 @@ ingest a handover. It also makes sure the compliance profile is set, which every
 - ❌ Sending an existing repo to `/scaffold-from-boilerplate` (wrong door — it's the existing-repo path).
 - ❌ Committing work on the base branch. A fresh clone lands on `main`/`master` — branch before the first
   commit; never let work land on the base. The wall ASKs on a `git commit` while HEAD is on a base branch.
+- ❌ Discovering mid-build that the tracker isn't connected or git email is personal — set both at onboarding.
 
 ## Completion criteria
 
 - [ ] The archetype is detected (new vs existing) AND confirmed by the user.
 - [ ] `.health-harness/compliance.json` exists (default `hipaa`).
+- [ ] Tracker MCP connected (Jira coords in `project.json`) **or** paste-mode noted; `git user.email` = company email.
 - [ ] The correct front-door skill has been invoked.
