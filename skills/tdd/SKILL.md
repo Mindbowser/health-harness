@@ -65,6 +65,24 @@ Tests verify **behavior through public interfaces**, not implementation details.
 5. **Governance** — no real PHI/PII/secrets in tests or fixtures; use synthetic data per the repo's
    `compliance-profile`.
 
+## Prove it — evidence in the PR + Jira (this is what makes review cheap)
+
+When the slice is green, produce a **verification summary** so the reviewer / QA / PM can confirm it
+*without re-deriving anything*. Review/QA is the real bottleneck now — this is the highest-leverage
+thing you do. The tests are the proof; make that proof legible:
+
+- **Criteria → test map:** each acceptance criterion (the Given/When/Then from `/align`) → the test(s)
+  that cover it → ✓ passing. One line each.
+- **Gate result:** the tests/typecheck/lint summary line (green).
+- **Behavioral evidence:** show it actually works, not just that tests pass — a **before → after** for a
+  fix (e.g. the old leaky JWKS body vs the new generic one), a curl/CLI example, or a screenshot/short
+  recording for UI. This is the "demoable" proof.
+- **Scope honesty:** what's done vs deferred vs intentionally faked.
+
+Put this in the **PR description**, and post a short **Jira comment** on the ticket linking the PR +
+"acceptance criteria met." **Run `/phi-redaction-check` on the text first** — a PR/ticket is
+third-party-visible; synthetic examples only, no real PHI/secrets.
+
 ## Anti-patterns
 
 - ❌ **Horizontal TDD** — writing all tests first, then all implementation. Produces imagined, brittle
@@ -84,3 +102,4 @@ Tests verify **behavior through public interfaces**, not implementation details.
 - [ ] **Every** acceptance criterion is covered (looped to the goal, didn't stop early).
 - [ ] Green was earned by working behavior — no test deleted/weakened/skipped, no gate bypassed.
 - [ ] No destructive/irreversible action taken; work is on a branch, not force-pushed.
+- [ ] PR + Jira carry the proof: criteria→test map, gate-green, before/after evidence (redaction-checked).
