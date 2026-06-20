@@ -8,6 +8,9 @@ team actually sees it (the same way `/align` writes criteria onto the story). An
 disposable working notes, not the deliverable. Phase 2 of the Build Loop — and the **most skippable
 one**: for a single ticket/bug there's no PRD at all.
 
+> **Normally `/align` calls this for you** when you point it at an **Epic** — you don't run it by hand.
+> Invoke it directly only if you're deliberately doing the PRD step alone.
+
 ## Who / when / where — and when to SKIP
 
 - **Who:** the **PM/BA** (it's a product artifact).

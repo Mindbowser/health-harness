@@ -7,6 +7,9 @@ Break a PRD (or plan, or a set of Jira/Linear stories) into **issues**, each ide
 slice**, with explicit blocking relationships so agents can work them in parallel. Phase 3 of the
 Build Loop. Dev/Tech-lead-led — slicing is an architectural act.
 
+> **Normally `/align` calls this for you** when an item is a multi-part Story/Epic — you don't run it by
+> hand. Invoke it directly only if you're deliberately doing the slicing step alone.
+
 ## Wrong tool? — redirect before doing anything
 
 **If this is a single bug or a one-slice change, you do NOT need `/to-issues`.** There's nothing to

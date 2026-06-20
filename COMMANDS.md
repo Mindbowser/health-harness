@@ -45,18 +45,21 @@ ONBOARDING (once)      →  /start → scaffold|onboard → compliance-profile
 ─────────────────────────────────────────────────────────────────────────
 EACH SPRINT:
   Sprint planning      →  /sprint set
-  Refinement (PM+Eng)  →  /import-issues → /align → /to-prd → /to-issues   ← stories get acceptance criteria
+  Refine an item       →  /align <item>      ← reads the Jira TYPE and runs the right chain itself:
+                            • Epic  → PRD on the epic + child user stories
+                            • Story → acceptance criteria (+ slices if multi-part)
+                            • Bug   → criteria → ready for /tdd
+                          (you never call /to-prd or /to-issues by hand — /align orchestrates them)
   Daily dev (Eng+AI)   →  /tdd  (+ safe-logging, audit-logging)            ← AI writes, engineer judges
   Code review          →  PR + /phi-redaction-check
   QA                   →  verify acceptance criteria
-  Review/demo          →  demo
-  Release              →  deploy
-  Retro                →  improve a skill
+  Review/demo / Release / Retro → your normal Agile
 ```
 
-The harness only *adds a command at two ceremonies* you already run — **refinement** (`/align` → criteria)
-and **daily dev** (`/tdd`). Everything else (planning, review, QA, demo, retro) is your normal Agile,
-with a governance gate (`/phi-redaction-check`) at the edges.
+**The whole point:** the human picks the **item**, not the **command**. `/align` detects the level
+(Epic/Story/Bug) and runs the right chain — so across 200 engineers nobody has to remember which command
+fits. Realistically you touch just **two** verbs: `/align <item>` (refine, criteria → Jira) and `/tdd`
+(build). `/to-prd`/`/to-issues` are sub-steps `/align` calls; `/phi-redaction-check` is the governance gate.
 
 ---
 

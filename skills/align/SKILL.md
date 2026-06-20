@@ -7,6 +7,21 @@ argument-hint: "What are we building/fixing? (paste the ticket, idea, transcript
 Reach a **shared design concept** — agreement on what we're building/fixing and why — *before* code.
 The output is alignment + acceptance criteria, not a plan and not the code. Phase 1 of the Build Loop.
 
+## Detect the level → run the right chain (the human picks the ITEM, not the command)
+
+Point `/align` at any Jira item; **read its issue type** and run the right flow automatically — the user
+should NOT have to know whether to call `/to-prd` or `/to-issues`. You orchestrate them (both are
+model-invocable). Drive off the **item type** (it's in Jira); there's no logged-in role to read.
+
+| Item type | What `/align` does (calls, in order) | Output |
+|---|---|---|
+| **Epic** | understand the feature → `/to-prd` (writes the PRD to the **epic**) → propose **child user stories** with criteria → on confirm, create them in Jira | epic PRD + stories |
+| **Story** | understand → write criteria to the **story**; if multi-part, `/to-issues` to slice into sub-tasks | story criteria (+ sub-tasks) |
+| **Bug / Task** | light, proportional understanding → write criteria to the **ticket** → "ready for `/tdd`" | ticket criteria; no PRD/slicing |
+
+So one entry handles everything: epic gets the full PRD→stories breakdown; a bug gets just criteria.
+The **level** decides the chain; **proportionality** (below) decides the depth within it.
+
 ## Match the depth to the ambiguity — the #1 rule
 
 Align is a **dial, not a fixed interrogation**:
@@ -87,5 +102,6 @@ to build in a repo → BUILD-PREP. The user can override in one word. Read `.mb-
 - [ ] Depth matched the ambiguity (neither over- nor under-aligned).
 - [ ] Acceptance criteria (Given/When/Then) proposed and confirmed.
 - [ ] Genuine forks (if any) decided by the right owner; PHI/compliance noted.
-- [ ] Criteria written back — **AUTHOR**: onto the Jira ticket (PM is done); **BUILD-PREP**: into
-      `align.md`, next is `/to-issues` (only a multi-story *feature* needs `/to-prd` first).
+- [ ] Ran the chain for the item's **level** — epic → PRD on the epic + child stories; story → criteria
+      (+ slices if multi-part); bug/task → criteria → ready for `/tdd`. The user picked the item, not the
+      commands; the result is visible **in Jira**, not a local file.
