@@ -37,7 +37,7 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
 ## Built so far (grouped by role; all live flat under `skills/`)
 
 - **Build Loop:** `align`, `to-prd`, `to-issues`, `tdd`.
-- **Sprint:** `sprint` (set/show the active sprint; the loop files artifacts under `.mb-harness/sprints/<id>/`).
+- **Sprint:** `sprint` (set/show the active sprint; the loop files artifacts under `.health-harness/sprints/<id>/`).
 - **Governance:** `compliance-profile`, `phi-redaction-check` (static, pre-export), `safe-logging`
   (runtime — keep PHI *out*), `audit-logging` (runtime — *record* ePHI access for HIPAA).
 - **Entry / front doors:** `start` (router — detect new vs existing + route),

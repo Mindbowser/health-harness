@@ -107,6 +107,6 @@ Three layers, each with one home:
 ### Specs / Figma / screenshots
 - **Text spec** → acceptance criteria in the ticket + `align.md`.
 - **Screenshots** → attach to the ticket (the agent reads images); store feature visuals in
-  `.mb-harness/sprints/<sprint>/<feature>/assets/`.
+  `.health-harness/sprints/<sprint>/<feature>/assets/`.
 - **Figma** → the agent can't read a Figma *URL*. Either **export frames as PNGs** and attach, or wire a
   **Figma MCP** (dev mode) so the agent reads designs directly. For UI-heavy work, prefer the Figma MCP.

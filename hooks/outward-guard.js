@@ -45,14 +45,14 @@ const MCP_WRITE = /(create|update|edit|add|delete|remove|transition|move|assign|
 
 function decideBash(command) {
   const cmd = String(command || '');
-  for (const [re, why] of DENY) if (re.test(cmd)) return { action: 'deny', reason: `mb-harness wall — blocked: ${why}. If genuinely required, a human runs it outside the agent.` };
-  for (const [re, why] of ASK) if (re.test(cmd)) return { action: 'ask', reason: `mb-harness wall: ${why}. Approve to proceed.` };
+  for (const [re, why] of DENY) if (re.test(cmd)) return { action: 'deny', reason: `health-harness wall — blocked: ${why}. If genuinely required, a human runs it outside the agent.` };
+  for (const [re, why] of ASK) if (re.test(cmd)) return { action: 'ask', reason: `health-harness wall: ${why}. Approve to proceed.` };
   return null;
 }
 
 function decideMcp(tool) {
   if (MCP_WRITE.test(String(tool || ''))) {
-    return { action: 'ask', reason: `mb-harness wall: writing to an external system (${tool}). Approve to proceed.` };
+    return { action: 'ask', reason: `health-harness wall: writing to an external system (${tool}). Approve to proceed.` };
   }
   return null;
 }

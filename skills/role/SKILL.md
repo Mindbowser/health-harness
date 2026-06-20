@@ -7,7 +7,7 @@ argument-hint: "pm | engineer | (blank = show current)"
 
 Set or show **your** role. It **persists across all your sessions and projects** and tells `/align`
 which **mode** to default to — so you're not asked every time. It's a personal preference, stored at
-**user level** (`~/.mb-harness/role`), never in the project repo.
+**user level** (`~/.health-harness/role`), never in the project repo.
 
 ## What the roles mean
 
@@ -20,8 +20,8 @@ which **mode** to default to — so you're not asked every time. It's a personal
 
 ## Commands
 
-- `/role` → show the current role (reads `~/.mb-harness/role`).
-- `/role pm` or `/role engineer` → set it and persist to `~/.mb-harness/role`.
+- `/role` → show the current role (reads `~/.health-harness/role`).
+- `/role pm` or `/role engineer` → set it and persist to `~/.health-harness/role`.
 
 ## How it's used (and switched)
 
@@ -36,5 +36,5 @@ which **mode** to default to — so you're not asked every time. It's a personal
 
 ## Completion criteria
 
-- [ ] `~/.mb-harness/role` holds `pm` or `engineer`.
+- [ ] `~/.health-harness/role` holds `pm` or `engineer`.
 - [ ] The active role was shown back to the user.

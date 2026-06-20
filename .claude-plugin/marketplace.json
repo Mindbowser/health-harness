@@ -8,10 +8,10 @@
   },
   "plugins": [
     {
-      "name": "mb-harness",
+      "name": "health-harness",
       "source": "./",
       "description": "MB Health Harness — the Build Loop discipline + healthcare governance, as Claude Code skills.",
-      "version": "0.1.24"
+      "version": "0.1.25"
     }
   ]
 }

@@ -87,7 +87,7 @@ third-party-visible; synthetic examples only, no real PHI/secrets.
 
 Don't make the human do the git plumbing — but **never push without an OK.**
 - **At the start of build, create the working branch yourself** — off the repo's **base branch**, using
-  its **naming convention** (read `.mb-harness/project.json` `git` block / look at existing branches —
+  its **naming convention** (read `.health-harness/project.json` `git` block / look at existing branches —
   e.g. CH branches a feature off `dev`; do **not** impose MB's `fix/<KEY>` if the repo does otherwise).
   Respect the existing flow (brownfield rule).
 - **During:** small, conventional commits referencing the ticket key.

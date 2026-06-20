@@ -10,7 +10,7 @@ customer-facing output.
 
 ## The declaration
 
-The profile lives at `.mb-harness/compliance.json` at the repo root:
+The profile lives at `.health-harness/compliance.json` at the repo root:
 
 ```json
 {
@@ -43,7 +43,7 @@ why). Absent config ⇒ treat as `hipaa`, don't treat as `none`.
 
 ## Process
 
-1. **Read first.** If `.mb-harness/compliance.json` exists, load it and obey it — do not re-ask.
+1. **Read first.** If `.health-harness/compliance.json` exists, load it and obey it — do not re-ask.
 2. **If absent, default to `hipaa`** and write the file (record that it was defaulted). Only set a
    lighter profile when the user explicitly confirms the repo handles no PHI — capture the reason in
    `notes`. **`secrets` is always included** regardless of profile.
@@ -59,7 +59,7 @@ why). Absent config ⇒ treat as `hipaa`, don't treat as `none`.
 
 ## Completion criteria
 
-- [ ] `.mb-harness/compliance.json` exists with a valid `profile` and explicit `dataClasses` (defaulted to `hipaa` if not deliberately chosen).
+- [ ] `.health-harness/compliance.json` exists with a valid `profile` and explicit `dataClasses` (defaulted to `hipaa` if not deliberately chosen).
 - [ ] `secrets` is in `dataClasses`.
 - [ ] The active profile is reflected in the repo `CLAUDE.md`.
 - [ ] `allow` contains only confirmed false-positive strings (no real regulated data).

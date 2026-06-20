@@ -3,7 +3,7 @@
  * redaction-scan.js — the deterministic scanner behind the `phi-redaction-check` skill.
  *
  * Scans files/dirs for regulated data and FAILS (exit 1) on any hit. Profile-driven:
- * it reads `.mb-harness/compliance.json` (see the `compliance-profile` skill) to decide
+ * it reads `.health-harness/compliance.json` (see the `compliance-profile` skill) to decide
  * which classes to enforce. Default profile = `hipaa` (the MB fail-safe).
  *
  * Classes:
@@ -146,7 +146,7 @@ function scanText(text, opts, file) {
 
 function loadConfig(cwd) {
   const root = cwd || process.cwd();
-  const p = path.join(root, '.mb-harness', 'compliance.json');
+  const p = path.join(root, '.health-harness', 'compliance.json');
   let profile = DEFAULT_PROFILE, allow = [], deny = [], classes = null;
   try {
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
