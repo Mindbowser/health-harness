@@ -96,6 +96,11 @@ Don't make the human do the git plumbing — but **never push without an OK.**
   linked to the Jira ticket. **Pushing + opening the PR is outward → do it only on the user's explicit
   OK.** Never `--force`. Use `gh` if available; otherwise stage the branch+commits and hand the user the
   exact push/PR command.
+- **Close the PM→dev loop in Jira:** once the PR is open, **move the ticket** to the repo's review/QA
+  status (e.g. *In Review* / *Ready for QA*) and **comment** the PR link + "acceptance criteria met"
+  (via the tracker MCP). That hands the ticket off to CI + peer review + QA. The dev's job ends at
+  **merge** (CI green + review approved); **QA** then verifies the same criteria in the running app.
+  Address review feedback by looping back through `/tdd`, not by patching around the gate.
 
 ## Anti-patterns
 
