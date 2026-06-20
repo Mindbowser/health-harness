@@ -7,6 +7,7 @@
 
 | # | Command | Agile ceremony / SDLC phase | Frequency | Who drives | How invoked | What it does | Produces |
 |---|---|---|---|---|---|---|---|
+| 0 | `/role` | Personal setup / *pre-work* | Once per person | Each person | **type** | Set your persona (`pm`/`engineer`) — decides your default `/align` mode (AUTHOR vs BUILD-PREP) | `~/.health-harness/role` |
 | 1 | `/start` | Project onboarding / *Inception* | Once per repo | Engineer/lead | **type** | Detect new vs existing repo, ensure compliance profile, route to a front door | routes to #2 or #3 |
 | 2 | `/scaffold-from-boilerplate` | Project onboarding / *Inception* | Once (new repo) | Engineer/lead | agent (via `/start`) | Clone MB boilerplate, wire the gate, set the profile | a ready new repo |
 | 3 | `/onboard-existing-codebase` | Project onboarding / *Inception* | Once (existing repo) | Engineer | agent (via `/start`) | Read repo → write `CLAUDE.md`; **confirm/create a test gate (hard gate)** | repo `CLAUDE.md` + gate |

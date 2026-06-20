@@ -154,11 +154,12 @@ claude plugin install health-harness@mindbowser --scope project
 ```
 
 This writes `.claude/settings.json` (the marketplace source + the enabled plugin). **Commit that file**
-— then everyone who clones the repo gets the harness automatically, no per-person setup. Skills load
-on the next session, so restart Claude Code (or run `/reload-plugins`), then verify:
+— then everyone who clones the repo gets the harness automatically, no per-person setup. Installing the
+plugin brings **both the skills and the wall hook** (`hooks/outward-guard.js`, a `PreToolUse` guard).
+They load on the next session, so restart Claude Code (or run `/reload-plugins`), then verify:
 
 ```bash
-claude plugin details health-harness@mindbowser   # → Skills (11)
+claude plugin details health-harness@mindbowser   # → Skills (15) + a PreToolUse hook (the wall)
 ```
 
 Now just type **`/start`** — it detects new vs existing repo, sets the compliance profile (default
@@ -186,8 +187,10 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
   start/                       # router: detect new vs existing → route to a front door
   scaffold-from-boilerplate/   # front door — new repo
   onboard-existing-codebase/   # front door — existing repo
+  sprint/ import-issues/       # sprint container + pull tracker items
   align/ to-prd/ to-issues/ tdd/          # the Build Loop
-  compliance-profile/ phi-redaction-check/ safe-logging/   # healthcare governance
+  compliance-profile/ phi-redaction-check/ safe-logging/ audit-logging/   # healthcare governance
+  role/                        # your persona (PM / engineer) — picks the /align mode
   writing-great-skills/        # the meta-skill: how to write skills here
 ```
 
