@@ -1,61 +1,67 @@
 ---
 name: align
-description: A relentless interview to reach a shared design concept before any planning or code.
-disable-model-invocation: true
-argument-hint: "What are we building? (paste the idea, ticket, transcript, or prototype link)"
+description: Right-sized interview to reach a shared design concept before code — deep for fuzzy features, near-instant for clear ones.
+argument-hint: "What are we building/fixing? (paste the ticket, idea, transcript, or prototype link)"
 ---
 
-Interview the user relentlessly about every aspect of what they want to build, **until you reach a
-shared design concept** — a mutual understanding of what we're building and why. The output is
-*alignment*, not a plan and not a document. This is phase 1 of the Build Loop. Do NOT jump to a plan.
+Reach a **shared design concept** — agreement on what we're building/fixing and why — *before* code.
+The output is alignment + acceptance criteria, not a plan and not the code. Phase 1 of the Build Loop.
 
-## Why this exists
+## Match the depth to the ambiguity — the #1 rule
 
-The default failure mode of an agent is to eagerly produce a plan from a thin prompt — that's
-"specs-to-code", where nobody actually shares the design concept and you get confident slop. Alignment
-front-loads the disagreement: cheap now, expensive later. Whoever will build (human or agent) must
-*inherit this alignment*, not just a doc written from it.
+Align is a **dial, not a fixed interrogation**:
 
-## Confirm the sprint first (safety — before anything else)
+- **Clear / contained item** (most bugs, small stories, anything already investigated): **confirm your
+  understanding in 2–3 sentences, propose the acceptance criteria, ask AT MOST the one genuine fork,
+  then STOP.** Often that's *zero* questions. Do **not** manufacture questions or write trade-off essays.
+- **Ambiguous / large feature**: walk the design tree one question at a time (each with your recommended
+  answer), only as deep as the open branches require.
 
-Never file silently — a misfiled artifact in a stale sprint is a quiet, expensive mistake.
-1. Read `.mb-harness/current-sprint`. State plainly: **"Aligning feature `<feature-slug>` under sprint
-   `<sprint-id>` → artifacts go to `.mb-harness/sprints/<sprint-id>/<feature-slug>/`. Correct?"** and
-   wait for a yes or a redirect.
-2. If `current-sprint` is **unset** (or the user says it's stale), stop and have them run
-   `/sprint set <id>` first. Don't guess the sprint.
-3. You'll write `align.md` to that feature folder now; `/to-prd` and `/to-issues` add `prd.md` and
-   `issues.md` alongside it.
+If you've already investigated the item and there's no real disagreement left, you're done — say so and
+move to `/to-prd`. **Over-aligning a clear ticket is as much a failure as under-aligning a fuzzy one.**
+
+## Why it exists
+
+An agent's default failure is producing a plan from a thin prompt — "specs-to-code", confident slop.
+Alignment front-loads the real disagreement (cheap now, expensive later). Whoever builds (human or
+agent) must *inherit* this alignment, not just read a doc written from it.
+
+## Confirm the sprint first (safety)
+
+Read `.mb-harness/current-sprint`; state "Aligning `<feature-slug>` under `<sprint-id>` → artifacts go to
+`.mb-harness/sprints/<sprint-id>/<feature-slug>/`. Correct?" and wait. If unset/stale, have the user run
+`/sprint set <id>` first. Don't file silently.
 
 ## Process
 
-1. **Read what you were given** — the idea, ticket, Jira stories, transcript, Figma, or prototype.
-   Identify the design tree: the major decisions and their dependencies.
-2. **Interview one question at a time.** Walk down each branch of the design tree, resolving
-   dependencies one by one. For **every** question, propose your recommended answer and a short why —
-   the user confirms, corrects, or redirects. Never batch a wall of questions.
-3. **Go deep and wide.** Ask about: the real user + their problem, scope boundaries (what's explicitly
-   out), data and edge cases, integrations/constraints, success criteria, and what "done" means.
-   Expect dozens of questions — keep going until the branches are resolved.
-4. **Surface feasibility.** When a desire is technically expensive or risky, say so during alignment,
-   not after. The dev's technical judgment belongs in this room.
-5. **Healthcare check.** Note any PHI/PII/regulated-data the feature touches, and the repo's
-   `compliance-profile`. Flag it as a constraint to carry into the PRD.
-6. **Reflect the shared understanding back** in a few sentences and get explicit confirmation.
+1. **Read what you were given** and, in an existing repo, **ground it in the actual code** so the
+   criteria are real.
+2. **Size it** (the rule above): clear → confirm + criteria + at most one fork; fuzzy → grill the open
+   branches one question at a time, each with a recommended answer.
+3. **Surface only genuine forks** — real decisions with a trade-off the user must own. Route a
+   **product/security/policy** fork to the right owner (architect/PM), not just the dev.
+4. **Healthcare check** — note any PHI/PII the item touches + the repo `compliance-profile`.
+5. **Reflect back** the understanding + the acceptance criteria (Given/When/Then) and get a yes.
+
+## Roles — who drives (same skill, two modes)
+
+- **Refinement** (before the sprint; story still thin): **PM/BA drives**, the engineer who'll build it is
+  in the room. Goal: the story is *ready*.
+- **Pick-up** (a dev is starting the item now): **engineer drives**, PM consulted only on a genuine
+  product/security fork. Goal: design locked against the code.
+
+State which mode you're in so the right people are involved.
 
 ## Anti-patterns
 
-- ❌ Producing a plan, spec, or PRD here. That's `/to-prd`, and only *after* alignment.
-- ❌ Asking many questions at once, or asking without offering a recommended answer.
-- ❌ Accepting vague scope ("make it good"). Pin down what's *out* of scope explicitly.
-- ❌ Hiding technical cost to keep the conversation pleasant.
+- ❌ Interrogating a clear item — **zero questions is a valid align**.
+- ❌ Manufacturing forks or writing trade-off essays when there's no real disagreement.
+- ❌ Producing the plan/PRD here (that's `/to-prd`) or jumping to code.
+- ❌ A wall of questions at once, or a question without your recommended answer.
 
 ## Completion criteria
 
-- [ ] Every major branch of the design tree has a resolved, confirmed answer.
-- [ ] Scope boundaries (in AND out) are explicit and agreed.
-- [ ] Success criteria / definition of done are stated.
-- [ ] PHI/compliance exposure is identified (or confirmed none).
-- [ ] The user has explicitly confirmed your reflected-back understanding.
-
-When done, the natural next step is `/to-prd` to capture this alignment as a destination doc.
+- [ ] Depth matched the ambiguity (neither over- nor under-aligned).
+- [ ] Acceptance criteria (Given/When/Then) proposed and confirmed.
+- [ ] Genuine forks (if any) decided by the right owner; PHI/compliance noted.
+- [ ] Shared understanding confirmed → next is `/to-prd`.

@@ -28,6 +28,11 @@ ingest a handover. It also makes sure the compliance profile is set, which every
 5. **Hand off.** Once the front door's completion criteria are met, the project enters the Build Loop at
    `/align`. The loop is identical for both archetypes from there.
 
+> **The feedback-loop gate check is NOT skippable.** A repo with great docs (CLAUDE.md, ARCHITECTURE.md)
+> can tempt you to skip `/onboard-existing-codebase` — that's fine for the *docs-reading* part, but you
+> MUST still confirm a one-command test gate exists. If `npm test`/equivalent is missing or a stub,
+> establishing it (characterization tests) is the first task before any `/tdd`. No gate → no AFK build.
+
 > A project handed over with code already in it arrives, to you, as an **existing repo** — take the
 > existing-repo door and read any included docs/spec as context. There's no separate path to learn.
 

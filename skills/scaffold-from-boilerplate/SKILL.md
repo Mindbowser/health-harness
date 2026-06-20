@@ -1,7 +1,6 @@
 ---
 name: scaffold-from-boilerplate
 description: Start a new (greenfield) project from MB boilerplate, wired with the gate and a compliance profile.
-disable-model-invocation: true
 argument-hint: "Project name + stack (e.g. 'patient-portal, React+Node')"
 ---
 

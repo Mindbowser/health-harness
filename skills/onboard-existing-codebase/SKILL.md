@@ -1,7 +1,6 @@
 ---
 name: onboard-existing-codebase
 description: Make an existing/customer (brownfield) repo agent-ready — comprehend it, write a repo CLAUDE.md, and establish a feedback loop before any build.
-disable-model-invocation: true
 argument-hint: "What are we here to change/add?"
 ---
 
