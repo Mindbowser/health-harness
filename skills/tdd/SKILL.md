@@ -14,6 +14,35 @@ You cannot do AFK work without a one-command **gate** (tests + typecheck + lint)
 — e.g. a customer's brownfield codebase — establishing it is the FIRST task: write **characterization
 tests** that pin current behavior before changing anything. **Hard gate: no loop, no AFK build.**
 
+## The goal — definition of done (loop until this)
+
+`/tdd` is **goal-driven**: keep looping red→green→refactor until **BOTH**:
+1. **every acceptance criterion** (the Given/When/Then from `/align`) has a test that **failed before**
+   the code and **passes after**, and
+2. the **full one-command gate is green** (tests + typecheck + lint).
+
+Don't stop at the first passing test — work through all the criteria. You're done only when the whole
+slice is demoable end-to-end and the gate is green. Track which criteria are covered so you don't quit early.
+
+## When stuck — stop and surface, never flail or cheat
+
+If a step won't go green after **~2–3 genuine attempts**, or you're thrashing, **STOP and surface to the
+human**: what you tried, the error, your best hypothesis. Do **not** keep making random changes, and
+**never** reach for a shortcut to force green. The gate going green must mean *the behavior works* —
+never that you defeated the check.
+
+**Forbidden ways to "make it pass" (these are failures, not solutions):**
+- ❌ Deleting, skipping (`.skip`/`xfail`), weakening, or commenting out the test.
+- ❌ Loosening an assertion to match wrong output, or asserting on a mock instead of behavior.
+- ❌ `git commit --no-verify`, disabling the gate/lint/typecheck, or editing CI to pass.
+- ❌ Mocking away the very behavior under test, or hardcoding the expected value.
+
+**Never take destructive or irreversible actions to make progress:** no `rm -rf`, no `git push --force`,
+no deleting files you didn't create, no dropping/mutating databases or running migrations, no touching
+prod or real data, no disabling security/safety. Work on a **branch**, small commits, **don't push to a
+remote without explicit OK**. If green seems to require any forbidden action, that's the signal to stop
+and ask — not to do it.
+
 ## Core philosophy
 
 Tests verify **behavior through public interfaces**, not implementation details.
@@ -52,3 +81,6 @@ Tests verify **behavior through public interfaces**, not implementation details.
 - [ ] The code added is minimal for this test — no speculative features.
 - [ ] The full one-command gate is green.
 - [ ] Test data is synthetic (no real PHI/PII/secrets).
+- [ ] **Every** acceptance criterion is covered (looped to the goal, didn't stop early).
+- [ ] Green was earned by working behavior — no test deleted/weakened/skipped, no gate bypassed.
+- [ ] No destructive/irreversible action taken; work is on a branch, not force-pushed.
