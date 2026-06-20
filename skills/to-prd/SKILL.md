@@ -3,9 +3,10 @@ name: to-prd
 description: Turn an alignment session into a disposable PRD — the destination document for the work.
 ---
 
-Convert the shared design concept from `/align` into a **PRD**: a destination document the team and
-the agent point at. It is *disposable* — closed/archived once sliced into issues — so it never rots
-into stale guidance. Phase 2 of the Build Loop.
+Convert the shared design concept from `/align` into a **PRD that lives on the Jira epic** — so the
+team actually sees it (the same way `/align` writes criteria onto the story). Any local copy is
+disposable working notes, not the deliverable. Phase 2 of the Build Loop — and the **most skippable
+one**: for a single ticket/bug there's no PRD at all.
 
 ## Who / when / where — and when to SKIP
 
@@ -13,8 +14,10 @@ into stale guidance. Phase 2 of the Build Loop.
 - **When:** only for a **multi-story feature/epic** that needs a shared destination beyond per-ticket
   criteria. **SKIP it for a single ticket or a bug** — there, the acceptance criteria from `/align`
   (written onto the Jira ticket) ARE the spec; a separate PRD is redundant ceremony.
-- **Where:** `.mb-harness/sprints/<sprint-id>/<feature-slug>/prd.md` — the feature folder. Disposable;
-  close it once `/to-issues` has sliced it.
+- **Where it lives:** the **durable home is the Jira epic** — write Problem/Solution/Decisions/Out-of-scope
+  into the **epic description**, so the team actually sees it (just like `/align` writes criteria onto the
+  story). A local `.mb-harness/sprints/<sprint>/<feature>/prd.md` is at most a **gitignored working
+  draft**, never the deliverable. A PRD nobody reads is pointless — Jira is where it's seen.
 
 ## Prerequisite
 
@@ -38,7 +41,9 @@ sprint is unset, have the user run `/sprint set <id>` first. Don't file silently
    - **Compliance notes** — PHI/PII/regulated data touched + the repo's `compliance-profile`.
 3. **Keep it summarizable, not exhaustive.** The PRD is a hint of the destination; the real work is in
    Slice + QA. Don't over-polish it.
-4. **Save it where issues can reference it**, and mark it for closure once `/to-issues` has run.
+4. **Write it to the Jira epic** so the team sees it + it's durable — show it, run `/phi-redaction-check`
+   on the text, confirm once (outward write), then push via the tracker MCP. Keep a local draft only if
+   genuinely useful; the **epic is the record**, and the draft is gitignored + closed after `/to-issues`.
 
 ## Anti-patterns
 
@@ -52,6 +57,6 @@ sprint is unset, have the user run `/sprint set <id>` first. Don't file silently
 - [ ] Every section present (Problem, Solution, Stories+acceptance, Decisions, Out-of-scope, Compliance).
 - [ ] Every decision traces to the alignment.
 - [ ] Out-of-scope is explicit.
-- [ ] The doc is saved and marked disposable (to close after `/to-issues`).
+- [ ] The PRD is **written to the Jira epic** (visible to the team); any local draft is gitignored + disposable.
 
 Next: `/to-issues` to break this into vertical slices.
