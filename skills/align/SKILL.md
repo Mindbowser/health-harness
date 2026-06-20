@@ -89,10 +89,18 @@ edge cases). **Technical tickets** (bugs, refactors, infra) → the engineer dri
 inherently technical. **Feasibility is a BUILD-PREP job, never an AUTHOR-mode deep-dive.** The builder
 must *inherit* the criteria before coding — a clear PM-written ticket satisfies that without a meeting.
 
-**How the mode is picked:** there's no logged-in role to read, so **infer it and state it, then proceed**
-(don't block). A fresh idea / thin story with no build intent → AUTHOR; a concrete ticket you're about
-to build in a repo → BUILD-PREP. The user can override in one word. Read `.mb-harness/project.json`
-(Jira coords, repos, stack) for project context so you don't re-derive it.
+**How the mode is picked (role → infer → ask):**
+1. **Persisted role first.** Read `~/.mb-harness/role` (set via `/role`): `pm` → default **AUTHOR**;
+   `engineer` → default **BUILD-PREP**.
+2. **Infer if no role.** Fresh idea / thin story, no build intent → AUTHOR; a concrete ticket you're
+   about to build in a repo → BUILD-PREP.
+3. **Ask if still unclear.** If the role is unset AND the item type doesn't decide it, **ask one
+   question and confirm** ("Author business criteria (PM), or build-prep against the code (engineer)?"),
+   then offer to persist it via `/role`.
+4. **Announce it** at the start — *"Acting as **PM · AUTHOR mode**"* (or engineer/BUILD-PREP) — and note
+   *"say 'as engineer' to switch."* Switching mid-item is a one-word override; `/role` changes the default.
+
+Also read `.mb-harness/project.json` (Jira coords, repos, stack) so you don't re-derive project context.
 
 ## Anti-patterns
 

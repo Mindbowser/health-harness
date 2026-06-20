@@ -95,6 +95,13 @@ re-query Jira for the project key every run).
 - **`current-sprint`** — *volatile*: ONLY the active sprint (id, name, dates). **Project/Jira coords do
   NOT belong here** — they go in `project.json`.
 
+### Your role — user-level, persisted, separate from the project
+
+- **`~/.mb-harness/role`** (in your HOME, not the repo) holds **your** role: `pm` or `engineer`. Set via
+  `/role`. It persists across all your sessions + projects and is **personal** (never committed). It sets
+  `/align`'s default **mode** (pm → AUTHOR, engineer → BUILD-PREP). `/align` announces the active role and
+  lets you switch (`/role <x>` or "as engineer"); if it's unset and unclear, `/align` asks + offers to persist.
+
 **Git policy — what's committed vs ignored:**
 - **Commit** (durable, team-shared): the repo `CLAUDE.md`, `.mb-harness/project.json`, `.mb-harness/compliance.json`.
 - **Gitignore** (scratch/volatile): `.mb-harness/sprints/` (the `align.md`/**`prd.md`**/`issues.md`) and
