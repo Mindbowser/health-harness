@@ -48,6 +48,39 @@ auto-updates it at every startup** — for everyone, no per-person steps, and us
 
 Precedence (high→low): **managed** → CLI args → `settings.local.json` → project `settings.json` → user `~/.claude/settings.json`.
 
+### Deploy it with FleetDM (our MDM)
+
+[FleetDM](https://fleetdm.com) (open-source) can drop the file on every host. Simplest cross-platform
+route: a **Fleet script per OS** that writes `managed-settings.json` to the path above — run it across
+hosts, or attach it to a **policy** so drift self-heals.
+
+**macOS / Linux** (Fleet shell script — set `DIR` per OS):
+```bash
+#!/bin/sh
+set -e
+DIR="/Library/Application Support/ClaudeCode"   # Linux: /etc/claude-code
+mkdir -p "$DIR"
+cat > "$DIR/managed-settings.json" <<'JSON'
+{
+  "extraKnownMarketplaces": {
+    "mindbowser": { "source": { "source": "github", "repo": "Mindbowser/health-harness" }, "autoUpdate": true }
+  },
+  "enabledPlugins": { "health-harness@mindbowser": true }
+}
+JSON
+```
+**Windows** (Fleet PowerShell script):
+```powershell
+$dir = "C:\Program Files\ClaudeCode"; New-Item -ItemType Directory -Force -Path $dir | Out-Null
+@'
+{ "extraKnownMarketplaces": { "mindbowser": { "source": { "source": "github", "repo": "Mindbowser/health-harness" }, "autoUpdate": true } }, "enabledPlugins": { "health-harness@mindbowser": true } }
+'@ | Set-Content -Path "$dir\managed-settings.json" -Encoding UTF8
+```
+- **Self-healing (recommended):** add a Fleet **policy** that checks the file exists/matches and wire the
+  script as its remediation, so any host that drifts gets re-corrected automatically.
+- **macOS alternative:** deliver an Apple **configuration profile** for the `com.anthropic.claudecode`
+  managed-preferences domain instead of the file — but the file-script route is uniform across all OSes.
+
 ## Per-repo (no MDM)
 
 Commit `.claude/settings.json` with the **same two blocks** at project scope. On clone, a teammate is
