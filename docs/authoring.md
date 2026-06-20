@@ -46,6 +46,9 @@ user-only) and `argument-hint`. See the meta-skill for the full decision guide.
 - **Authoring:** `writing-great-skills`.
 - **Tooling:** `bin/redaction-scan.js` — the deterministic scanner behind `phi-redaction-check`
   (profile-driven, default `hipaa`; tested via `npm test`).
+- **The wall:** `hooks/hooks.json` + `hooks/outward-guard.js` — a PreToolUse hook that DENIES
+  catastrophic commands and ASKS (user approval) for any outward action (push/PR/Jira-write/infra).
+  Enforcement, not instructions. Tested in `test/outward-guard.test.js`.
 - **Guides:** `docs/delivery-mental-model.md` (the three-plane model + role lenses + clean architecture
   + scaling), `docs/add-to-existing-repo.md` (drop-in one-pager), `docs/multi-repo.md` (FE/BE/infra
   workspace pattern), `docs/jira.md` (tracker connection + round-trip).
