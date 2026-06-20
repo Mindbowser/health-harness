@@ -153,10 +153,10 @@ your approval, and the catastrophic ones are blocked outright. Tested in `test/o
 
 **Spoken voice** cues for lifecycle events — **Claude waiting** ("Your turn.", People), the **safety gate**
 ("Approval needed.", Integrity), **task done** ("Done.", Excellence), **sub-agent done** (Customer).
-**Off by default**; turn on per-person with `export MB_HARNESS_SOUNDS=voice` (or `=chime` for tones).
-Plays **bundled spoken-voice clips** (`sounds/voice/`) via the OS audio player — real voice on **every OS
-incl. Ubuntu, no TTS install**; live TTS / a chime are fallbacks. Soft, never clinical-alarm-like. Swap in
-MB-recorded clips to own the brand voice; details in `sounds/README.md`.
+**ON by default** (voice); **disable per-person with `export MB_HARNESS_SOUNDS=off`** (or `=chime` for
+tones). Plays **bundled spoken-voice clips** (`sounds/voice/`) via the OS audio player — real voice on
+**every OS incl. Ubuntu, no TTS install**. Soft, never clinical-alarm-like. Swap in MB-recorded clips to
+own the brand voice; details in `sounds/README.md`.
 
 ## Install in your project (CLI)
 

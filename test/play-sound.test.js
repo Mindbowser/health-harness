@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decideSound, classifyNotification, EVENTS } = require('../bin/play-sound.js');
+const { decideSound, classifyNotification, resolveMode, EVENTS } = require('../bin/play-sound.js');
 
 const PHR = { waiting: 'Your turn.', gate: 'Approval needed.', done: 'Done.', subagent: 'Sub-task complete.' };
 const base = {
@@ -61,6 +61,26 @@ test('classifyNotification splits gate (approval) from waiting (attention)', () 
   assert.strictEqual(classifyNotification('blocked: force-push'), 'gate');
   assert.strictEqual(classifyNotification('Claude is waiting for your input'), 'waiting');
   assert.strictEqual(classifyNotification(''), 'waiting');
+});
+
+test('resolveMode: ON by default in voice mode; env disables/overrides config', () => {
+  // default: nothing set → ON, voice
+  assert.deepStrictEqual(resolveMode(undefined, undefined), { enabled: true, mode: 'voice' });
+  assert.deepStrictEqual(resolveMode(undefined, {}), { enabled: true, mode: 'voice' });
+  // disable via env (all forms)
+  for (const v of ['off', '0', 'false', 'no', '']) {
+    assert.strictEqual(resolveMode(v, {}).enabled, false, `env ${JSON.stringify(v)} should disable`);
+  }
+  // mode via env
+  assert.deepStrictEqual(resolveMode('chime', {}), { enabled: true, mode: 'chime' });
+  assert.deepStrictEqual(resolveMode('voice', {}), { enabled: true, mode: 'voice' });
+  assert.deepStrictEqual(resolveMode('1', {}), { enabled: true, mode: 'voice' });
+  // config can disable team-wide when no env
+  assert.strictEqual(resolveMode(undefined, { enabled: false }).enabled, false);
+  assert.deepStrictEqual(resolveMode(undefined, { enabled: true, mode: 'chime' }), { enabled: true, mode: 'chime' });
+  // env wins over config
+  assert.strictEqual(resolveMode('off', { enabled: true }).enabled, false);
+  assert.strictEqual(resolveMode('voice', { enabled: false }).enabled, true);
 });
 
 test('EVENTS is the canonical set', () => {

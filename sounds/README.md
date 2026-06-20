@@ -1,19 +1,19 @@
-# MB sound cues (optional)
+# MB sound cues
 
-Spoken voice cues for harness lifecycle events. **Off by default** — each person opts in.
+Spoken voice cues for harness lifecycle events. **ON by default** (voice mode).
 
-## Turn it on (per person)
+## Turn it off / change it
 
 ```bash
-export MB_HARNESS_SOUNDS=voice    # spoken voice (default mode when you enable)
-# or
-export MB_HARNESS_SOUNDS=chime    # short tones instead of voice
-export MB_HARNESS_SOUNDS=off      # disable
+export MB_HARNESS_SOUNDS=off      # disable (per person; env wins over any committed config)
+export MB_HARNESS_SOUNDS=chime    # keep cues but use short tones instead of voice
+export MB_HARNESS_SOUNDS=voice    # explicit voice (the default)
 ```
-…or a local file `.health-harness/sounds.json`:
-```json
-{ "enabled": true, "mode": "voice" }
-```
+Team-wide off (committed): `.health-harness/sounds.json` → `{ "enabled": false }`.
+
+> **Heads-up:** because it's on by default and the plugin installs into every repo, the IDE will *speak*
+> (e.g. "Approval needed") — mind shared screens, meetings, and client demos. `MB_HARNESS_SOUNDS=off`
+> silences it instantly for you.
 
 ## What plays, and when
 

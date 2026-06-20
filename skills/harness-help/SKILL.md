@@ -47,10 +47,11 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
   `/phi-redaction-check`.
 - **Worklog suggester** — `bin/worklog-suggest.js`, proposes a Jira worklog time from your git activity
   (used by `/tdd`; you confirm the number).
-- **Sound cues (optional)** — `bin/play-sound.js` + the `Notification`/`Stop`/`SubagentStop` hooks **speak**
-  a short phrase when Claude's waiting ("Your turn."), the wall asks ("Approval needed."), a task's done,
-  or a sub-agent finishes. Plays bundled voice clips (`sounds/voice/`) on every OS — no TTS install.
-  **Off by default;** enable with `export MB_HARNESS_SOUNDS=voice` (or `=chime` for tones). See `sounds/README.md`.
+- **Sound cues** — `bin/play-sound.js` + the `Notification`/`Stop`/`SubagentStop` hooks **speak** a short
+  phrase when Claude's waiting ("Your turn."), the wall asks ("Approval needed."), a task's done, or a
+  sub-agent finishes. Plays bundled voice clips (`sounds/voice/`) on every OS — no TTS install.
+  **ON by default.** To turn it off: **`export MB_HARNESS_SOUNDS=off`** (or `=chime` for tones instead of
+  voice; team-wide off via `.health-harness/sounds.json` `{"enabled":false}`). See `sounds/README.md`.
 
 **Go deeper (if you have repo access):** the repo `README.md` (the flow diagram), `COMMANDS.md` (every
 command mapped to its Agile ceremony + SDLC phase), and `CONTEXT.md` (the vocabulary).

@@ -5,9 +5,9 @@
  * Wired from hooks.json: Notification (Claude waiting / the wall asking), Stop (task done),
  * SubagentStop (a sub-agent finished). Maps an event → a sound and plays it.
  *
- * OPT-IN / SILENT BY DEFAULT. Plugin hooks run for everyone, so this no-ops unless the user turns it on
- * (env `MB_HARNESS_SOUNDS=1`, or `.health-harness/sounds.json` `{ "enabled": true }`). Never blocks,
- * never throws — fire-and-forget, always exits 0, so it can't disrupt a session.
+ * ON BY DEFAULT (voice mode). Disable per-person with `MB_HARNESS_SOUNDS=off` (env wins over config), or
+ * team-wide with `.health-harness/sounds.json` `{ "enabled": false }`. `MB_HARNESS_SOUNDS=chime` swaps
+ * voice for tones. Never blocks, never throws — fire-and-forget, always exits 0, can't disrupt a session.
  *
  * Resolution per event (first that's available wins): MB clip → gentle OS system sound → spoken phrase.
  * Healthcare-appropriate: defaults are soft cues, NOT clinical-alarm tones.
@@ -47,7 +47,26 @@ function decideSound(event, cfg) {
   return order.find(Boolean) || { action: 'off', reason: 'no-output' };
 }
 
-module.exports = { decideSound, classifyNotification, EVENTS };
+/**
+ * Pure: resolve enabled + mode from the env flag and an optional config object.
+ * Default is ON in voice mode. Env wins over config; `off`/`0`/`false`/`no`/empty disables.
+ * Returns { enabled, mode:'voice'|'chime' }.
+ */
+function resolveMode(envFlag, fileCfg) {
+  const cfg = fileCfg || {};
+  let enabled, mode;
+  if (envFlag !== undefined && envFlag !== null) {
+    const norm = String(envFlag).trim().toLowerCase();
+    if (/^(0|false|off|no|)$/.test(norm)) return { enabled: false, mode: 'voice' };
+    enabled = true;
+    if (norm === 'voice' || norm === 'chime') mode = norm;
+  } else {
+    enabled = cfg.enabled !== undefined ? !!cfg.enabled : true; // default ON
+  }
+  return { enabled, mode: mode || (cfg.mode === 'chime' ? 'chime' : 'voice') }; // default voice
+}
+
+module.exports = { decideSound, classifyNotification, resolveMode, EVENTS };
 
 // ── CLI / hook entry ────────────────────────────────────────────────────────────
 if (require.main === module) {
@@ -88,16 +107,7 @@ function main() {
   // MB_HARNESS_SOUNDS: off|0|false → off · voice → spoken · chime → tones · 1|on|true → on (default mode).
   let fileCfg = {};
   try { fileCfg = JSON.parse(fs.readFileSync(path.join(process.cwd(), '.health-harness', 'sounds.json'), 'utf8')); } catch { /* none */ }
-  const envFlag = process.env.MB_HARNESS_SOUNDS;
-  const norm = envFlag === undefined ? undefined : String(envFlag).trim().toLowerCase();
-  let enabled, mode;
-  if (norm !== undefined) {
-    if (/^(0|false|off|no|)$/.test(norm)) enabled = false;
-    else { enabled = true; if (norm === 'voice' || norm === 'chime') mode = norm; }
-  } else {
-    enabled = !!fileCfg.enabled;
-  }
-  mode = mode || (fileCfg.mode === 'chime' ? 'chime' : 'voice'); // default: spoken voice
+  const { enabled, mode } = resolveMode(process.env.MB_HARNESS_SOUNDS, fileCfg);
 
   // ── clip lookup: user override path, else a bundled file under sounds/[subdir/]<event>.(wav|aiff|mp3) ──
   const exists = (p) => { try { return p && fs.existsSync(p) ? p : null; } catch { return null; } };

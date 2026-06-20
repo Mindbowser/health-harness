@@ -1,6 +1,6 @@
 {
   "name": "health-harness",
-  "version": "0.1.42",
+  "version": "0.1.43",
   "private": true,
   "description": "MB Health Harness — an agent-agnostic discipline for building healthcare products with AI: the Build Loop + healthcare-compliance guardrails. Packaged as Claude Code skills.",
   "bin": {
