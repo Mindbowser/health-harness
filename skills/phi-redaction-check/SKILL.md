@@ -35,12 +35,16 @@ standard scan — see the Studio-only note below.
 ## Process
 
 1. **Read the profile** to get the active `dataClasses` and `allow` list.
-2. **Run the deterministic scanner — don't eyeball.** The harness ships it at
-   `bin/redaction-scan.js`: `node bin/redaction-scan.js --path <export-dir>` (it auto-loads
-   `.mb-harness/compliance.json`, defaults to `hipaa`, exit 1 on hits, returns
-   `{ file, line, class, snippet }`). Pattern matching is more reliable than reading.
-3. **Scope the scan** to what's actually leaving: the export dir / staged diff / the artifact in hand —
-   not `node_modules`, build output, or `.git`.
+2. **Run the deterministic scanner — and scan the DIFF, not the whole repo.** The per-PR gate must flag
+   only what *your change* introduces; on a real repo a whole-tree scan drowns in pre-existing fixtures
+   (one CH repo: 261 baseline hits). Use:
+   - `node bin/redaction-scan.js --staged` (pre-commit) or `--changed <base>` (vs a branch) → only
+     changed files. **This is the routine per-PR/per-commit default.**
+   - `--path <dir>` → whole-tree, **only for a deliberate baseline audit**, never the routine gate.
+   - `--json` for clean machine output. Auto-loads `.mb-harness/compliance.json` (default `hipaa`),
+     exit 1 on hits, returns `{ file, line, class, snippet }`. Pattern matching beats eyeballing.
+3. **Pre-existing baseline ≠ your problem.** Hits in files you didn't touch are the repo's baseline
+   (synthetic fixtures, example ARNs). Don't try to fix them — diff-scoping (step 2) excludes them.
 4. **Respect `allow`** — exact-string exemptions only (confirmed false positives).
 5. **On any hit: BLOCK.** Report file:line + class + snippet. Do not redact-in-place silently and
    proceed — surface it so a human fixes the source (or adds a true false-positive to `allow`).

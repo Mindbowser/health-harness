@@ -188,22 +188,44 @@ function validate(paths, opts) {
   return { ok: hits.length === 0, hits };
 }
 
-module.exports = { classesForProfile, scanText, validate, loadConfig, luhnValid, PROFILE_CLASSES, DEFAULT_PROFILE };
+// Files changed vs the index (staged) or a base ref (changed) — so the per-PR scan only sees YOUR
+// change, not 261 pre-existing fixtures. Returns relative paths; validate() filters to text files.
+function gitChangedFiles(mode, base) {
+  const { execSync } = require('child_process');
+  const cmd = mode === 'staged'
+    ? 'git diff --cached --name-only --diff-filter=ACMR'
+    : `git diff --name-only --diff-filter=ACMR ${base || 'HEAD'}`;
+  try { return execSync(cmd, { encoding: 'utf8' }).split(/\r?\n/).map((s) => s.trim()).filter(Boolean); }
+  catch { return []; }
+}
+
+module.exports = { classesForProfile, scanText, validate, loadConfig, luhnValid, gitChangedFiles, PROFILE_CLASSES, DEFAULT_PROFILE };
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (require.main === module) {
   const argv = process.argv.slice(2);
-  const get = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : undefined; };
-  const target = get('--path') || get('--file');
-  if (!target) { process.stderr.write('usage: redaction-scan.js --path <dir|file> [--profile <p>] [--config <json>]\n'); process.exit(2); }
+  const has = (f) => argv.includes(f);
+  const get = (f) => { const i = argv.indexOf(f); const v = i >= 0 ? argv[i + 1] : undefined; return (v && !v.startsWith('--')) ? v : undefined; };
+  const jsonOut = has('--json');
   const cfg = loadConfig();
   const profile = get('--profile');
   if (profile) { cfg.profile = profile; cfg.classes = classesForProfile(profile); if (!cfg.classes.includes('secrets')) cfg.classes = cfg.classes.concat('secrets'); }
   const cfgPath = get('--config');
   if (cfgPath) { try { Object.assign(cfg, JSON.parse(fs.readFileSync(cfgPath, 'utf8'))); } catch (e) { process.stderr.write(`bad --config: ${e.message}\n`); process.exit(2); } }
-  const { ok, hits } = validate(target, { classes: cfg.classes, allow: cfg.allow, deny: cfg.deny });
-  if (ok) { process.stdout.write(`redaction: clean (profile=${cfg.profile}, classes=${cfg.classes.join(',')})\n`); process.exit(0); }
+
+  // Targets: --staged / --changed [base] scan ONLY the diff (the per-PR gate); --path scans a tree (baseline audit).
+  let targets, scope;
+  if (has('--staged')) { targets = gitChangedFiles('staged'); scope = 'staged diff'; }
+  else if (has('--changed')) { targets = gitChangedFiles('changed', get('--changed')); scope = `diff vs ${get('--changed') || 'HEAD'}`; }
+  else { const t = get('--path') || get('--file'); if (!t) { process.stderr.write('usage: redaction-scan.js (--staged | --changed [base] | --path <dir|file>) [--profile <p>] [--config <json>] [--json]\n'); process.exit(2); } targets = [t]; scope = t; }
+
+  if (!targets.length) { // no changed files = clean
+    process.stdout.write(jsonOut ? '[]\n' : `redaction: clean (no changed files)\n`); process.exit(0);
+  }
+  const { ok, hits } = validate(targets, { classes: cfg.classes, allow: cfg.allow, deny: cfg.deny });
+  if (jsonOut) { process.stdout.write(JSON.stringify(hits, null, 2) + '\n'); process.exit(ok ? 0 : 1); }
+  if (ok) { process.stdout.write(`redaction: clean (${scope}, profile=${cfg.profile}, classes=${cfg.classes.join(',')})\n`); process.exit(0); }
   process.stderr.write(JSON.stringify(hits, null, 2) + '\n');
-  process.stderr.write(`redaction: ${hits.length} hit(s) [profile=${cfg.profile}]\n`);
+  process.stderr.write(`redaction: ${hits.length} hit(s) in ${scope} [profile=${cfg.profile}]\n`);
   process.exit(1);
 }
