@@ -21,6 +21,14 @@ test('unknown event → off', () => {
   assert.strictEqual(decideSound('explode', base).action, 'off');
 });
 
+test('voice mode: bundled voice clip wins over live TTS (cross-platform, no install)', () => {
+  const cfg = withCfg({ mode: 'voice', voiceClip: { done: 'sounds/voice/done.wav' } });
+  const d = decideSound('done', cfg);
+  assert.deepStrictEqual([d.action, d.target], ['clip', 'sounds/voice/done.wav']);
+  // no voice clip for this event → live TTS
+  assert.strictEqual(decideSound('gate', cfg).action, 'tts');
+});
+
 test('voice mode: spoken phrase wins, falls back to clip if no TTS', () => {
   let d = decideSound('done', withCfg({ mode: 'voice' }));
   assert.deepStrictEqual([d.action, d.target], ['tts', 'Done.']);

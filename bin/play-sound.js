@@ -28,20 +28,22 @@ function classifyNotification(message) {
 
 /**
  * Pure decision: given an event + capability config, what do we play?
- * cfg = { enabled, mode:'chime'|'voice', clip:{event:path|null}, tts:{available, phrase:{event:text}} }
- * - voice mode: spoken TTS → (fallback) bundled clip → off.
- * - chime mode (default): bundled clip → (fallback) spoken TTS → off.
+ * cfg = { enabled, mode:'chime'|'voice', voiceClip:{event:path|null}, clip:{event:path|null},
+ *         tts:{available, phrase:{event:text}} }
+ * - voice mode: bundled VOICE clip → live spoken TTS → (fallback) chime clip → off.
+ * - chime mode (default): chime clip → (fallback) spoken TTS → off.
  * Returns { action:'clip'|'tts'|'off', target?, reason? }.
  */
 function decideSound(event, cfg) {
   if (!cfg || !cfg.enabled) return { action: 'off', reason: 'disabled' };
   if (!EVENTS.includes(event)) return { action: 'off', reason: 'unknown-event' };
-  const clipPath = cfg.clip && cfg.clip[event];
-  const clipRes = clipPath ? { action: 'clip', target: clipPath } : null;
+  const asClip = (p) => (p ? { action: 'clip', target: p } : null);
+  const voiceRes = asClip(cfg.voiceClip && cfg.voiceClip[event]);
+  const chimeRes = asClip(cfg.clip && cfg.clip[event]);
   const ttsRes = cfg.tts && cfg.tts.available
     ? { action: 'tts', target: (cfg.tts.phrase && cfg.tts.phrase[event]) || event }
     : null;
-  const order = cfg.mode === 'voice' ? [ttsRes, clipRes] : [clipRes, ttsRes];
+  const order = cfg.mode === 'voice' ? [voiceRes, ttsRes, chimeRes] : [chimeRes, ttsRes];
   return order.find(Boolean) || { action: 'off', reason: 'no-output' };
 }
 
@@ -97,17 +99,19 @@ function main() {
   }
   mode = mode || (fileCfg.mode === 'chime' ? 'chime' : 'voice'); // default: spoken voice
 
-  // ── clip per event: user override path, else the bundled cross-platform default sounds/<event>.wav ──
+  // ── clip lookup: user override path, else a bundled file under sounds/[subdir/]<event>.(wav|aiff|mp3) ──
   const exists = (p) => { try { return p && fs.existsSync(p) ? p : null; } catch { return null; } };
-  const findClip = (ev) => {
-    const override = fileCfg.clips && fileCfg.clips[ev];
+  const findIn = (ev, subdir, overrideMap) => {
+    const override = overrideMap && overrideMap[ev];
     if (override) return exists(path.isAbsolute(override) ? override : path.join(process.cwd(), override));
     for (const ext of ['wav', 'aiff', 'mp3']) {
-      const p = path.join(pluginRoot, 'sounds', `${ev}.${ext}`);
+      const p = path.join(pluginRoot, 'sounds', subdir, `${ev}.${ext}`);
       if (exists(p)) return p;
     }
     return null;
   };
+  const findClip = (ev) => findIn(ev, '', fileCfg.clips);            // chimes: sounds/<event>.wav
+  const findVoiceClip = (ev) => findIn(ev, 'voice', fileCfg.voiceClips); // voice: sounds/voice/<event>.wav
 
   const phrases = Object.assign(
     { waiting: 'Your turn.', gate: 'Approval needed.', done: 'Done.', subagent: 'Sub-task complete.' },
@@ -125,6 +129,7 @@ function main() {
   const cfg = {
     enabled,
     mode,
+    voiceClip: Object.fromEntries(EVENTS.map((e) => [e, findVoiceClip(e)])),
     clip: Object.fromEntries(EVENTS.map((e) => [e, findClip(e)])),
     tts: { available: ttsAvailable, phrase: phrases },
   };

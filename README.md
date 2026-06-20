@@ -154,8 +154,9 @@ your approval, and the catastrophic ones are blocked outright. Tested in `test/o
 **Spoken voice** cues for lifecycle events — **Claude waiting** ("Your turn.", People), the **safety gate**
 ("Approval needed.", Integrity), **task done** ("Done.", Excellence), **sub-agent done** (Customer).
 **Off by default**; turn on per-person with `export MB_HARNESS_SOUNDS=voice` (or `=chime` for tones).
-Voice is built-in on macOS/Windows and falls back to a bundled chime on Linux without TTS — never silent,
-never clinical-alarm-like. Drop in MB-recorded clips to brand the voice; details in `sounds/README.md`.
+Plays **bundled spoken-voice clips** (`sounds/voice/`) via the OS audio player — real voice on **every OS
+incl. Ubuntu, no TTS install**; live TTS / a chime are fallbacks. Soft, never clinical-alarm-like. Swap in
+MB-recorded clips to own the brand voice; details in `sounds/README.md`.
 
 ## Install in your project (CLI)
 
@@ -203,7 +204,7 @@ bin/redaction-scan.js        # the deterministic redaction scanner (+ test/)
 bin/worklog-suggest.js       # suggests a Jira worklog time from git activity (+ test/)
 bin/play-sound.js            # optional spoken-voice cues, opt-in/silent by default (+ test/)
 bin/gen-sounds.js            # generates the cross-platform fallback chime .wav files
-sounds/                      # generated chimes + drop-in MB voice/clip overrides (opt-in)
+sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
 hooks/                       # outward-guard.js (the wall) + sound cues (Notification/Stop/SubagentStop)
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
   start/                       # router: detect new vs existing → route to a front door

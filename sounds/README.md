@@ -27,19 +27,19 @@ export MB_HARNESS_SOUNDS=off      # disable
 | **Task done** | `Stop` | Excellence | "Done." | success chime |
 | **Sub-agent done** | `SubagentStop` | Customer | "Sub-task complete." | soft tick |
 
-## Voice across platforms
+## Voice across platforms — bundled clips, no install
 
-| OS | Voice | Notes |
-|---|---|---|
-| macOS | `say` | built-in, natural |
-| Windows | PowerShell `SpeechSynthesizer` | built-in |
-| Ubuntu/Linux | `spd-say` / `espeak` if installed | **else auto-falls back to the chime `.wav`** (never silent) |
+Voice mode plays **bundled spoken clips** in `sounds/voice/<event>.wav` via the OS audio player
+(`afplay` / `aplay`/`paplay` / PowerShell). So **every OS — incl. Ubuntu — gets real spoken voice with
+zero TTS install.** Resolution per event: **bundled voice clip → live TTS → chime → off.**
 
-So voice mode is safe everywhere: real speech where TTS exists, the bundled chime where it doesn't.
+> The bundled `sounds/voice/*.wav` were generated with macOS `say` (Apple voice). To fully own the brand
+> voice (and avoid shipping a vendor voice), **replace them with MB recordings** — see below. Delete a
+> file to fall back to live TTS for that event.
 
-### Linux: enable real voice (one-time, per machine)
+### Optional: live TTS (only if you remove the bundled clips, or want a different voice)
 
-The harness won't auto-install system packages (needs `sudo`, varies by distro). Pick one:
+macOS (`say`) and Windows (PowerShell) speak out of the box. On Linux, install one:
 
 ```bash
 # Basic, tiny, ubiquitous (robotic but clear):

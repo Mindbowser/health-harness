@@ -49,8 +49,8 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
   (used by `/tdd`; you confirm the number).
 - **Sound cues (optional)** — `bin/play-sound.js` + the `Notification`/`Stop`/`SubagentStop` hooks **speak**
   a short phrase when Claude's waiting ("Your turn."), the wall asks ("Approval needed."), a task's done,
-  or a sub-agent finishes. **Off by default;** enable with `export MB_HARNESS_SOUNDS=voice` (or `=chime`
-  for tones). See `sounds/README.md`.
+  or a sub-agent finishes. Plays bundled voice clips (`sounds/voice/`) on every OS — no TTS install.
+  **Off by default;** enable with `export MB_HARNESS_SOUNDS=voice` (or `=chime` for tones). See `sounds/README.md`.
 
 **Go deeper (if you have repo access):** the repo `README.md` (the flow diagram), `COMMANDS.md` (every
 command mapped to its Agile ceremony + SDLC phase), and `CONTEXT.md` (the vocabulary).
