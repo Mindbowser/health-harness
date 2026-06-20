@@ -210,9 +210,11 @@ bin/redaction-scan.js        # the deterministic redaction scanner (+ test/)
 bin/worklog-suggest.js       # suggests a Jira worklog time from git activity (+ test/)
 bin/play-sound.js            # optional spoken-voice cues, on by default (+ test/)
 bin/gen-sounds.js            # generates the cross-platform fallback chime .wav files
-bin/session-context.js       # SessionStart hook — injects compliance/sprint/gate status (+ test/)
+bin/session-context.js       # SessionStart hook — injects status + runs the daily coach (+ test/)
+bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/ (+ test/)
+bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
-hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart context
+hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart · PostToolUse usage log
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
   start/                       # router: detect new vs existing → route to a front door
   scaffold-from-boilerplate/   # front door — new repo

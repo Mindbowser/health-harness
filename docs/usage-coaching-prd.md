@@ -126,10 +126,10 @@ local log. **Code still drops anything outside the metadata allowlist** regardle
 configurable.
 
 ## Staged rollout (the `/to-issues` slices)
-1. **Schema + logger** — `bin/usage-log.js` (pure event-builder + tested allowlist) + hook wiring; writes
-   local JSONL. Metadata-only enforced + tested.
-2. **Next-day coach** — `bin/usage-coach.js`; extend `SessionStart` to inject yesterday's principle-based
-   lines. Pure metric + message builders, tested.
+1. ✅ **Schema + logger** *(built v0.1.57)* — `bin/usage-log.js`: pure `eventsFromHook` + field allowlist
+   (tested); writes metadata-only JSONL to `~/.health-harness/usage/`. Wired to PostToolUse + the wall.
+2. ✅ **Next-day coach** *(built v0.1.57)* — `bin/usage-coach.js`: pure cadence (`coachCadence` — **once a
+   day**, **weekly on Monday**) + `summarize` + `buildCoaching`; runs from `SessionStart`. Tested.
 3. **`/harness-stats` skill** — show *your own* trends on demand.
 4. **Telemetry uploader** — `bin/usage-upload.js`; daily metadata POST (identified by git company email);
    enforced via managed settings (FleetDM). Ships only once the **disclosure/policy (+ EU DPIA)** is in place.

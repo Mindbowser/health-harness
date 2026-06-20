@@ -65,6 +65,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js\" posttooluse",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }

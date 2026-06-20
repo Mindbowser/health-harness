@@ -50,6 +50,13 @@ if (require.main === module) {
     });
   } catch { /* fail-safe: inject nothing */ }
 
+  // Usage: record the session, and emit a coaching note AT MOST once/day (+ a weekly note Mondays).
+  try {
+    require('./usage-log.js').appendEvent('session_start', {});
+    const coach = require('./usage-coach.js').runCoach(new Date());
+    if (coach) additionalContext += (additionalContext ? '\n\n' : '') + coach;
+  } catch { /* coaching is best-effort — never block the session */ }
+
   if (additionalContext) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext },

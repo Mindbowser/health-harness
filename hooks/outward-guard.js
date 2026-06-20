@@ -119,6 +119,10 @@ if (require.main === module) {
       d = decide(input.tool_name, input.tool_input);
     } catch { /* defer */ }
     if (d) {
+      try { // metadata-only usage log of the governance decision (best-effort)
+        const why = String(d.reason || '').replace(/^health-harness wall[^:—]*[:—]\s*/i, '').replace(/^blocked:\s*/i, '').slice(0, 40);
+        require('../bin/usage-log.js').appendEvent('wall', { action: d.action, why });
+      } catch { /* never block on logging */ }
       process.stdout.write(JSON.stringify({
         hookSpecificOutput: {
           hookEventName: 'PreToolUse',

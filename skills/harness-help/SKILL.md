@@ -45,6 +45,11 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
   writes, a commit on the base branch). Always on once the plugin is installed.
 - **Session context** — `bin/session-context.js`, a `SessionStart` hook. Injects a one-line status each
   session (compliance profile · active sprint · gate), or nudges `/start` on an un-onboarded repo.
+- **Usage coaching** — `bin/usage-log.js` (metadata-only events → `~/.health-harness/usage/`) +
+  `bin/usage-coach.js`. **Once a day** at session start (and a **weekly note on Mondays**) you get a short,
+  principle-based nudge from yesterday's work (loop tightness, /align-before-build, objecting vs
+  rubber-stamping, governance). Local-only today; identified org telemetry is a separate, policy-gated step
+  (see `docs/usage-coaching-prd.md`). Metadata only — never code/prompts/PHI.
 - **Redaction scanner** — `bin/redaction-scan.js`, the deterministic PHI/PII/secrets scan behind
   `/phi-redaction-check`.
 - **Worklog suggester** — `bin/worklog-suggest.js`, proposes a Jira worklog time from your git activity
