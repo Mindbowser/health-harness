@@ -49,3 +49,11 @@ BA/PM: acceptance). Whoever runs the build inherits the alignment, not just the 
 
 Use the terms exactly as defined in `CONTEXT.md` (Build Loop, vertical slice, gate, smart zone, deep
 module, archetype, compliance profile, …). One word, one meaning.
+
+## Maintaining this repo (the harness itself)
+
+- **Docs-sync gate.** When you add or change a **user-facing feature** — a skill, a hook/wall rule, a
+  `bin/` tool, or a flow/lifecycle change — update **`README.md`** in the **same change**, and its **flow
+  diagram (mermaid) + the Build Loop table** if the flow or lifecycle changed. Bump the version
+  (`plugin.json`, `marketplace.json`, `package.json`). A feature change that leaves the README/diagram
+  stale is **incomplete** — don't merge it. (Full authoring contract: `skills/writing-great-skills`.)

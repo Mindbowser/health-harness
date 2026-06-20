@@ -67,6 +67,11 @@ work is covered, so the agent can't stop early ("premature completion").
 - Reuse **leading words** (the trigger verb/phrase) consistently across the description and steps.
 - Healthcare governance is not optional: if a skill emits anything customer-facing, it must respect the
   repo's `compliance-profile` and route through the redaction check.
+- **Docs-sync gate — keep `README.md` in step with the feature.** Any change that adds or alters a
+  user-facing feature — a new/edited skill, a hook/wall rule, a `bin/` tool, or a flow/lifecycle change —
+  **MUST update `README.md` in the same change**, and **its flow diagram** (the mermaid + the Build Loop
+  table) **if the flow or lifecycle changed**. Bump the version. A feature change that leaves the README
+  or diagram stale is **incomplete** — don't merge it.
 - Before merge: validate against this skill, and **dog-food the skill once** on a real task.
 
 ## Completion criteria for *this* skill (writing one)
@@ -76,4 +81,5 @@ work is covered, so the agent can't stop early ("premature completion").
 - [ ] There is an explicit anti-patterns section.
 - [ ] No concept is duplicated from `CONTEXT.md` or another skill (linked instead).
 - [ ] No no-op lines; detail beyond the core is in supporting files.
+- [ ] **Docs-sync:** if this added/changed a user-facing feature, `README.md` (and the flow diagram + Build Loop table, if the flow changed) is updated in the same change and the version is bumped.
 - [ ] The skill has been run once on a real task before merging.

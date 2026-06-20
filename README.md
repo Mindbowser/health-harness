@@ -52,7 +52,7 @@ flowchart TD
 
     subgraph REFINE["🎯 REFINEMENT · Design — PM/BA runs /align (AUTHOR)"]
         direction TB
-        AL["/align ACME-258<br/>→ business acceptance criteria"]
+        AL["/align ACME-258<br/>→ acceptance criteria (+ audit/safe-log for PHI)"]
         AL --> BIG{"epic /<br/>multi-slice?"}
         BIG -->|yes| PRD["prd.md — consolidation scaffolding<br/>local · disposable · → child stories"]
         BIG -->|no| SL["/to-issues → sub-tasks ACME-259, ACME-260 …<br/>vertical slices + Given/When/Then"]
@@ -118,8 +118,10 @@ and how it scales to many teams/clients — see **`docs/delivery-mental-model.md
 5. **Own your planning stack.** Observability over the whole flow, not a black box.
 6. **Deep modules.** Design interfaces, delegate implementations.
 7. **Human QA is where taste lives.** Don't automate the idea, the QA, and the research all away.
-8. **The harness is the healthcare differentiator.** Compliance + redaction guardrails are not
-   overhead — they're what let us ship fast *and* safely. See `skills/governance/`.
+8. **The harness is the healthcare differentiator.** Compliance, redaction, **audit-logging, and
+   PHI-safe logging** aren't overhead — they're what let us ship fast *and* safely. For PHI work they're
+   **authored as acceptance criteria at `/align` and verified in `/tdd`**. See `skills/compliance-profile`,
+   `skills/phi-redaction-check`, `skills/safe-logging`, `skills/audit-logging`.
 
 ## The wall — enforced guardrails (not just instructions)
 
