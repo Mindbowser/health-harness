@@ -23,6 +23,9 @@ friction) actually is.
 6. **Don't fight the model** — stop-and-surface when stuck; never force green by cheating.
 7. **Taste & judgment** — catch slop in review; know when it's done.
 8. **Governance hygiene** — no PHI leaks, branch discipline, no force-push.
+9. **Prompt with intent** — structured, context-rich asks (a sliced spec, not "make it work").
+10. **Object to the output** — treat AI output as a *draft*: push back, correct, reject, redo. **Hard-harness
+    the model — don't rubber-stamp it.** Blind acceptance is the #1 tell of a *1x* AI user.
 
 ## Goals / non-goals
 **Goals:** private next-day coaching; metadata-only telemetry; an opt-in/consented org dashboard; a schema
@@ -54,9 +57,11 @@ One JSON line per event. **No code, no prompt text, no file contents, no PHI.**
 { "v": 1, "ts": "2026-06-20T10:12:04Z", "userId": "<stable hash>", "repoId": "<hash>",
   "sessionId": "<id>", "event": "gate_run", "data": { "result": "pass", "ms": 4200 } }
 ```
-Event types: `session_start` · `session_end` (duration) · `prompt` (count only) · `command`
+Event types: `session_start` · `session_end` (duration) · `prompt` (count + length bucket + has-context
+flags, **no text**) · `prompt_quality` (`{score, flags}` — local-scored, text never logged) · `command`
 (`{name:"align"|"tdd"|...}`) · `edit` (`{ext}`) · `gate_run` (`{result, ms}`) · `tool_fail` ·
-`wall` (`{action:"deny"|"ask", why}`) · `commit` (`{sizeBucket, branchKind}`) · `compaction` · `subagent`.
+`user_reject` · `interrupt` · `revert` · `correction` · `wall` (`{action:"deny"|"ask", why}`) ·
+`commit` (`{sizeBucket, branchKind}`) · `compaction` · `subagent`.
 
 ## Metrics (derived from events) → the coaching dimensions
 | Dimension (principle) | Metric | Healthy direction |
@@ -68,30 +73,52 @@ Event types: `session_start` · `session_end` (duration) · `prompt` (count only
 | Smart zone | session length · compactions/session | moderate / low |
 | Don't fight it | thrash index (consecutive `tool_fail`) · forced-green attempts | low / zero |
 | Governance | force-push & commit-on-base attempts · redaction hits | zero |
+| **Prompt quality** | prompt-quality score (heuristic now; local judge later) · vague-prompt rework rate | high score, low rework |
+| **Critical engagement (objecting)** | rejections · interrupts · reverts · corrections per AI change | active — *not* rubber-stamping |
 
-## Privacy, consent & governance — **hard requirements (not optional)**
-Because this monitors employees at a healthcare firm (employee-monitoring law + GDPR + trust):
-1. **Metadata only.** Never log code, prompts, file contents, or PHI. The logger has an allowlist of
-   fields; everything else is dropped.
-2. **Transparent + consented.** Org tracking ships **only** with: a written policy, employee disclosure,
-   and recorded consent. Enabled via **managed settings** (`usageTelemetry`), off until the org turns it on.
-3. **Individual access.** A person can always see their *own* full data (`/harness-stats`) — symmetry of
-   information is the trust anchor.
-4. **De-identified aggregation by default.** Dashboard shows team/cohort trends; individual attribution is
-   role-gated and policy-bound. **Never used punitively** (no firing/ranking) — it's coaching + finding
-   org friction.
-5. **Anti-Goodhart.** Coach on *principles*, not raw counts; don't surface a single "score" that people
-   game (e.g. don't reward more commits). Review every metric for the perverse-incentive it could create.
-6. **Right to pause/delete.** A user can pause local logging and purge their local logs.
+### Measuring "right prompts" without reading prompts
+- **Heuristic (metadata, ships first):** structured-ask signals — did they `/align` vs a raw one-liner ·
+  prompt length bucket · context markers (file/ticket refs) · **rework after a prompt** (edits/fails that
+  follow it = a vague ask). No content stored.
+- **Local judge (optional, later):** a rubric scorer runs **on-device** against the prompt and logs **only
+  the score/flags — the prompt text never leaves the machine.** This is how we get real prompt-quality
+  signal while staying metadata-only.
+
+### Measuring "objecting to the LLM" (hard-harnessing)
+Critical engagement = the user treating output as a draft. Signals (all metadata): **user-rejected** tool
+calls/permissions · **interrupts** (stop mid-stream) · **reverts/undo** of AI changes · **correction
+turns** (re-prompt right after a diff) · review edits before accept. High = engaged; near-zero across a
+day of heavy AI output = rubber-stamping → coach it.
+
+## Identity, enforcement & governance — **hard requirements**
+Per the org decision, telemetry is **identified, on by default, and enforced** (employees can't disable
+it). That's a legitimate posture for **company-owned dev tooling** — *but only if done in the open.* These
+are non-negotiable for it to be lawful (GDPR / employee-monitoring rules) and to keep trust:
+
+1. **Identified.** Each record carries the user's **work email / name** (from git config or SSO).
+2. **Enforced, on by default.** Enabled via **managed settings** (highest precedence, deployed by
+   MDM/FleetDM) so no user can turn it off — `usage.telemetry.enabled = true`, not user-overridable.
+3. **Disclosed + policy-backed — REQUIRED before it ships.** A written monitoring policy + employee notice,
+   a documented lawful basis, and in the EU/UK a **DPIA** (and works-council sign-off where applicable).
+   Mandatory **covert** monitoring is not acceptable; **disclosed** company-tooling telemetry is. This is
+   the line that keeps "on by default, can't disable, identified" both legal and trusted.
+4. **Metadata only — still absolute.** Never code, prompts, file contents, or PHI. Prompt quality is
+   scored **on-device**; only the score/flags leave. A field-allowlist enforces this in code + tests.
+5. **Information symmetry.** Every employee can see their **own** full data (`/harness-stats`). Mandatory
+   collection *with* personal visibility is the trust (and compliance) anchor.
+6. **Non-punitive by policy.** For coaching + finding org friction — **not** ranking, PIPs, or firing.
+   Stating this in the policy is also what stops people gaming it.
+7. **Anti-Goodhart.** Coach on principles, never a single gameable score.
 
 ## Config
 ```json
-// ~/.health-harness or managed settings
+// managed settings (enforced; user/project settings cannot override)
 { "usage": { "log": true, "coach": true,
-             "telemetry": { "enabled": false, "endpoint": "", "consentRecorded": false } } }
+             "telemetry": { "enabled": true, "endpoint": "https://…", "identify": "email" } } }
 ```
-Personal coach works with just local logging on; **telemetry stays off until `enabled` + `consentRecorded`
-are both true** (enforced in code, deployed via managed settings).
+Deployed via MDM/FleetDM so it's **on by default and non-disableable**. `identify: "email"` tags records
+with the work email. The personal next-day coach runs from the same local log. **Code still drops anything
+outside the metadata allowlist** regardless of config — that guarantee is not configurable.
 
 ## Staged rollout (the `/to-issues` slices)
 1. **Schema + logger** — `bin/usage-log.js` (pure event-builder + tested allowlist) + hook wiring; writes
@@ -99,11 +126,12 @@ are both true** (enforced in code, deployed via managed settings).
 2. **Next-day coach** — `bin/usage-coach.js`; extend `SessionStart` to inject yesterday's principle-based
    lines. Pure metric + message builders, tested.
 3. **`/harness-stats` skill** — show *your own* trends on demand.
-4. **Telemetry uploader (consented)** — `bin/usage-upload.js`; daily metadata POST; gated on
-   `enabled + consentRecorded`; managed-settings deployable (FleetDM).
+4. **Telemetry uploader** — `bin/usage-upload.js`; daily metadata POST (identified by work email);
+   enforced via managed settings (FleetDM). Ships only once the **disclosure/policy (+ EU DPIA)** is in place.
 5. **Dashboard** — central store + de-identified team views (separate service; schema already ready).
 
 ## Open questions
-- Stable `userId` source (hash of git email? org SSO id?) — needs the consent/policy answer.
+- `userId` = **work email** (git config / SSO) — decided: identified, not hashed.
+- The disclosure/policy + lawful basis (and EU DPIA / works-council) — **owner + timeline** before telemetry ships.
 - Central store + dashboard tech (separate service — out of this repo's scope; this repo emits the data).
 - Exact thresholds for "healthy" per metric — calibrate empirically (don't hardcode judgments).
