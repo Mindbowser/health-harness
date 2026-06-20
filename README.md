@@ -105,7 +105,7 @@ Run these two commands **inside your project directory** (requires the `claude` 
 
 ```bash
 # 1. Register the harness marketplace for this repo
-claude plugin marketplace add pravinuttarwar/mb-harness --scope project
+claude plugin marketplace add Mindbowser/health-harness --scope project
 
 # 2. Install the plugin
 claude plugin install mb-harness@mindbowser --scope project
