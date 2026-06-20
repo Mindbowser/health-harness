@@ -8,6 +8,11 @@ minimal code, refactor. This is how all AFK (away-from-keyboard) build work is d
 TDD is mandatory here — it stops the agent from faking tests, and good tests are the feedback loop that
 caps how well the agent can code.
 
+This skill is the harness's **fundamentals in practice** — the same ones AI speed doesn't change: a tight
+**feedback loop** (the gate, run every change), **tests you trust** (behavior via public interfaces, not
+mocks), **small reversible steps** (one behavior at a time, small commits, on a branch), **deep modules**
+(the refactor step), and **human review** (the PR proof). `/tdd` enforces them so going fast stays safe.
+
 ## Prerequisite: a feedback loop must exist
 
 You cannot do AFK work without a one-command **gate** (tests + typecheck + lint). If the repo has none

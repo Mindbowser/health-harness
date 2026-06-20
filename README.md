@@ -19,11 +19,10 @@ For Mindbowser, the terrain is **healthcare** — PHI, HIPAA, client IP, regulat
 build loop the harness adds the guardrails that make speed *safe*: compliance profiles, a redaction
 check, audit + PHI-safe logging, and a deterministic "wall."
 
-**The method is agent-agnostic** — the Build Loop, the gate, vertical slices, and the governance
-guardrails work with any capable AI coding agent. What's tool-specific is only the *packaging*: this repo
-is a [Claude Code](https://claude.com/claude-code) **plugin**, so the install steps, skills, and the
-enforcement hook below are Claude Code mechanics. Install it once and every engineer gets the same skills
-(`/align`, `/to-prd`, `/to-issues`, `/tdd`, …) and the same standards.
+**It works with any AI coding agent** — the Build Loop, the gate, the slices, and the guardrails aren't
+tied to one tool. Only the *packaging* is: this repo is a [Claude Code](https://claude.com/claude-code)
+**plugin**, so the install steps, skills, and the wall hook are Claude Code mechanics. Install once, and
+everyone on the repo gets the same skills (`/align`, `/tdd`, …) and the same standards.
 
 ## The Build Loop (the method)
 
@@ -168,12 +167,15 @@ plugin brings **both the skills and the wall hook** (`hooks/outward-guard.js`, a
 They load on the next session, so restart Claude Code (or run `/reload-plugins`), then verify:
 
 ```bash
-claude plugin details health-harness@mindbowser   # → Skills (15) + a PreToolUse hook (the wall)
+claude plugin details health-harness@mindbowser   # → Skills (16) + a PreToolUse hook (the wall)
 ```
 
 Now just type **`/start`** — it detects new vs existing repo, sets the compliance profile (default
 `hipaa`), and routes you to the right front door. Or invoke skills directly: `/align`, `/to-prd`,
 `/to-issues`, `/tdd`. Works on any stack; it won't rewrite your code.
+
+**New to the harness?** Type **`/harness-help`** for a one-screen guide — it ships *in the plugin*, so it
+works even if you don't have access to this repo.
 
 **Updating later:** `claude plugin marketplace update mindbowser && claude plugin update health-harness`
 (restart to apply). **Personal trial only?** Use `--scope local` instead of `--scope project` — it
@@ -201,6 +203,7 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
   compliance-profile/ phi-redaction-check/ safe-logging/ audit-logging/   # healthcare governance
   role/                        # your persona (PM / engineer) — picks the /align mode
   writing-great-skills/        # the meta-skill: how to write skills here
+  harness-help/                # in-plugin guide (/harness-help) — usable without repo access
 ```
 
 > **Skills are flat by design.** Claude Code discovers plugin skills at `skills/<name>/SKILL.md` (one
