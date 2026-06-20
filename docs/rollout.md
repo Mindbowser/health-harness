@@ -126,7 +126,11 @@ answer is **managed settings**; otherwise it's the per-user toggle.
 - **Auto-update (recommended):** at **startup**, Claude Code refreshes the marketplace, updates plugins
   from it, and notifies in-session: *"Updates available… Run `/reload-plugins`."* Enable org-wide
   (managed settings above) or per-user (the `/plugin` toggle).
-- **Manual (one person):**
+- **Manual — easiest:** in Claude Code run **`/plugin marketplace update`** (the in-app slash command). It
+  refreshes **and applies** in one step. ⚠️ The **shell** `claude plugin marketplace update mindbowser`
+  only refreshes the *catalog* — it does **not** change the installed plugin, so `plugin list` still shows
+  the old version until you reinstall/restart.
+- **Manual — shell (full apply):**
   ```bash
   claude plugin marketplace update mindbowser
   claude plugin uninstall health-harness@mindbowser --scope project
