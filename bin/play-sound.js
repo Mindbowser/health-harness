@@ -115,9 +115,10 @@ function main() {
   );
   // Spoken voice: built-in on macOS (`say`) + Windows (PowerShell); Linux needs spd-say/espeak. If absent,
   // voice mode falls back to the bundled chime so it's never silent.
+  const ttsCmd = fileCfg.ttsCmd; // e.g. a Piper pipeline or "espeak-ng -s 160" — overrides the OS default
   const ttsAvailable = (() => {
-    if (platform === 'darwin' || platform === 'win32') return true;
-    try { require('child_process').execSync('command -v spd-say >/dev/null 2>&1 || command -v espeak >/dev/null 2>&1'); return true; }
+    if (ttsCmd || platform === 'darwin' || platform === 'win32') return true;
+    try { require('child_process').execSync('command -v spd-say >/dev/null 2>&1 || command -v espeak-ng >/dev/null 2>&1 || command -v espeak >/dev/null 2>&1'); return true; }
     catch { return false; }
   })();
 
@@ -135,14 +136,16 @@ function main() {
   const fire = (cmd, args) => {
     try { const c = spawn(cmd, args, { stdio: 'ignore', detached: true }); c.on('error', () => {}); c.unref(); } catch { /* silent */ }
   };
-  if (d.action === 'clip' || d.action === 'system') {
+  if (d.action === 'clip') {
     if (platform === 'darwin') fire('afplay', [d.target]);
     else if (platform === 'win32') fire('powershell', ['-NoProfile', '-c', `(New-Object Media.SoundPlayer '${d.target}').PlaySync()`]);
     else fire('sh', ['-c', `paplay "${d.target}" 2>/dev/null || aplay "${d.target}" 2>/dev/null`]);
   } else if (d.action === 'tts') {
-    if (platform === 'darwin') fire('say', [d.target]);
+    const q = JSON.stringify(String(d.target)); // shell-safe quoting of the phrase
+    if (ttsCmd) fire('sh', ['-c', `${ttsCmd} ${q} 2>/dev/null`]); // custom engine (e.g. Piper) wins
+    else if (platform === 'darwin') fire('say', [d.target]);
     else if (platform === 'win32') fire('powershell', ['-NoProfile', '-c', `Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('${d.target}')`]);
-    else fire('sh', ['-c', `spd-say "${d.target}" 2>/dev/null || espeak "${d.target}" 2>/dev/null`]);
+    else fire('sh', ['-c', `spd-say ${q} 2>/dev/null || espeak-ng ${q} 2>/dev/null || espeak ${q} 2>/dev/null`]);
   }
   void os;
 }

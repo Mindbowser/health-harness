@@ -37,6 +37,28 @@ export MB_HARNESS_SOUNDS=off      # disable
 
 So voice mode is safe everywhere: real speech where TTS exists, the bundled chime where it doesn't.
 
+### Linux: enable real voice (one-time, per machine)
+
+The harness won't auto-install system packages (needs `sudo`, varies by distro). Pick one:
+
+```bash
+# Basic, tiny, ubiquitous (robotic but clear):
+sudo apt-get install -y espeak-ng
+# …or the speech-dispatcher route (gives `spd-say`):
+sudo apt-get install -y speech-dispatcher
+```
+
+**Better, natural voice — [Piper](https://github.com/rhasspy/piper)** (open-source neural TTS, MIT).
+Install it + a voice model, then point the harness at it in `.health-harness/sounds.json`:
+```json
+{ "enabled": true, "mode": "voice",
+  "ttsCmd": "sh -c 'piper -m /path/en_US-amy-medium.onnx -f /tmp/mb.wav -- ; aplay /tmp/mb.wav' --" }
+```
+(`ttsCmd` receives the phrase as its last argument; it overrides the OS default on every platform.)
+
+**Best & no-install — drop in recorded `.wav` clips** (below): then Ubuntu plays them via `paplay`/`aplay`
+with **no TTS engine at all**, and everyone hears the same MB voice.
+
 ## The bundled chimes (`*.wav`)
 
 `waiting.wav` / `gate.wav` / `done.wav` / `subagent.wav` are **generated** by `bin/gen-sounds.js`
