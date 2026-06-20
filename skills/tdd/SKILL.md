@@ -64,6 +64,16 @@ Tests verify **behavior through public interfaces**, not implementation details.
    each step. Never refactor on red.
 5. **Governance** — no real PHI/PII/secrets in tests or fixtures; use synthetic data per the repo's
    `compliance-profile`.
+6. **Logging governance — mandatory when the slice touches ePHI** (`compliance-profile` = `hipaa`, or any
+   slice that reads/writes ePHI or emits logs on a PHI path). These are **acceptance criteria for the
+   slice, not optional extras** — build them red-green like any behavior:
+   - **`safe-logging`** — runtime logs carry **references, never PHI/PII** (log a record id, not the
+     record). Add a test asserting the PHI path's log output contains no PHI field values.
+   - **`audit-logging`** — ePHI **reads, writes, and denied access** emit an audit entry (who / what +
+     record id / when / where / outcome; **no PHI values**) from a central seam. Add the tests from
+     `/audit-logging` (a read path emits an entry; a *denied* access still emits one; the entry has the
+     record id but no PHI).
+   For `none` profiles (no regulated data) this step is a no-op — `secrets` must still never be logged.
 
 ## Prove it — evidence in the PR + Jira (this is what makes review cheap)
 
@@ -157,6 +167,7 @@ reports two figures and the user decides; **don't nudge them up or down.**
 - [ ] The code added is minimal for this test — no speculative features.
 - [ ] The full one-command gate is green.
 - [ ] Test data is synthetic (no real PHI/PII/secrets).
+- [ ] **If the slice touches ePHI:** logs are PHI-free (`safe-logging`) **and** ePHI read/write/denied emit audit entries (`audit-logging`) — both proven by tests. (No-op for `none` profiles; `secrets` never logged.)
 - [ ] **Every** acceptance criterion is covered (looped to the goal, didn't stop early).
 - [ ] Green was earned by working behavior — no test deleted/weakened/skipped, no gate bypassed.
 - [ ] No destructive/irreversible action taken; work is on a branch, not force-pushed.

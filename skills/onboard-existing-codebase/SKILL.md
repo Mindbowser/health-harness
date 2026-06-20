@@ -36,6 +36,14 @@ it — their conventions, their architecture, their IP.
 4. **Declare the compliance profile.** Run `/compliance-profile` (default `hipaa`) → `.health-harness/compliance.json`.
    Run the scanner once for a baseline: `node <health-harness>/bin/redaction-scan.js --path .` so you know
    what's already there before you add anything.
+4b. **Governance baseline — for `hipaa`/ePHI repos.** Before building, assess the two runtime logging
+   controls and **flag gaps as first tasks** (don't silently fix):
+   - **Audit trail (`audit-logging`)** — is there a *central seam* that records ePHI read/write/denied
+     access (who/what/when/where/outcome, no PHI)? If absent or per-call-site/scattered → log a gap.
+   - **PHI-safe logging (`safe-logging`)** — do operational/error logs reference ids, not PHI values?
+     Spot-check the logging boundary; if PHI can reach logs → log a gap.
+   Record findings in `CLAUDE.md`; missing controls become **characterization-first tasks** (pin current
+   behavior, then add the control via `/tdd`). No-op for `none` profiles.
 5. **Respect their world.** Match the existing code style and patterns; do NOT impose MB boilerplate,
    reformat the repo, or do unrequested refactors. Do not exfiltrate code outside the engagement.
 6. **Enter the loop.** Now run `/align` around the specific change, then `/to-issues` (slicing must fit
@@ -54,5 +62,6 @@ it — their conventions, their architecture, their IP.
 - [ ] A repo `CLAUDE.md` exists: stack, run cmd, test cmd, architecture sketch, conventions, seams.
 - [ ] A one-command feedback loop exists and is green (theirs, or characterization tests you added).
 - [ ] `.health-harness/compliance.json` is set (default `hipaa`); a baseline redaction scan has run.
+- [ ] For `hipaa`/ePHI repos: audit-trail + PHI-safe-logging baseline assessed; gaps recorded in `CLAUDE.md` as first tasks.
 - [ ] No behavior changed yet; existing style/conventions are documented to follow.
 - [ ] Ready to start the change at `/align`.

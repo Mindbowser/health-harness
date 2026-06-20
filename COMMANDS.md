@@ -18,8 +18,8 @@
 | 9 | `/to-issues` | **Sprint planning** → *Design / task breakdown* | Per feature | Engineer / tech-lead | agent (auto) | Slice into **vertical slices**; push criteria + per-repo sub-tasks to Jira | Jira sub-tasks + `issues.md` |
 | 10 | `/tdd` | **Sprint execution (daily)** → *Implementation+Testing* | Per task | **Engineer + AI** | agent (auto) | Failing test → minimal code → refactor → gate green | code + tests |
 | 11 | `/phi-redaction-check` | **Code review / pre-merge** → *Testing/Security* | Per PR / demo | Engineer (ideally CI/hook) | agent (auto) | Scan for PHI/PII/secrets; **block** on a hit | pass / block |
-| 12 | `/safe-logging` | Sprint execution → *Implementation (NFR)* | As needed | Engineer + AI | agent (auto) | Logs carry references, never PHI | PHI-safe logging |
-| 13 | `/audit-logging` | Sprint execution → *Implementation (compliance NFR)* | As needed | Engineer + AI | agent (auto) | Record who/what/when accessed ePHI | audit trail |
+| 12 | `/safe-logging` | Sprint execution → *Implementation (NFR)* | **Required on ePHI paths** | Engineer + AI | agent (auto, gated in `/tdd`) | Logs carry references, never PHI | PHI-safe logging |
+| 13 | `/audit-logging` | Sprint execution → *Implementation (compliance NFR)* | **Required on ePHI paths** | Engineer + AI | agent (auto, gated in `/tdd`) | Record who/what/when accessed ePHI | audit trail |
 | 14 | `/writing-great-skills` | **Retrospective** → *Continuous improvement* | Rare | Skill author | **type** | The authoring contract for a good skill | a well-formed skill |
 
 *"type" = a human types it; "agent (auto)" = the AI can invoke it in-flow (you can also type it).*
