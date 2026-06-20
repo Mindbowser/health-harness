@@ -65,6 +65,9 @@ flowchart TD
 > Reading it: **plan → pick a feature → align that one feature → slice into per-repo issues → devs grab
 > unblocked slices → TDD-build → QA → release.** Small/clear tickets skip align and go straight to `/tdd`.
 
+**Who runs which command, when?** The day-one reference — every command mapped to its Agile ceremony +
+SDLC phase, who drives it, and what it produces — is in **`COMMANDS.md`**.
+
 For the **full mental model** — the three planes (Intent → Design → Build), every role's lens (PM,
 architect, engineer, QA, head of delivery, platform), clean architecture in the code *and* the process,
 and how it scales to many teams/clients — see **`docs/delivery-mental-model.md`**.
