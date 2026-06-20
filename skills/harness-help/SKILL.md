@@ -39,6 +39,15 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
 `/compliance-profile` · `/sprint` · `/import-issues` · `/align` · `/to-prd` · `/to-issues` · `/tdd` ·
 `/phi-redaction-check` · `/safe-logging` · `/audit-logging` · `/writing-great-skills` · `/harness-help`.
 
+**Hooks & tools (run under the hood — you don't call these directly):**
+- **The wall** — `hooks/outward-guard.js`, a `PreToolUse` hook. **Blocks** catastrophic actions
+  (force-push, `rm -rf /`, drop/truncate table, …) and **asks** before outward ones (push, PR, MCP/Jira
+  writes, a commit on the base branch). Always on once the plugin is installed.
+- **Redaction scanner** — `bin/redaction-scan.js`, the deterministic PHI/PII/secrets scan behind
+  `/phi-redaction-check`.
+- **Worklog suggester** — `bin/worklog-suggest.js`, proposes a Jira worklog time from your git activity
+  (used by `/tdd`; you confirm the number).
+
 **Go deeper (if you have repo access):** the repo `README.md` (the flow diagram), `COMMANDS.md` (every
 command mapped to its Agile ceremony + SDLC phase), and `CONTEXT.md` (the vocabulary).
 
