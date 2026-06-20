@@ -55,20 +55,16 @@ prompted to **trust the repo** → the marketplace is added → they **install o
 (`claude plugin install health-harness@mindbowser --scope project`, or the `/plugin` Discover tab). Note:
 committing project settings does **not** auto-install plugins — only managed settings do that.
 
-**Make auto-update the default for everyone — no per-person toggle.** Put `"autoUpdate": true` on the
-`mindbowser` entry in the **committed** `.claude/settings.json` (the author can't force it from the
-published marketplace; it lives in consumer settings, but a committed project setting *is* shared):
-```json
-{
-  "extraKnownMarketplaces": {
-    "mindbowser": { "source": { "source": "github", "repo": "Mindbowser/health-harness" }, "autoUpdate": true }
-  },
-  "enabledPlugins": { "health-harness@mindbowser": true }
-}
-```
-Then nobody touches the `/plugin` toggle — once installed, it auto-updates at startup. (The per-person
-toggle `/plugin` → Marketplaces → `mindbowser` → enable auto-update is the manual alternative.)
-For org-wide *enforced* auto-update that also auto-installs, use **managed settings** (above).
+**Turning auto-update on (per the docs):**
+- **Per user:** `/plugin` → **Marketplaces** → `mindbowser` → **enable auto-update**. (Third-party
+  marketplaces are **off by default**; only the official Anthropic marketplace is on by default.)
+- **For everyone with no per-user action:** set `"autoUpdate": true` on the `extraKnownMarketplaces` entry
+  in **managed settings** (admin/MDM — see the org-wide section above). Per Claude Code's docs this is the
+  **only** way to default it on without each person toggling.
+
+There is **no install-time flag** and **no marketplace-author field** to default auto-update on — a
+third-party plugin can't force it onto its users by design. So the realistic "set once for the whole org"
+answer is **managed settings**; otherwise it's the per-user toggle.
 
 ## Updates — how they show up / apply
 
