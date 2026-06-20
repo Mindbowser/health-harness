@@ -83,6 +83,13 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
   (read live files at HEAD, not a snapshot). Add the **technical** criteria (error handling, contract,
   edge cases, security/PHI) and **do the feasibility here**. Surface genuine forks; pull in the PM only
   on a product/policy fork.
+  **It's a code-grounded reality check — and that's the point:** grounding the criteria in real code
+  routinely uncovers **latent business/product decisions, false feasibility assumptions, and edge cases**
+  the PM's criteria never resolved (COH-258 surfaced a security fork + 2 assumptions that didn't hold).
+  When it surfaces a **business/product** decision, **route it back to the PM/architect — or raise it in
+  refinement/sprint planning — and do NOT start `/tdd` until it's resolved.** A dev must not silently
+  decide a business question. Running BUILD-PREP *before* planning is a great way to surface these early
+  — it sharpens "ready" and the estimate, so nothing crucial is discovered mid-build or in QA.
 
 Rule of thumb: **business stories** → a PM AUTHORs solo, the engineer's BUILD-PREP is light (confirm +
 edge cases). **Technical tickets** (bugs, refactors, infra) → the engineer drives; criteria are
