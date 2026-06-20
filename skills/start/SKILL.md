@@ -41,6 +41,8 @@ ingest a handover. It also makes sure the compliance profile is set, which every
 - ❌ Routing without confirming the detected archetype.
 - ❌ Skipping the compliance profile because "we'll set it later".
 - ❌ Sending an existing repo to `/scaffold-from-boilerplate` (wrong door — it's the existing-repo path).
+- ❌ Committing work on the base branch. A fresh clone lands on `main`/`master` — branch before the first
+  commit; never let work land on the base. The wall ASKs on a `git commit` while HEAD is on a base branch.
 
 ## Completion criteria
 

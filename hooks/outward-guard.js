@@ -43,6 +43,44 @@ const ASK = [
 // MCP write verbs → ASK (Jira/Linear/GitHub writes). Read verbs are left to defer.
 const MCP_WRITE = /(create|update|edit|add|delete|remove|transition|move|assign|comment|post|put|push|write|close|resolve|set)/i;
 
+// ── base-branch commit guard → ASK ────────────────────────────────────────────
+// A freshly-cloned repo sits on the base branch (main/master, or the repo's
+// configured baseBranch). Work belongs on a feature branch — so committing
+// directly on a base branch ASKs (approve = the deliberate override). The repo's
+// very first commit (no HEAD history yet) is allowed; not-a-git-repo defers.
+const COMMIT_RE = /\bgit\s+commit\b/i;
+
+function baseBranches(dir) {
+  const bases = new Set(['main', 'master']);
+  try {
+    const fs = require('fs'), path = require('path');
+    const j = JSON.parse(fs.readFileSync(path.join(dir, '.health-harness', 'project.json'), 'utf8'));
+    const b = (j.git && j.git.baseBranch) || j.defaultBranch;
+    if (b) bases.add(String(b));
+  } catch { /* no project.json → just main/master */ }
+  return [...bases];
+}
+
+function gitProbe(cwd) {
+  const dir = cwd || process.cwd();
+  try {
+    const { execSync } = require('child_process');
+    const run = (c) => execSync(c, { cwd: dir, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
+    try { run('git rev-parse --verify HEAD'); } catch { return { hasHistory: false }; } // initial commit allowed
+    return { hasHistory: true, branch: run('git rev-parse --abbrev-ref HEAD'), bases: baseBranches(dir) };
+  } catch { return null; } // not a git repo / git missing → defer
+}
+
+function decideCommitGuard(command, st) {
+  if (!COMMIT_RE.test(String(command || ''))) return null;
+  if (!st || !st.hasHistory || !st.branch) return null; // initial commit / unknown → defer
+  const bases = st.bases && st.bases.length ? st.bases : ['main', 'master'];
+  if (bases.includes(st.branch)) {
+    return { action: 'ask', reason: `health-harness wall: committing directly on the base branch (${st.branch}). Create a feature branch first, or approve to commit on ${st.branch}.` };
+  }
+  return null;
+}
+
 function decideBash(command) {
   const cmd = String(command || '');
   for (const [re, why] of DENY) if (re.test(cmd)) return { action: 'deny', reason: `health-harness wall — blocked: ${why}. If genuinely required, a human runs it outside the agent.` };
@@ -57,15 +95,18 @@ function decideMcp(tool) {
   return null;
 }
 
-function decide(toolName, toolInput) {
+function decide(toolName, toolInput, gitState) {
   try {
-    if (toolName === 'Bash') return decideBash((toolInput || {}).command);
+    if (toolName === 'Bash') {
+      const cmd = (toolInput || {}).command;
+      return decideBash(cmd) || decideCommitGuard(cmd, gitState !== undefined ? gitState : gitProbe());
+    }
     if (String(toolName).startsWith('mcp__')) return decideMcp(toolName);
   } catch { /* fail-safe: defer */ }
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, gitProbe, baseBranches };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

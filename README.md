@@ -93,8 +93,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   to a device. The agent simply cannot run these.
 - **ASK** (you must approve): `git push`, `gh pr create`/merge, `rm -rf`, `git reset --hard`, package
   publish, `docker push`, cloud/infra mutations (`kubectl/terraform/aws … apply|delete|deploy`), `curl`
-  writes, and **any external-system write via MCP** (Jira/Linear create/update/transition/comment).
-- **DEFER** (untouched): reads, local/reversible work (`git commit`, branch, tests, the scanner).
+  writes, **a `git commit` while you're on the base branch** (`main`/`master`/the configured `baseBranch`
+  — branch first, or approve to commit on base), and **any external-system write via MCP** (Jira/Linear
+  create/update/transition/comment).
+- **DEFER** (untouched): reads, local/reversible work (`git commit` on a feature branch, branch, tests,
+  the scanner).
 
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
 your approval, and the catastrophic ones are blocked outright. Tested in `test/outward-guard.test.js`.
