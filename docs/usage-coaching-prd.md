@@ -54,7 +54,7 @@ We control the schema via our own hook events (don't parse Claude Code's interna
 ## Event schema (metadata only — dashboard-ready)
 One JSON line per event. **No code, no prompt text, no file contents, no PHI.**
 ```json
-{ "v": 1, "ts": "2026-06-20T10:12:04Z", "userId": "<stable hash>", "repoId": "<hash>",
+{ "v": 1, "ts": "2026-06-20T10:12:04Z", "userId": "<git company email>", "repoId": "<hash>",
   "sessionId": "<id>", "event": "gate_run", "data": { "result": "pass", "ms": 4200 } }
 ```
 Event types: `session_start` · `session_end` (duration) · `prompt` (count + length bucket + has-context
@@ -95,7 +95,10 @@ Per the org decision, telemetry is **identified, on by default, and enforced** (
 it). That's a legitimate posture for **company-owned dev tooling** — *but only if done in the open.* These
 are non-negotiable for it to be lawful (GDPR / employee-monitoring rules) and to keep trust:
 
-1. **Identified.** Each record carries the user's **work email / name** (from git config or SSO).
+1. **Identified by git company email** — the `user.email` from git config (org policy = company email in
+   git, so it's the authoritative work identity, already present, no lookup needed). This is **distinct
+   from the Claude-login email** (which may be personal — we never collect that). *(Fallback where git
+   email isn't the company one: AD/system identity — OS user + machine name, resolved centrally via Fleet.)*
 2. **Enforced, on by default.** Enabled via **managed settings** (highest precedence, deployed by
    MDM/FleetDM) so no user can turn it off — `usage.telemetry.enabled = true`, not user-overridable.
 3. **Disclosed + policy-backed — REQUIRED before it ships.** A written monitoring policy + employee notice,
@@ -114,11 +117,13 @@ are non-negotiable for it to be lawful (GDPR / employee-monitoring rules) and to
 ```json
 // managed settings (enforced; user/project settings cannot override)
 { "usage": { "log": true, "coach": true,
-             "telemetry": { "enabled": true, "endpoint": "https://…", "identify": "email" } } }
+             "telemetry": { "enabled": true, "endpoint": "https://…", "identify": "git-email" } } }
 ```
-Deployed via MDM/FleetDM so it's **on by default and non-disableable**. `identify: "email"` tags records
-with the work email. The personal next-day coach runs from the same local log. **Code still drops anything
-outside the metadata allowlist** regardless of config — that guarantee is not configurable.
+Deployed via MDM/FleetDM so it's **on by default and non-disableable**. `identify: "git-email"` tags
+records with the git `user.email` (the company email; *not* the Claude-login email). Alternative:
+`"system"` (OS user + machine name, AD-resolved centrally). The personal next-day coach runs from the same
+local log. **Code still drops anything outside the metadata allowlist** regardless of config — not
+configurable.
 
 ## Staged rollout (the `/to-issues` slices)
 1. **Schema + logger** — `bin/usage-log.js` (pure event-builder + tested allowlist) + hook wiring; writes
@@ -126,12 +131,13 @@ outside the metadata allowlist** regardless of config — that guarantee is not 
 2. **Next-day coach** — `bin/usage-coach.js`; extend `SessionStart` to inject yesterday's principle-based
    lines. Pure metric + message builders, tested.
 3. **`/harness-stats` skill** — show *your own* trends on demand.
-4. **Telemetry uploader** — `bin/usage-upload.js`; daily metadata POST (identified by work email);
+4. **Telemetry uploader** — `bin/usage-upload.js`; daily metadata POST (identified by git company email);
    enforced via managed settings (FleetDM). Ships only once the **disclosure/policy (+ EU DPIA)** is in place.
 5. **Dashboard** — central store + de-identified team views (separate service; schema already ready).
 
 ## Open questions
-- `userId` = **work email** (git config / SSO) — decided: identified, not hashed.
+- `userId` = **git company email** (`user.email`) — already present, authoritative; *not* the Claude-login
+  email. Fallback: AD/system (OS user + machine) where git email isn't the company one.
 - The disclosure/policy + lawful basis (and EU DPIA / works-council) — **owner + timeline** before telemetry ships.
 - Central store + dashboard tech (separate service — out of this repo's scope; this repo emits the data).
 - Exact thresholds for "healthy" per metric — calibrate empirically (don't hardcode judgments).
