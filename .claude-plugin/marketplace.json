@@ -11,7 +11,7 @@
       "name": "health-harness",
       "source": "./",
       "description": "MB Health Harness — the Build Loop discipline + healthcare governance, as Claude Code skills.",
-      "version": "0.1.26"
+      "version": "0.1.27"
     }
   ]
 }

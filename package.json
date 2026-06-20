@@ -1,6 +1,6 @@
 {
   "name": "health-harness",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "private": true,
   "description": "MB Health Harness — the Build Loop discipline + healthcare governance, as Claude Code skills.",
   "bin": {

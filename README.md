@@ -141,6 +141,8 @@ CLAUDE.md                    # org-wide agent instructions
 CONTEXT.md                   # shared vocabulary — single source of truth for terms
 docs/                        # authoring guide + the add-to-existing-repo one-pager
 bin/redaction-scan.js        # the deterministic redaction scanner (+ test/)
+bin/worklog-suggest.js       # suggests a Jira worklog time from git activity (+ test/)
+hooks/                       # the wall — outward-guard.js PreToolUse hook (+ test/)
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
   start/                       # router: detect new vs existing → route to a front door
   scaffold-from-boilerplate/   # front door — new repo

@@ -86,10 +86,12 @@ third-party-visible; synthetic examples only, no real PHI/secrets.
 ## Branch + PR — the skill drives git, you approve the push
 
 Don't make the human do the git plumbing — but **never push without an OK.**
-- **At the start of build, create the working branch yourself** — off the repo's **base branch**, using
-  its **naming convention** (read `.health-harness/project.json` `git` block / look at existing branches —
-  e.g. CH branches a feature off `dev`; do **not** impose MB's `fix/<KEY>` if the repo does otherwise).
-  Respect the existing flow (brownfield rule).
+- **At the start of build, move the ticket to _In Progress_** (via the tracker MCP) and **create the
+  working branch yourself** — off the repo's **base branch**, using its **naming convention** (read
+  `.health-harness/project.json` `git` block / look at existing branches — e.g. CH branches a feature off
+  `dev`; do **not** impose MB's `fix/<KEY>` if the repo does otherwise). Respect the existing flow
+  (brownfield rule). The _In Progress_ transition also **anchors the worklog clock** (its timestamp is the
+  `started` fallback when git history is thin — see Time tracking).
 - **Never commit on the base branch.** A freshly-cloned repo sits on `main`/`master` (or the configured
   `baseBranch`). Branch **before** the first commit — never let work land on the base. The wall enforces
   this: a `git commit` while HEAD is on a base branch **ASKs**, so an accidental on-base commit stops for
@@ -99,12 +101,37 @@ Don't make the human do the git plumbing — but **never push without an OK.**
   description, **targeting the repo's PR base** (e.g. `dev`/`QA`, not `main`, if that's their flow),
   linked to the Jira ticket. **Pushing + opening the PR is outward → do it only on the user's explicit
   OK.** Never `--force`. Use `gh` if available; otherwise stage the branch+commits and hand the user the
-  exact push/PR command.
-- **Close the PM→dev loop in Jira:** once the PR is open, **move the ticket** to the repo's review/QA
-  status (e.g. *In Review* / *Ready for QA*) and **comment** the PR link + "acceptance criteria met"
-  (via the tracker MCP). That hands the ticket off to CI + peer review + QA. The dev's job ends at
-  **merge** (CI green + review approved); **QA** then verifies the same criteria in the running app.
-  Address review feedback by looping back through `/tdd`, not by patching around the gate.
+  exact push/PR command. When you later **re-push after review fixes**, add a **PR comment** noting what
+  changed + gate-green (don't silently update).
+- **Close the PM→dev loop in Jira:** once the PR is open —
+  1. **Move the ticket to _In Review_** (= _Ready for QA_; one status in our flow) via the tracker MCP.
+  2. **Comment** the PR link + "acceptance criteria met" + the criteria→test summary on the ticket.
+  3. **Log work (worklog) — suggest, then let the human set it.** Run `node <health-harness>/bin/worklog-suggest.js`,
+     show the suggestion, and log **only the value the user confirms or overrides** via
+     `addWorklogToJiraIssue` (`timeSpent`, `started`, `commentBody` = what was done + PR link). Skip if the
+     repo opted out (`project.json` `timeTracking.logWork:false`). See **Time tracking** below.
+
+  That hands the ticket off to CI + peer review + QA. The dev's job ends at **merge** (CI green + review
+  approved); **QA** then verifies the same criteria in the running app. Address review feedback by looping
+  back through `/tdd`, not by patching around the gate. All three writes are **outward → the wall ASKs**,
+  and **tracker-visible → run `/phi-redaction-check` on the text first**.
+
+### Time tracking — suggest, then let the human set it
+
+Hand-logging hours gets skipped, so the harness proposes a number; the human sets the final value.
+There's **no perfect automatic number** — commits are the only deterministic signal, so the helper
+reports two figures and the user decides; **don't nudge them up or down.**
+- **Default = ACTIVE effort** from git on the working branch (`node bin/worklog-suggest.js`, or `--json`):
+  a small **lead-in** before the first commit + the gap before each commit **capped at an idle threshold**
+  (a long gap means you stepped away → capped, not summed). Beats raw wall-clock, which overcounts
+  overnight/lunch. `started` = the first commit's timestamp.
+- **Also shown: ELAPSED span** = first→last commit, for reference only.
+- **Fallbacks:** thin history (one commit) floors to the lead-in — prefer the ticket's **_In Progress_
+  transition** timestamp as `started`. No git/commits → suggest manually.
+- **Show, then let the user set it:** present active + elapsed plainly and log the **value the user gives
+  or confirms** — never auto-log, never argue the number up or down.
+- **Configurable** in `.health-harness/project.json` `timeTracking`: `logWork`, `roundTo` (default 15m),
+  `idleGapMins` (90), `leadInMins` (30), `maxPerDay` (8h).
 
 ## Anti-patterns
 
@@ -126,3 +153,5 @@ Don't make the human do the git plumbing — but **never push without an OK.**
 - [ ] Green was earned by working behavior — no test deleted/weakened/skipped, no gate bypassed.
 - [ ] No destructive/irreversible action taken; work is on a branch, not force-pushed.
 - [ ] PR + Jira carry the proof: criteria→test map, gate-green, before/after evidence (redaction-checked).
+- [ ] Ticket lifecycle moved: **In Progress** at start → **In Review** (= Ready for QA) at PR open.
+- [ ] Worklog logged at the **user-confirmed** time (or the repo opted out via `timeTracking.logWork:false`).

@@ -87,6 +87,7 @@ re-query Jira for the project key every run).
     "stack": "Node/TypeScript",
     "git": { "baseBranch": "dev", "branchPattern": "<type>/<KEY>-<slug>", "prTarget": "dev" },
     "defaultBranch": "main",
+    "timeTracking": { "logWork": true, "roundTo": "15m", "idleGapMins": 90, "leadInMins": 30, "maxPerDay": "8h" },
     "gate": "npm test",
     "productDoc": "docs/…",
     "figma": "<url or 'mcp'>"

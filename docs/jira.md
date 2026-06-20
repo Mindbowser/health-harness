@@ -56,6 +56,19 @@ After alignment + slicing, write the result back so the tracker reflects reality
   (BE endpoint → FE wiring; infra → deploy).
 - Idempotent: re-running updates the same issues (match by key), never duplicates.
 
+## Closeout — lifecycle transitions + worklog (from `/tdd`)
+
+The tracker should reflect where the work actually is, and carry the time spent:
+- **Start:** when build begins, move the ticket to **In Progress** (this also anchors the worklog clock).
+- **End:** when the PR is open, move it to **In Review** (= *Ready for QA* — one status in our flow) and
+  **comment** the PR link + "acceptance criteria met" + the criteria→test summary.
+- **Worklog:** `/tdd` runs `bin/worklog-suggest.js` to propose a time from git activity (an **active**
+  estimate, plus the **elapsed** span for reference), then logs the **user-confirmed** value via
+  `addWorklogToJiraIssue` (`timeSpent`, `started`, `commentBody`). It's a suggestion only — never
+  auto-logged, never argued up or down. Opt out per repo with `project.json` `timeTracking.logWork:false`.
+
+See `/tdd` → *Time tracking* for the heuristic and the `timeTracking` config keys.
+
 ## Governance on the way back
 
 Anything written to the tracker is **customer/third-party-visible**. Run `/phi-redaction-check` on the
