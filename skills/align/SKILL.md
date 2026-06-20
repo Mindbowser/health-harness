@@ -26,16 +26,20 @@ An agent's default failure is producing a plan from a thin prompt — "specs-to-
 Alignment front-loads the real disagreement (cheap now, expensive later). Whoever builds (human or
 agent) must *inherit* this alignment, not just read a doc written from it.
 
-## Confirm the sprint first (safety)
+## State the sprint (inform, don't block)
 
-Read `.mb-harness/current-sprint`; state "Aligning `<feature-slug>` under `<sprint-id>` → artifacts go to
-`.mb-harness/sprints/<sprint-id>/<feature-slug>/`. Correct?" and wait. If unset/stale, have the user run
-`/sprint set <id>` first. Don't file silently.
+Read `.mb-harness/current-sprint` and **state** where artifacts will land — *"Filing under
+`<sprint-id>/<feature-slug>/`."* — then **proceed**; the user redirects only if it's wrong. Do **not**
+turn this into a yes/no gate when the sprint is clearly set. **Only stop and ask** if `current-sprint`
+is unset or looks stale (then have them run `/sprint set <id>`). The goal is to be *informed*, not gated.
 
 ## Process
 
-1. **Read what you were given** and, in an existing repo, **ground it in the actual code** so the
-   criteria are real.
+1. **Read what you were given — including attachments.** Jira tickets are often just a **screenshot**
+   with little or no text. If the description is thin, **retrieve and read the image attachment** (it
+   usually *is* the spec — you can see images). If you can't retrieve it, **ask the human to paste or
+   describe it** — never guess the spec from the ticket title alone. In an existing repo, also **ground
+   it in the actual code** so the criteria are real.
 2. **Size it** (the rule above): clear → confirm + criteria + at most one fork; fuzzy → grill the open
    branches one question at a time, each with a recommended answer.
 3. **Surface only genuine forks** — real decisions with a trade-off the user must own. Route a
@@ -58,6 +62,8 @@ State which mode you're in so the right people are involved.
 - ❌ Manufacturing forks or writing trade-off essays when there's no real disagreement.
 - ❌ Producing the plan/PRD here (that's `/to-prd`) or jumping to code.
 - ❌ A wall of questions at once, or a question without your recommended answer.
+- ❌ Guessing the spec from a ticket *title* when the real content is a screenshot — read the image or ask.
+- ❌ Turning the sprint statement into a blocking yes/no when the sprint is already set.
 
 ## Completion criteria
 
