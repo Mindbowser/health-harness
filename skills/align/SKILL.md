@@ -78,8 +78,10 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
 6. **Write the criteria where they belong — don't make the human run a second command:**
    - **AUTHOR mode (PM refining a ticket):** **update the Jira ticket** with the agreed Given/When/Then
      via the tracker MCP — show them, confirm once (it's an outward write), `/phi-redaction-check` the
-     text first (no PHI/secrets in a ticket), then push. *This is the refinement output — the PM is done;
-     no separate `/to-issues` needed.*
+     text first (no PHI/secrets in a ticket), then push. Write **clean Markdown with
+     `contentFormat:"markdown"`, never Jira wiki markup** (`h2.`/`{{}}`); keep it ticket-sized — bold
+     labels + bullets, not big `#` headings (see `docs/jira.md` → *Formatting*). *This is the refinement
+     output — the PM is done; no separate `/to-issues` needed.*
    - **BUILD-PREP mode (engineer):** save `align.md`; slicing into sub-tasks happens next in `/to-issues`.
 
 ## Two modes — state which one (it decides whether you do feasibility)

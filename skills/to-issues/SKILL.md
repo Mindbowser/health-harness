@@ -43,6 +43,9 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
    - Tag with the sprint id; mark that it went through the harness.
    - **Idempotent:** match existing issues by key and *update* them — never create duplicates on a re-run.
    - If no tracker MCP is connected, write `issues.md` and print the issues for manual entry instead.
+   - **Formatting:** write **clean Markdown with `contentFormat:"markdown"`, never Jira wiki markup**
+     (`h2.`/`{{}}`); keep it ticket-sized (bold labels + bullets, not big `#` headings). See
+     `docs/jira.md` → *Formatting*.
    - **Governance:** a tracker ticket is third-party-visible — run `/phi-redaction-check` on the text
      you push (criteria, comments). Reference records by id; no PHI/PII/secrets in a ticket.
 

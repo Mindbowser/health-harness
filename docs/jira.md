@@ -65,12 +65,33 @@ The tracker should reflect where the work actually is, and carry the time spent:
 - **Start:** when build begins, move the ticket to **In Progress** (this also anchors the worklog clock).
 - **End:** when the PR is open, move it to **In Review** (= *Ready for QA* — one status in our flow) and
   **comment** the PR link + "acceptance criteria met" + the criteria→test summary.
-- **Worklog:** `/tdd` runs `bin/worklog-suggest.js` to propose a time from git activity (an **active**
-  estimate, plus the **elapsed** span for reference), then logs the **user-confirmed** value via
-  `addWorklogToJiraIssue` (`timeSpent`, `started`, `commentBody`). It's a suggestion only — never
-  auto-logged, never argued up or down. Opt out per repo with `project.json` `timeTracking.logWork:false`.
+- **Worklog (a SEPARATE write — moving/commenting does NOT log time):** `/tdd` runs
+  `bin/worklog-suggest.js` to propose a time (an **active** estimate + the **elapsed** span for
+  reference), then **must actually call `addWorklogToJiraIssue`** (`cloudId`, `issueIdOrKey`, `timeSpent`,
+  `started`, `commentBody`) with the **user-confirmed** value and **confirm it returned ok**. The
+  transition and the comment are different API calls — a posted comment is *not* a worklog. Closeout isn't
+  done until the worklog exists on the ticket (or the repo set `project.json` `timeTracking.logWork:false`).
+  It's a suggestion only — never auto-logged, never argued up or down.
 
 See `/tdd` → *Time tracking* for the heuristic and the `timeTracking` config keys.
+
+## Formatting Jira content — Markdown, NOT wiki markup
+
+Jira fields are not Markdown-by-default and are **not** Jira *wiki* markup either. Write **clean
+GitHub-flavored Markdown and pass `contentFormat: "markdown"`** to every MCP write
+(`createJiraIssue`, `editJiraIssue`, `addCommentToJiraIssue`, `addWorklogToJiraIssue`) — the MCP converts
+it to Atlassian Document Format. Get this wrong and it renders garbled (the classic bug: `#` shows as a
+giant H1, and `h2.` / `{{code}}` print literally).
+
+- ✅ **Do:** GitHub Markdown — `**bold**`, `-` / `1.` lists, ` ```fenced code``` `, `[text](url)` — **plus
+  `contentFormat:"markdown"`**.
+- ❌ **Don't:** Jira **wiki markup** (`h2.`, `{{code}}`, `bq.`, `*wiki-bold*`) — it shows up as literal text.
+- ❌ **Don't:** paste raw ADF JSON unless you deliberately set `contentFormat:"adf"`.
+- ❌ **Don't** omit `contentFormat` — the default varies by tool; always set it explicitly.
+- **Keep it ticket-sized, not wiki-sized.** Prefer **bold labels + bullet lists + Given/When/Then**;
+  avoid big headings (a leading `#`/`##` becomes a huge H1/H2). Use `###` at most, or just bold.
+- **Verify non-trivial writes:** after setting a description/comment, read it back (or glance at the
+  rendered ticket) to confirm headings/lists/code render correctly before moving on.
 
 ## Governance on the way back
 

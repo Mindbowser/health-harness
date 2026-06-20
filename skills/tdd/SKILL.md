@@ -127,18 +127,22 @@ Don't make the human do the git plumbing — but **never push without an OK.**
   OK.** Never `--force`. Use `gh` if available; otherwise stage the branch+commits and hand the user the
   exact push/PR command. When you later **re-push after review fixes**, add a **PR comment** noting what
   changed + gate-green (don't silently update).
-- **Close the PM→dev loop in Jira:** once the PR is open —
+- **Close the PM→dev loop in Jira:** once the PR is open, do **all three** — they are **separate MCP
+  calls**; doing one does not do the others:
   1. **Move the ticket to _In Review_** (= _Ready for QA_; one status in our flow) via the tracker MCP.
   2. **Comment** the PR link + "acceptance criteria met" + the criteria→test summary on the ticket.
-  3. **Log work (worklog) — suggest, then let the human set it.** Run `node <health-harness>/bin/worklog-suggest.js`,
-     show the suggestion, and log **only the value the user confirms or overrides** via
-     `addWorklogToJiraIssue` (`timeSpent`, `started`, `commentBody` = what was done + PR link). Skip if the
-     repo opted out (`project.json` `timeTracking.logWork:false`). See **Time tracking** below.
+  3. **Log work (worklog) — and actually call it.** Run `node <health-harness>/bin/worklog-suggest.js`,
+     show the suggestion, then **call `addWorklogToJiraIssue`** (`cloudId`, `issueIdOrKey`, `timeSpent`,
+     `started`, `commentBody` = what was done + PR link) with the **user-confirmed** value and **confirm it
+     returned ok**. A posted comment or a transition is **not** a worklog. **Closeout is not done until the
+     worklog exists on the ticket** — unless the repo opted out (`project.json` `timeTracking.logWork:false`).
+     See **Time tracking** below.
 
   That hands the ticket off to CI + peer review + QA. The dev's job ends at **merge** (CI green + review
   approved); **QA** then verifies the same criteria in the running app. Address review feedback by looping
   back through `/tdd`, not by patching around the gate. All three writes are **outward → the wall ASKs**,
-  and **tracker-visible → run `/phi-redaction-check` on the text first**.
+  and **tracker-visible**: write **clean Markdown with `contentFormat:"markdown"`, never Jira wiki markup**
+  (`h2.`/`{{}}`), and **run `/phi-redaction-check` on the text first** (see `docs/jira.md` → *Formatting*).
 
 ### Time tracking — suggest, then let the human set it
 
@@ -166,6 +170,9 @@ reports two figures and the user decides; **don't nudge them up or down.**
 - ❌ Refactoring while a test is red.
 - ❌ Declaring done without running the full gate.
 - ❌ Starting work on a ticket already in QA/Done/Closed without warning + explicit confirmation.
+- ❌ Treating a Jira comment or a status transition as "logged time" — the worklog is a separate
+  `addWorklogToJiraIssue` call; verify it landed.
+- ❌ Writing Jira in wiki markup (`h2.`, `{{...}}`) or omitting `contentFormat:"markdown"` — it renders garbled.
 
 ## Per-cycle checklist (checkable completion)
 
