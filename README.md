@@ -186,9 +186,15 @@ Now just type **`/start`** — it detects new vs existing repo, sets the complia
 **New to the harness?** Type **`/harness-help`** for a one-screen guide — it ships *in the plugin*, so it
 works even if you don't have access to this repo.
 
-**Updating later:** `claude plugin marketplace update mindbowser && claude plugin update health-harness`
-(restart to apply). **Personal trial only?** Use `--scope local` instead of `--scope project` — it
-writes to the gitignored `.claude/settings.local.json` and isn't shared with the team.
+**Updating later:** turn on **auto-update** so this is hands-off — `/plugin` → Marketplaces → `mindbowser`
+→ enable auto-update (or enforce it org-wide via managed settings). To update by hand:
+`claude plugin marketplace update mindbowser`, then **reinstall** (`uninstall` + `install`) — prefer
+reinstall over `claude plugin update`, which is unreliable. **Personal trial only?** Use `--scope local`
+instead of `--scope project` — it writes to the gitignored `.claude/settings.local.json`.
+
+> **Rolling this out to a team / the whole org, and keeping everyone current?** See **`docs/rollout.md`** —
+> the GitHub-marketplace requirement for auto-update, per-repo vs MDM managed-settings install, and the
+> exact config (with `docs/managed-settings.example.json`).
 
 > Adding it to an existing/old repo specifically? The step-by-step one-pager is
 > **`docs/add-to-existing-repo.md`**.
@@ -199,7 +205,7 @@ writes to the gitignored `.claude/settings.local.json` and isn't shared with the
 .claude-plugin/              # plugin.json + marketplace.json (CLI discovery)
 CLAUDE.md                    # org-wide agent instructions
 CONTEXT.md                   # shared vocabulary — single source of truth for terms
-docs/                        # authoring guide + the add-to-existing-repo one-pager
+docs/                        # guides: jira, rollout (+ managed-settings), authoring, multi-repo, mental-model
 bin/redaction-scan.js        # the deterministic redaction scanner (+ test/)
 bin/worklog-suggest.js       # suggests a Jira worklog time from git activity (+ test/)
 bin/play-sound.js            # optional spoken-voice cues, opt-in/silent by default (+ test/)
