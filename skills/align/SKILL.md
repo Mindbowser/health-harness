@@ -1,7 +1,7 @@
 ---
 name: align
 description: Right-sized interview to reach a shared design concept before code — deep for fuzzy features, near-instant for clear ones.
-argument-hint: "What are we building/fixing? (paste the ticket, idea, transcript, or prototype link)"
+argument-hint: "<ticket/idea/link> [as pm | as engineer] — e.g. /align ACME-258 as author"
 ---
 
 Reach a **shared design concept** — agreement on what we're building/fixing and why — *before* code.
@@ -107,8 +107,14 @@ edge cases). **Technical tickets** (bugs, refactors, infra) → the engineer dri
 inherently technical. **Feasibility is a BUILD-PREP job, never an AUTHOR-mode deep-dive.** The builder
 must *inherit* the criteria before coding — a clear PM-written ticket satisfies that without a meeting.
 
-**How the mode is picked (role → infer → ask):**
-1. **Persisted role first.** Read `~/.health-harness/role` (set via `/role`): `pm` → default **AUTHOR**;
+**How the mode is picked (explicit → role → infer → ask):**
+0. **Explicit persona in the invocation wins** — for the run, overriding role/inference. Recognize a
+   persona token in the args: **`as pm` / `as author` / `--author`** → AUTHOR; **`as engineer` / `as dev` /
+   `as build-prep` / `--build-prep`** → BUILD-PREP. (e.g. `/align ACME-258 as author`.)
+   **Dual-persona folks** (a senior who's both PM and builder): name the persona each time — or run
+   **AUTHOR first** to write the business criteria, **then BUILD-PREP** on the same ticket to add the
+   technical ones. Naming it explicitly never re-asks and doesn't change your persisted `/role` default.
+1. **Persisted role next.** Read `~/.health-harness/role` (set via `/role`): `pm` → default **AUTHOR**;
    `engineer` → default **BUILD-PREP**.
 2. **Infer if no role.** Fresh idea / thin story, no build intent → AUTHOR; a concrete ticket you're
    about to build in a repo → BUILD-PREP.
