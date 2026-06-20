@@ -41,12 +41,18 @@ An agent's default failure is producing a plan from a thin prompt — "specs-to-
 Alignment front-loads the real disagreement (cheap now, expensive later). Whoever builds (human or
 agent) must *inherit* this alignment, not just read a doc written from it.
 
-## State the sprint (inform, don't block)
+## Resolve the sprint from the ticket (don't make the user set it)
 
-Read `.mb-harness/current-sprint` and **state** where artifacts will land — *"Filing under
-`<sprint-id>/<feature-slug>/`."* — then **proceed**; the user redirects only if it's wrong. Do **not**
-turn this into a yes/no gate when the sprint is clearly set. **Only stop and ask** if `current-sprint`
-is unset or looks stale (then have them run `/sprint set <id>`). The goal is to be *informed*, not gated.
+When aligning a Jira item, **read its Sprint field** and reconcile with `.mb-harness/current-sprint` —
+don't ask the user to run `/sprint set` for the normal case:
+
+- **`current-sprint` unset** → set it from the ticket's sprint and say *"sprint set to `<X>` (from the ticket)."*
+- **match** → just state it (*"Filing under `<X>/<feature-slug>/`"*) and proceed — no question.
+- **mismatch** (ticket's sprint ≠ `current-sprint`) → **surface + confirm**: *"this ticket is in `<X>`,
+  but current-sprint is `<Y>` — switch to `<X>`?"*
+- **ticket has no sprint** (backlog item) → say so; ask which sprint, or proceed unfiled if it's a one-off.
+
+Infer + inform by default; **only stop to ask on a genuine mismatch or when it's truly missing.**
 
 ## Process
 
