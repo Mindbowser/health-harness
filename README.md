@@ -4,11 +4,20 @@
 > plus healthcare-compliance guardrails, installed in every project, improved by everyone.
 > **The discipline is agent-agnostic;** this repo packages it as Claude Code skills.
 
-A **harness** is a safety rig: it's what lets you move fast on dangerous terrain without falling.
-That's the whole idea here. Building **healthcare products with AI** is dangerous terrain — PHI, HIPAA,
-client IP, regulated data. The MB Health Harness is the set of guardrails + a repeatable workflow that
-let a Mindbowser engineer move *fast* with agents and *not fall*: a tight feedback-loop gate, compliance
-profiles, a redaction check, and a disciplined build loop.
+**What's a harness?** A safety rig — the gear that lets you move fast on dangerous terrain without
+falling. That's the whole idea here.
+
+**Why it matters in the AI era.** AI agents changed *how fast* code gets written — but not what makes
+software *good*. The fundamentals haven't moved in 20+ years: tight **feedback loops**, **tests you
+trust**, **small reversible steps**, **clear interfaces / deep modules**, and **human review where taste
+lives**. Generating code faster doesn't suspend any of that — it *raises the stakes*, because an agent
+produces broken work as fast as good work. The MB Health Harness doesn't invent a new process; it
+**re-applies those timeless engineering fundamentals as a repeatable discipline**, so a team can move
+*fast* with agents and *not fall*.
+
+For Mindbowser, the terrain is **healthcare** — PHI, HIPAA, client IP, regulated data — so on top of the
+build loop the harness adds the guardrails that make speed *safe*: compliance profiles, a redaction
+check, audit + PHI-safe logging, and a deterministic "wall."
 
 **The method is agent-agnostic** — the Build Loop, the gate, vertical slices, and the governance
 guardrails work with any capable AI coding agent. What's tool-specific is only the *packaging*: this repo
