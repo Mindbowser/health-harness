@@ -20,10 +20,10 @@ enforcement hook below are Claude Code mechanics. Install it once and every engi
 
 | Phase | SDLC | Who | What |
 |---|---|---|---|
-| **1. Align** (`/align`) | Requirements→Design | PM/BA + Dev | Relentless interview → a shared design concept + **acceptance criteria**. `/align` detects the item level (epic/story/bug) and **orchestrates phases 2–3 as sub-steps.** |
+| **1. Align** (`/align`) | Requirements→Design | PM/BA + Dev | Relentless interview → a shared design concept + **acceptance criteria**. Two personas: **AUTHOR** (PM/BA, at refinement — business criteria) and **BUILD-PREP** (Dev, at pick-up — technical criteria + feasibility). Detects the item level (epic/story/bug) and **orchestrates phases 2–3 as sub-steps.** |
 | **2. PRD** (`/to-prd`) | Design | *(orchestrated by `/align`)* | **Epics / large features only:** consolidate the alignment into a disposable `prd.md` to slice from (local, gitignored — Jira keeps the record). |
 | **3. Slice** (`/to-issues`) | Design | *(orchestrated by `/align`)* | Break into **vertical slices** (schema→API→UI→tests) → Jira sub-tasks with blocking. |
-| **4. Build (AFK)** (`/tdd`) | Implementation+Testing | Engineer + AI | Ticket → *In Progress*; TDD red-green-refactor; gate green; governance; PR + worklog → *In Review*. |
+| **4. Build (AFK)** (`/tdd`) | Implementation+Testing | Engineer + AI | Pre-flight (warn if the ticket is already in QA/Done) → *In Progress*; TDD red-green-refactor; gate green; governance; PR + worklog → *In Review*. |
 | **5. QA** | Testing | QA + PM | Verify the acceptance criteria in the running app. Where human taste is imposed. |
 
 **Operationally you touch just two verbs** — `/align <item>` (refine: criteria + slices pushed to Jira)
