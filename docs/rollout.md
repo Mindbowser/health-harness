@@ -54,7 +54,21 @@ Commit `.claude/settings.json` with the **same two blocks** at project scope. On
 prompted to **trust the repo** → the marketplace is added → they **install once**
 (`claude plugin install health-harness@mindbowser --scope project`, or the `/plugin` Discover tab). Note:
 committing project settings does **not** auto-install plugins — only managed settings do that.
-Enable auto-update per person: `/plugin` → **Marketplaces** → `mindbowser` → **enable auto-update**.
+
+**Make auto-update the default for everyone — no per-person toggle.** Put `"autoUpdate": true` on the
+`mindbowser` entry in the **committed** `.claude/settings.json` (the author can't force it from the
+published marketplace; it lives in consumer settings, but a committed project setting *is* shared):
+```json
+{
+  "extraKnownMarketplaces": {
+    "mindbowser": { "source": { "source": "github", "repo": "Mindbowser/health-harness" }, "autoUpdate": true }
+  },
+  "enabledPlugins": { "health-harness@mindbowser": true }
+}
+```
+Then nobody touches the `/plugin` toggle — once installed, it auto-updates at startup. (The per-person
+toggle `/plugin` → Marketplaces → `mindbowser` → enable auto-update is the manual alternative.)
+For org-wide *enforced* auto-update that also auto-installs, use **managed settings** (above).
 
 ## Updates — how they show up / apply
 
