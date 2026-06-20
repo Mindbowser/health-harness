@@ -14,8 +14,10 @@ it — their conventions, their architecture, their IP.
 1. **Comprehend the repo.** Read the README + run/setup docs, the package manifest(s), entry points,
    and the main modules. Map: the stack, how to run it, how to test it, the high-level architecture,
    the key seams (where you'd safely make a change), and the conventions in use.
-2. **Write a repo `CLAUDE.md`.** Capture what you learned so every future agent session inherits it:
-   stack + versions, the one-command to run, the one-command to test, an architecture sketch, the
+2. **Create OR augment the repo `CLAUDE.md` — never clobber.** If a `CLAUDE.md` (or `ARCHITECTURE.md`,
+   `AiRules.md`) **already exists**, READ it and **add only what's missing** (e.g. a short harness
+   section: the gate command, compliance profile, seams) — do not overwrite a rich existing doc. If none
+   exists, write one: stack + versions, the run command, the test command, an architecture sketch, the
    conventions to follow (theirs, not MB's), known gotchas, and the seams for the change at hand.
 2b. **Write `.mb-harness/project.json`** — the durable project facts later skills read (don't make them
    re-derive): repos/submodules + paths, stack, default branch, the gate command, and the tracker coords
