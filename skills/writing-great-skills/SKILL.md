@@ -38,10 +38,14 @@ argument-hint: "<text>"            # optional: shown to the user when they invok
 ### Body
 
 1. **Opening line** — one sentence: what this skill does and when.
-2. **Numbered steps** — the process, each with a **checkable, exhaustive completion criterion** (the
+2. **Wrong-tool guard (self-routing)** — when the skill is **likely to be misused**, open with a short
+   *"if instead it's X, this is the wrong command — use `/Y`"* and **stop**. A skill invoked in the wrong
+   situation should redirect, not execute pointlessly (e.g. `/to-issues` on a single bug → "skip to
+   `/tdd`"; `/scaffold-from-boilerplate` on an existing repo → "use `/onboard-existing-codebase`").
+3. **Numbered steps** — the process, each with a **checkable, exhaustive completion criterion** (the
    agent can verify it's done with no ambiguity).
-3. **Anti-patterns** — an explicit "do NOT do this" section. This is where most of the value is.
-4. **Reference** — definitions, examples; push detail into supporting files (progressive disclosure).
+4. **Anti-patterns** — an explicit "do NOT do this" section. This is where most of the value is.
+5. **Reference** — definitions, examples; push detail into supporting files (progressive disclosure).
 
 ## Completion criteria — checkable and exhaustive
 

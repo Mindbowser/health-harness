@@ -7,6 +7,13 @@ Break a PRD (or plan, or a set of Jira/Linear stories) into **issues**, each ide
 slice**, with explicit blocking relationships so agents can work them in parallel. Phase 3 of the
 Build Loop. Dev/Tech-lead-led — slicing is an architectural act.
 
+## Wrong tool? — redirect before doing anything
+
+**If this is a single bug or a one-slice change, you do NOT need `/to-issues`.** There's nothing to
+slice or order. The acceptance criteria `/align` already put on the ticket are the spec → tell the user
+*"this is one slice — skipping straight to `/tdd`"* and stop. Use `/to-issues` **only** when there are
+**multiple vertical slices** to create + sequence (a feature/epic). Don't manufacture sub-tasks for a bug.
+
 **Confirm the sprint before writing.** Read `.mb-harness/current-sprint` and state: "Writing issues to
 `.mb-harness/sprints/<sprint-id>/<feature-slug>/issues.md` (and pushing to the tracker) — correct?"
 Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set <id>` first.

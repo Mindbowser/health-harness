@@ -9,6 +9,12 @@ agent-ready**: a one-command gate, a declared compliance profile, and the harnes
 the front door for the **greenfield** archetype — the most common way MB projects start. Use it once,
 at project birth, before any `/align`.
 
+## Wrong tool? — redirect first
+
+**If the repo already has source code, STOP — this is the wrong door.** Use
+`/onboard-existing-codebase` instead (that respects the existing code; this would scaffold over it).
+`/start` routes correctly; only reach here for a genuinely empty/new project.
+
 ## Process
 
 1. **Confirm the stack + project name.** Pick the MB boilerplate(s): frontend (React/TS), backend
