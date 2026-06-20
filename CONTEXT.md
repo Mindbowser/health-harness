@@ -71,7 +71,7 @@ you must do first. From a developer's seat there are **two** front doors (`/star
   PHI values**. Distinct from operational logs (see safe-logging — that keeps PHI *out*; this *records
   access*). Skill: `/audit-logging`.
 
-## The `.mb-harness/` config — one home per fact
+## The `.health-harness/` config — one home per fact
 
 Three files, split by how often they change. Skills **read these instead of re-deriving** (e.g. don't
 re-query Jira for the project key every run).
@@ -98,23 +98,23 @@ re-query Jira for the project key every run).
 
 ### Your role — user-level, persisted, separate from the project
 
-- **`~/.mb-harness/role`** (in your HOME, not the repo) holds **your** role: `pm` or `engineer`. Set via
+- **`~/.health-harness/role`** (in your HOME, not the repo) holds **your** role: `pm` or `engineer`. Set via
   `/role`. It persists across all your sessions + projects and is **personal** (never committed). It sets
   `/align`'s default **mode** (pm → AUTHOR, engineer → BUILD-PREP). `/align` announces the active role and
   lets you switch (`/role <x>` or "as engineer"); if it's unset and unclear, `/align` asks + offers to persist.
 
 **Git policy — what's committed vs ignored:**
-- **Commit** (durable, team-shared): the repo `CLAUDE.md`, `.mb-harness/project.json`, `.mb-harness/compliance.json`.
-- **Gitignore** (scratch/volatile): `.mb-harness/sprints/` (the `align.md`/**`prd.md`**/`issues.md`) and
-  `.mb-harness/current-sprint`. The PRD is **disposable** — its durable form is the **Jira ticket
+- **Commit** (durable, team-shared): the repo `CLAUDE.md`, `.health-harness/project.json`, `.health-harness/compliance.json`.
+- **Gitignore** (scratch/volatile): `.health-harness/sprints/` (the `align.md`/**`prd.md`**/`issues.md`) and
+  `.health-harness/current-sprint`. The PRD is **disposable** — its durable form is the **Jira ticket
   criteria**, not a committed file. Don't commit working docs (doc-rot + clutters a client repo). The
   front door adds these ignore rules to `.gitignore`.
 
 ## Sprint terms
 
 - **Sprint** — a time-boxed batch of many features. The tracker (Jira/Linear) owns the sprint + its
-  stories; the harness keeps a thin local container at `.mb-harness/sprints/<id>/` to file each
-  feature's `align.md`/`prd.md`/`issues.md`. The **active sprint** is in `.mb-harness/current-sprint`
+  stories; the harness keeps a thin local container at `.health-harness/sprints/<id>/` to file each
+  feature's `align.md`/`prd.md`/`issues.md`. The **active sprint** is in `.health-harness/current-sprint`
   (set via `/sprint set`). `/align` always confirms which sprint it's filing under before writing.
 - **Feature** — one coherent unit of work within a sprint = one Build Loop (`/align`→`/to-prd`→
   `/to-issues`). A sprint has several. **Align per feature, never one align for the whole sprint.**

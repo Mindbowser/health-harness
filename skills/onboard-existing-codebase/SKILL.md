@@ -19,12 +19,12 @@ it — their conventions, their architecture, their IP.
    section: the gate command, compliance profile, seams) — do not overwrite a rich existing doc. If none
    exists, write one: stack + versions, the run command, the test command, an architecture sketch, the
    conventions to follow (theirs, not MB's), known gotchas, and the seams for the change at hand.
-2b. **Write `.mb-harness/project.json`** — the durable project facts later skills read (don't make them
+2b. **Write `.health-harness/project.json`** — the durable project facts later skills read (don't make them
    re-derive): repos/submodules + paths, stack, default branch, the gate command, the tracker coords
    (`jira.projectKey` / `cloudId` / `site`), and the **`git` convention** — observe existing branches/PRs
    to capture `baseBranch`, `branchPattern`, `prTarget` (e.g. CH branches a feature off `dev`, PRs to
    `dev`). `/tdd` uses this so it branches + opens PRs *their* way, not MB's. See CONTEXT.md for the shape.
-2c. **Set `.gitignore`** — add `.mb-harness/sprints/` and `.mb-harness/current-sprint` (scratch/volatile,
+2c. **Set `.gitignore`** — add `.health-harness/sprints/` and `.health-harness/current-sprint` (scratch/volatile,
    not committed). `project.json` + `compliance.json` + `CLAUDE.md` ARE committed (durable config). The
    PRD/align notes live only locally; their durable form is the Jira ticket.
 3. **Establish the feedback loop — HARD GATE.** Find the existing gate (tests / typecheck / lint /
@@ -33,8 +33,8 @@ it — their conventions, their architecture, their IP.
    - If it's missing, broken, or thin → **write characterization tests** that pin the *current*
      behavior around where you'll work, and assemble a one-command gate. **Do not change any behavior
      until this gate is green.** No feedback loop ⇒ no AFK build (Matt: no loop = no quality ceiling).
-4. **Declare the compliance profile.** Run `/compliance-profile` (default `hipaa`) → `.mb-harness/compliance.json`.
-   Run the scanner once for a baseline: `node <mb-harness>/bin/redaction-scan.js --path .` so you know
+4. **Declare the compliance profile.** Run `/compliance-profile` (default `hipaa`) → `.health-harness/compliance.json`.
+   Run the scanner once for a baseline: `node <health-harness>/bin/redaction-scan.js --path .` so you know
    what's already there before you add anything.
 5. **Respect their world.** Match the existing code style and patterns; do NOT impose MB boilerplate,
    reformat the repo, or do unrequested refactors. Do not exfiltrate code outside the engagement.
@@ -53,6 +53,6 @@ it — their conventions, their architecture, their IP.
 
 - [ ] A repo `CLAUDE.md` exists: stack, run cmd, test cmd, architecture sketch, conventions, seams.
 - [ ] A one-command feedback loop exists and is green (theirs, or characterization tests you added).
-- [ ] `.mb-harness/compliance.json` is set (default `hipaa`); a baseline redaction scan has run.
+- [ ] `.health-harness/compliance.json` is set (default `hipaa`); a baseline redaction scan has run.
 - [ ] No behavior changed yet; existing style/conventions are documented to follow.
 - [ ] Ready to start the change at `/align`.

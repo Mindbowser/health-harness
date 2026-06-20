@@ -43,7 +43,7 @@ agent) must *inherit* this alignment, not just read a doc written from it.
 
 ## Resolve the sprint from the ticket (don't make the user set it)
 
-When aligning a Jira item, **read its Sprint field** and reconcile with `.mb-harness/current-sprint` —
+When aligning a Jira item, **read its Sprint field** and reconcile with `.health-harness/current-sprint` —
 don't ask the user to run `/sprint set` for the normal case:
 
 - **`current-sprint` unset** → set it from the ticket's sprint and say *"sprint set to `<X>` (from the ticket)."*
@@ -98,7 +98,7 @@ inherently technical. **Feasibility is a BUILD-PREP job, never an AUTHOR-mode de
 must *inherit* the criteria before coding — a clear PM-written ticket satisfies that without a meeting.
 
 **How the mode is picked (role → infer → ask):**
-1. **Persisted role first.** Read `~/.mb-harness/role` (set via `/role`): `pm` → default **AUTHOR**;
+1. **Persisted role first.** Read `~/.health-harness/role` (set via `/role`): `pm` → default **AUTHOR**;
    `engineer` → default **BUILD-PREP**.
 2. **Infer if no role.** Fresh idea / thin story, no build intent → AUTHOR; a concrete ticket you're
    about to build in a repo → BUILD-PREP.
@@ -108,7 +108,7 @@ must *inherit* the criteria before coding — a clear PM-written ticket satisfie
 4. **Announce it** at the start — *"Acting as **PM · AUTHOR mode**"* (or engineer/BUILD-PREP) — and note
    *"say 'as engineer' to switch."* Switching mid-item is a one-word override; `/role` changes the default.
 
-Also read `.mb-harness/project.json` (Jira coords, repos, stack) so you don't re-derive project context.
+Also read `.health-harness/project.json` (Jira coords, repos, stack) so you don't re-derive project context.
 
 ## Anti-patterns
 

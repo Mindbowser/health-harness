@@ -25,10 +25,10 @@ at project birth, before any `/align`.
 3. **Wire the gate.** Ensure a single one-command gate exists and passes on the empty project
    (typecheck + build + tests, e.g. `pnpm verify`), with a coverage ratchet if the stack supports it.
    *Feedback loops are the quality ceiling — the project is not ready without this.*
-4. **Set the compliance profile.** Run `/compliance-profile` to write `.mb-harness/compliance.json`.
+4. **Set the compliance profile.** Run `/compliance-profile` to write `.health-harness/compliance.json`.
    **Default to `hipaa`** (the MB fail-safe); only set a lighter profile if the user confirms the repo
    handles no PHI.
-5. **Install the harness.** Reference the `mb-harness` plugin and add a repo `CLAUDE.md` that states the
+5. **Install the harness.** Reference the `health-harness` plugin and add a repo `CLAUDE.md` that states the
    stack, the gate command, and the active compliance profile.
 6. **Verify it boots.** Install deps, run the gate green, confirm the dev server starts. Commit the
    scaffold as the first commit.
@@ -44,8 +44,8 @@ at project birth, before any `/align`.
 
 - [ ] New repo created from the right boilerplate(s); boilerplate history removed; fresh git init.
 - [ ] The one-command gate exists and passes on the empty project.
-- [ ] `.mb-harness/compliance.json` is set (via `/compliance-profile`) and reflected in `CLAUDE.md`.
-- [ ] The `mb-harness` plugin is referenced; the dev server boots.
+- [ ] `.health-harness/compliance.json` is set (via `/compliance-profile`) and reflected in `CLAUDE.md`.
+- [ ] The `health-harness` plugin is referenced; the dev server boots.
 - [ ] First commit is the clean scaffold (no feature code yet).
 
 Next: `/align` to start the Build Loop.

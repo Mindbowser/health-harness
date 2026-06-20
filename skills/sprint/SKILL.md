@@ -13,14 +13,14 @@ Jira/Linear stays the system of record for stories; this is a thin local organiz
 ## Commands
 
 - **`/sprint set <id>`** — set the active sprint (e.g. `Sprint-42`, `2026-S12`). Writes the id to
-  `.mb-harness/current-sprint` and creates `.mb-harness/sprints/<id>/`. Run this once when a sprint starts.
+  `.health-harness/current-sprint` and creates `.health-harness/sprints/<id>/`. Run this once when a sprint starts.
 - **`/sprint`** or **`/sprint status`** — show the active sprint and list its features with the loop
-  stage each has reached (align / prd / issues / building), by reading `.mb-harness/sprints/<id>/`.
+  stage each has reached (align / prd / issues / building), by reading `.health-harness/sprints/<id>/`.
 
 ## Layout it manages
 
 ```
-.mb-harness/
+.health-harness/
   current-sprint                 # the active sprint id (one line)
   sprints/<id>/<feature-slug>/
     align.md                     # the shared design concept (from /align)
@@ -30,8 +30,8 @@ Jira/Linear stays the system of record for stories; this is a thin local organiz
 
 ## Process (for `set`)
 
-1. Write the id to `.mb-harness/current-sprint` (overwrite any previous).
-2. Create `.mb-harness/sprints/<id>/` if absent.
+1. Write the id to `.health-harness/current-sprint` (overwrite any previous).
+2. Create `.health-harness/sprints/<id>/` if absent.
 3. Confirm back: "Active sprint is now **<id>**. New `/align` sessions will file under it."
 
 ## Anti-patterns
@@ -42,6 +42,6 @@ Jira/Linear stays the system of record for stories; this is a thin local organiz
 
 ## Completion criteria
 
-- [ ] `.mb-harness/current-sprint` holds the active sprint id.
-- [ ] `.mb-harness/sprints/<id>/` exists.
+- [ ] `.health-harness/current-sprint` holds the active sprint id.
+- [ ] `.health-harness/sprints/<id>/` exists.
 - [ ] `status` lists each feature and its current loop stage.

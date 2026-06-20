@@ -16,7 +16,7 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    - **Has existing source code** (any stack) → **existing repo**.
 2. **Confirm with the user** — state the detected archetype and why; let them correct it. Never route
    blind (a near-empty repo might still be an existing clone mid-setup).
-3. **Ensure the compliance profile is set.** If `.mb-harness/compliance.json` is missing, run
+3. **Ensure the compliance profile is set.** If `.health-harness/compliance.json` is missing, run
    `/compliance-profile` (default `hipaa`). Both paths need this before work starts.
 4. **Route to the front door:**
 
@@ -45,5 +45,5 @@ ingest a handover. It also makes sure the compliance profile is set, which every
 ## Completion criteria
 
 - [ ] The archetype is detected (new vs existing) AND confirmed by the user.
-- [ ] `.mb-harness/compliance.json` exists (default `hipaa`).
+- [ ] `.health-harness/compliance.json` exists (default `hipaa`).
 - [ ] The correct front-door skill has been invoked.

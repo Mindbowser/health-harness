@@ -19,7 +19,7 @@ one**: for a single ticket/bug there's no PRD at all.
   (written onto the Jira ticket) ARE the spec; a separate PRD is redundant ceremony.
 - **Where it lives:** the **durable home is the Jira epic** — write Problem/Solution/Decisions/Out-of-scope
   into the **epic description**, so the team actually sees it (just like `/align` writes criteria onto the
-  story). A local `.mb-harness/sprints/<sprint>/<feature>/prd.md` is at most a **gitignored working
+  story). A local `.health-harness/sprints/<sprint>/<feature>/prd.md` is at most a **gitignored working
   draft**, never the deliverable. A PRD nobody reads is pointless — Jira is where it's seen.
 
 ## Prerequisite
@@ -27,8 +27,8 @@ one**: for a single ticket/bug there's no PRD at all.
 There must be a real alignment to capture. If you weren't part of an `/align` session and only have a
 thin prompt, run `/align` first — do not invent a design concept from nothing.
 
-**Confirm the sprint before writing.** Read `.mb-harness/current-sprint` and state: "Writing the PRD
-to `.mb-harness/sprints/<sprint-id>/<feature-slug>/prd.md` — correct?" Wait for a yes/redirect; if the
+**Confirm the sprint before writing.** Read `.health-harness/current-sprint` and state: "Writing the PRD
+to `.health-harness/sprints/<sprint-id>/<feature-slug>/prd.md` — correct?" Wait for a yes/redirect; if the
 sprint is unset, have the user run `/sprint set <id>` first. Don't file silently.
 
 ## Process

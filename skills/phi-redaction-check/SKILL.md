@@ -10,7 +10,7 @@ regulated domain without leaking. A hit is a hard fail, not a warning.
 
 ## Driven by the compliance profile
 
-Read `.mb-harness/compliance.json` first (see `/compliance-profile`). The `dataClasses` there decide
+Read `.health-harness/compliance.json` first (see `/compliance-profile`). The `dataClasses` there decide
 which families below are enforced. **`secrets` is always enforced**, even for profile `none`.
 
 ## What to scan for, by class
@@ -41,7 +41,7 @@ standard scan — see the Studio-only note below.
    - `node bin/redaction-scan.js --staged` (pre-commit) or `--changed <base>` (vs a branch) → only
      changed files. **This is the routine per-PR/per-commit default.**
    - `--path <dir>` → whole-tree, **only for a deliberate baseline audit**, never the routine gate.
-   - `--json` for clean machine output. Auto-loads `.mb-harness/compliance.json` (default `hipaa`),
+   - `--json` for clean machine output. Auto-loads `.health-harness/compliance.json` (default `hipaa`),
      exit 1 on hits, returns `{ file, line, class, snippet }`. Pattern matching beats eyeballing.
 3. **Pre-existing baseline ≠ your problem.** Hits in files you didn't touch are the repo's baseline
    (synthetic fixtures, example ARNs). Don't try to fix them — diff-scoping (step 2) excludes them.

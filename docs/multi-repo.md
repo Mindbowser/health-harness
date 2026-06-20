@@ -17,11 +17,11 @@ Clone the repos side-by-side under a parent workspace dir and run Claude Code fr
 
 ```
 acme-workspace/
-  .mb-harness/                       # cross-repo feature + sprint artifacts
+  .health-harness/                       # cross-repo feature + sprint artifacts
     current-sprint
     sprints/Sprint-42/book-visit/
       align.md  prd.md  issues.md  api-contract.md
-  acme-frontend/   # own repo · own .mb-harness/compliance.json · own gate (npm test, etc.)
+  acme-frontend/   # own repo · own .health-harness/compliance.json · own gate (npm test, etc.)
   acme-backend/    # own repo · compliance.json = hipaa · own gate
   acme-infra/      # own repo
 ```
@@ -34,7 +34,7 @@ build + governance). Each child repo declares its **own** `compliance-profile` (
 
 | Step | Where | Notes |
 |---|---|---|
-| `/sprint`, `/align`, `/to-prd`, `/to-issues` | **workspace root** | one feature = one alignment, even though it spans repos. Artifacts live in the workspace `.mb-harness/`. |
+| `/sprint`, `/align`, `/to-prd`, `/to-issues` | **workspace root** | one feature = one alignment, even though it spans repos. Artifacts live in the workspace `.health-harness/`. |
 | `/tdd` | **inside each repo** | that repo's one-command gate + compliance profile apply. |
 | governance checks | **inside each repo** | redaction/audit/safe-logging where the code is (usually BE). |
 

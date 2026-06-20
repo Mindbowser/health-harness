@@ -7,16 +7,16 @@ discipline + healthcare guardrails on top; it does **not** rewrite your code or 
 
 ```bash
 claude plugin marketplace add Mindbowser/health-harness --scope project
-claude plugin install mb-harness@mindbowser --scope project
+claude plugin install health-harness@mindbowser --scope project
 ```
 
 Commit the resulting `.claude/settings.json` so your whole team gets it. Restart Claude Code (or
-`/reload-plugins`); verify with `claude plugin details mb-harness@mindbowser` (→ Skills 11). You keep
+`/reload-plugins`); verify with `claude plugin details health-harness@mindbowser` (→ Skills 11). You keep
 any repo-specific skills you already have — the harness adds the shared ones on top.
 
 ## 2. Declare what data the repo handles (30 seconds)
 
-Create `.mb-harness/compliance.json`:
+Create `.health-harness/compliance.json`:
 
 ```json
 { "profile": "hipaa", "dataClasses": ["phi", "pii", "secrets"], "allow": [], "deny": [], "notes": "" }
@@ -34,7 +34,7 @@ This is the brownfield front door. It will:
 1. **Read your repo** and write a `CLAUDE.md` (stack, how to run, how to test, architecture, conventions).
 2. **Check the feedback loop** — your one command that runs tests + typecheck + lint. **If you don't
    have one, it writes characterization tests first.** Rule: *no agent builds until a green gate exists.*
-3. **Baseline-scan for leaks:** `node <mb-harness>/bin/redaction-scan.js --path .`
+3. **Baseline-scan for leaks:** `node <health-harness>/bin/redaction-scan.js --path .`
 
 ## 4. Build with the loop
 
@@ -43,7 +43,7 @@ slices that fit *your* architecture) → `/tdd` (test-first, run the gate every 
 
 ## 5. Before anything leaves the repo
 
-Run the redaction check — `node <mb-harness>/bin/redaction-scan.js --path <what-you're-sharing>` —
+Run the redaction check — `node <health-harness>/bin/redaction-scan.js --path <what-you're-sharing>` —
 on any handover doc, demo, or generated artifact. It blocks PHI/PII/secrets. And keep logs clean
 (`/safe-logging`): log record IDs, never patient data.
 
@@ -60,7 +60,7 @@ on any handover doc, demo, or generated artifact. It blocks PHI/PII/secrets. And
 
 ### FAQ
 
-- **Does it touch my code?** No. It adds `.mb-harness/compliance.json` and a `CLAUDE.md`; the rest is
+- **Does it touch my code?** No. It adds `.health-harness/compliance.json` and a `CLAUDE.md`; the rest is
   skills the agent follows. It won't reformat or refactor unless you ask.
 - **No tests in the repo?** That's expected on old code — the onboarding step adds characterization
   tests around the area you're changing, so the agent has a safety net before it edits anything.
