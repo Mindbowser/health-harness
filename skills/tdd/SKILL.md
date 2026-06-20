@@ -65,8 +65,10 @@ Tests verify **behavior through public interfaces**, not implementation details.
 5. **Governance** — no real PHI/PII/secrets in tests or fixtures; use synthetic data per the repo's
    `compliance-profile`.
 6. **Logging governance — mandatory when the slice touches ePHI** (`compliance-profile` = `hipaa`, or any
-   slice that reads/writes ePHI or emits logs on a PHI path). These are **acceptance criteria for the
-   slice, not optional extras** — build them red-green like any behavior:
+   slice that reads/writes ePHI or emits logs on a PHI path). **These should already be acceptance
+   criteria from `/align`'s healthcare check — just build-and-verify them.** If `/align` missed them
+   (older ticket, criteria came in thin), add them now as a backstop. Either way they're **acceptance
+   criteria, not optional extras** — build them red-green like any behavior:
    - **`safe-logging`** — runtime logs carry **references, never PHI/PII** (log a record id, not the
      record). Add a test asserting the PHI path's log output contains no PHI field values.
    - **`audit-logging`** — ePHI **reads, writes, and denied access** emit an audit entry (who / what +

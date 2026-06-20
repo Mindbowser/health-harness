@@ -65,7 +65,15 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    branches one question at a time, each with a recommended answer.
 3. **Surface only genuine forks** — real decisions with a trade-off the user must own. Route a
    **product/security/policy** fork to the right owner (architect/PM), not just the dev.
-4. **Healthcare check** — note any PHI/PII the item touches + the repo `compliance-profile`.
+4. **Healthcare check → write the compliance criteria.** Note any PHI/PII the item touches + the repo
+   `compliance-profile`. **If it touches ePHI (`hipaa`), the acceptance criteria MUST include the logging
+   NFRs as Given/When/Then** — author them here so `/tdd` just builds-and-verifies them like any other
+   criterion (don't defer to build time):
+   - *audit:* "Given a user reads / writes / **is denied** access to patient record X → an audit entry is
+     recorded (who · what + record id · when · where · outcome; **no PHI values**)."
+   - *safe logs:* "Given an error on a PHI path → the log contains record ids/references, **never PHI**."
+   AUTHOR states them as business/compliance criteria; BUILD-PREP makes them technical + testable. No-op
+   for `none` (but `secrets` are never logged).
 5. **Reflect back** the understanding + the acceptance criteria (Given/When/Then) and get a yes.
 6. **Write the criteria where they belong — don't make the human run a second command:**
    - **AUTHOR mode (PM refining a ticket):** **update the Jira ticket** with the agreed Given/When/Then
@@ -124,6 +132,7 @@ Also read `.health-harness/project.json` (Jira coords, repos, stack) so you don'
 - [ ] Depth matched the ambiguity (neither over- nor under-aligned).
 - [ ] Acceptance criteria (Given/When/Then) proposed and confirmed.
 - [ ] Genuine forks (if any) decided by the right owner; PHI/compliance noted.
+- [ ] For ePHI items: audit-logging + PHI-safe-logging are in the acceptance criteria (Given/When/Then), ready for `/tdd`.
 - [ ] Ran the chain for the item's **level** — epic → PRD on the epic + child stories; story → criteria
       (+ slices if multi-part); bug/task → criteria → ready for `/tdd`. The user picked the item, not the
       commands; the result is visible **in Jira**, not a local file.
