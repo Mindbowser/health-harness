@@ -14,56 +14,76 @@ engineer gets the same skills (`/align`, `/to-prd`, `/to-issues`, `/tdd`, …) a
 
 ## The Build Loop (the method)
 
-| Phase | Who | What |
-|---|---|---|
-| **1. Align** (`/align`) | BA/PM + Dev | A relentless interview until everyone (and the agent) shares the design concept. Output is *alignment*, not a doc. |
-| **2. PRD** (`/to-prd`) | BA/PM | Turn the alignment into a disposable destination doc. |
-| **3. Slice** (`/to-issues`) | Dev/Tech-lead | Break it into **vertical slices** (schema→API→UI→tests), not horizontal layers. |
-| **4. Build (AFK)** (`/tdd`) | Agent (Dev oversees) | TDD red-green-refactor, run the gate, loop until done. |
-| **5. QA** | Dev + BA/PM | Fresh-context review + manual QA. Where human taste is imposed. |
+| Phase | SDLC | Who | What |
+|---|---|---|---|
+| **1. Align** (`/align`) | Requirements→Design | PM/BA + Dev | Relentless interview → a shared design concept + **acceptance criteria**. `/align` detects the item level (epic/story/bug) and **orchestrates phases 2–3 as sub-steps.** |
+| **2. PRD** (`/to-prd`) | Design | *(orchestrated by `/align`)* | Alignment → a disposable destination doc. |
+| **3. Slice** (`/to-issues`) | Design | *(orchestrated by `/align`)* | Break into **vertical slices** (schema→API→UI→tests) → Jira sub-tasks with blocking. |
+| **4. Build (AFK)** (`/tdd`) | Implementation+Testing | Engineer + AI | Ticket → *In Progress*; TDD red-green-refactor; gate green; governance; PR + worklog → *In Review*. |
+| **5. QA** | Testing | QA + PM | Verify the acceptance criteria in the running app. Where human taste is imposed. |
 
-**The middle of the loop is invariant; the *front door* varies** — a new repo from MB boilerplate, or
-an existing codebase. `/start` picks the door for you. See `CONTEXT.md`.
+**Operationally you touch just two verbs** — `/align <item>` (refine: criteria + slices pushed to Jira)
+and `/tdd` (build). PRD and slicing are sub-steps `/align` runs, so nobody memorizes which command fits.
+**The middle of the loop is invariant; the *front door* varies** — a new repo from MB boilerplate or an
+existing codebase — and `/start` picks it for you. See `CONTEXT.md` and `COMMANDS.md`.
 
-## How it flows (sprint → release)
+## How it flows (Agile ceremony → SDLC phase)
 
-A human picks the story; `/align` works on that one feature; `/to-issues` pushes per-repo slices back to
-the tracker; devs pull the top **unblocked** slice and build it with `/tdd`. Governance runs automatically.
+The harness **slots into the Scrum cadence you already run** — it doesn't replace it. A human picks the
+*item*; `/align` refines it (orchestrating PRD + slicing) and pushes vertical slices to Jira; devs grab
+the top **unblocked** slice and build it with `/tdd`, which drives the ticket's lifecycle and logs time.
+Governance and the wall run automatically throughout.
 
 ```mermaid
 flowchart TD
-    SETUP["🔧 One-time per repo: /start<br/>onboard or scaffold · set compliance-profile (hipaa) · ensure the gate"]
-    SETUP -.->|first time only| S
+    SETUP["🔧 ONBOARDING · Inception — once per repo<br/>/start → scaffold | onboard · /compliance-profile · establish the gate"]
 
-    subgraph PLAN["🗓️ Sprint planning — PM/BA + devs"]
-        S["/sprint set Sprint-42"] --> IMP["/import-issues<br/>pull stories + bugs from Jira"]
-        IMP --> PICK{"Pick a feature<br/>(human chooses — not the tool)"}
+    subgraph PLAN["📋 SPRINT PLANNING · Requirements"]
+        direction TB
+        SP["/sprint set · /import-issues<br/>pull this sprint's stories + bugs from Jira"] --> PICK{"Human picks ONE item<br/>(epic · story · bug)"}
     end
 
-    PICK -->|small / clear| TDD
-    PICK -->|sizable / ambiguous| ALIGN
-
-    subgraph LOOP["🎯 Align & slice — per feature (PM + the dev who builds it)"]
-        ALIGN["/align ACME-101<br/>shared design concept + API contract"] --> PRD["/to-prd → prd.md"]
-        PRD --> ISS["/to-issues<br/>vertical slices + Given/When/Then criteria"]
+    subgraph REFINE["🎯 REFINEMENT · Design — /align orchestrates"]
+        direction TB
+        AL["/align the item<br/>detects level → shared concept + acceptance criteria"]
+        AL --> AP["↳ /to-prd · disposable prd.md"]
+        AP --> AS["↳ /to-issues · vertical slices + Given/When/Then"]
     end
 
-    ISS -->|push back| JIRA[("Jira board<br/>per-repo sub-tasks + blocking (a DAG)")]
+    JIRA[("🗂️ Jira board · To Do<br/>per-repo sub-tasks + blocking DAG")]
 
-    subgraph BLD["🔨 Build — per repo, in parallel"]
-        JIRA --> GRAB{"Dev pulls the top UNBLOCKED<br/>sub-task in their repo"}
-        GRAB --> TDD["/tdd in that repo<br/>red → green → refactor · gate green"]
-        TDD --> GOV["governance (automatic):<br/>safe-logging · audit-logging · redaction"]
-        GOV --> PR["PR → review → merge"]
-        PR -->|unblocks the next slice| GRAB
+    subgraph BUILD["🔨 SPRINT EXECUTION · Implementation + Testing — per slice (AFK)"]
+        direction TB
+        GRAB["grab top UNBLOCKED slice"] --> WIP["Jira → In Progress<br/>⚠ pre-flight: warn if already in QA/Done"]
+        WIP --> TDD["/tdd · red → green → refactor · gate green<br/>governance: safe-logging · audit · redaction"]
+        TDD --> PRW["open PR + log worklog<br/>Jira → In Review (= Ready for QA)"]
     end
 
-    PR --> QA["✅ QA — fresh context<br/>tests → code → manual · criteria pass · demoable end-to-end"]
-    QA --> REL["🚀 Release<br/>gate green across repos · /phi-redaction-check · deploy"]
+    subgraph VERIFY["✅ CODE REVIEW + QA · Quality gate → Testing"]
+        direction TB
+        CR["peer review + CI green + /phi-redaction-check → merge"]
+        CR --> QA["QA verifies acceptance criteria in the running app"]
+    end
+
+    REL["🚀 RELEASE · Deployment<br/>gate green across repos · redaction + audit check · deploy → Jira Done"]
+
+    SETUP -.->|first time only| PLAN
+    PICK -->|sizable / ambiguous| REFINE
+    PICK -->|small / clear| JIRA
+    REFINE --> JIRA
+    JIRA --> BUILD
+    PRW --> VERIFY
+    QA --> REL
+    REL -.->|next item| PICK
 ```
 
-> Reading it: **plan → pick a feature → align that one feature → slice into per-repo issues → devs grab
-> unblocked slices → TDD-build → QA → release.** Small/clear tickets skip align and go straight to `/tdd`.
+> **Reading it (left = Agile ceremony, right = SDLC phase):** onboard once → at planning pull the sprint
+> and pick one item → `/align` refines + slices it into Jira → devs build unblocked slices with `/tdd`
+> (ticket walks **To Do → In Progress → In Review**, worklog logged) → review + QA verify the criteria →
+> release (→ **Done**). Small/clear items skip refinement and go straight to the board.
+>
+> **The wall runs across every lane:** push, PR, Jira writes, and a commit on the base branch all stop
+> for your approval; catastrophic actions are blocked outright.
 
 **Who runs which command, when?** The day-one reference — every command mapped to its Agile ceremony +
 SDLC phase, who drives it, and what it produces — is in **`COMMANDS.md`**.
