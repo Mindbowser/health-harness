@@ -15,11 +15,27 @@ at project birth, before any `/align`.
 `/onboard-existing-codebase` instead (that respects the existing code; this would scaffold over it).
 `/start` routes correctly; only reach here for a genuinely empty/new project.
 
+## Boilerplate source — resolve from the central registry, never hardcode a URL
+
+MB keeps **one boilerplate per tech stack**, listed in a **central registry** (single source of truth) so
+new projects scaffold with zero per-project setup. Don't ask the user for a URL and don't hardcode one —
+resolve the stack against the registry:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/bin/boilerplate-registry.js" list                # show available stacks
+node "${CLAUDE_PLUGIN_ROOT}/bin/boilerplate-registry.js" resolve "<stack>"   # → {"key","repo","kind"}
+```
+
+- The registry is `registry.json` in a central repo (default `Mindbowser/boilerplates`; override with the
+  `MB_BOILERPLATE_REGISTRY` env var). Cloning private boilerplates uses `MB_BOILERPLATE_TOKEN` (set once in
+  `~/.claude/settings.json` → `env`, or org-wide via FleetDM). Format + setup: `docs/boilerplates.md`.
+- **Flow:** if the user named a stack, `resolve` it; if it's ambiguous or unspecified, run `list` and let
+  them pick. If `resolve` exits non-zero, show the available stacks — never invent a URL.
+
 ## Process
 
-1. **Confirm the stack + project name.** Pick the MB boilerplate(s): frontend (React/TS), backend
-   (Node/Express/Postgres/TS), or both for a monorepo. Use the configured boilerplate source (env/config),
-   not a hardcoded URL.
+1. **Confirm the stack + project name**, then `resolve` the stack to its `repo` via the registry helper
+   above (clone with `MB_BOILERPLATE_TOKEN`). `kind` (frontend/backend/monorepo) tells you the layout.
 2. **Clone read-only.** `git clone --depth 1` the boilerplate(s) into the new project; remove their
    `.git`; re-init a fresh repo. **Never push back to the boilerplate repos — they are clone-only.**
 3. **Wire the gate.** Ensure a single one-command gate exists and passes on the empty project

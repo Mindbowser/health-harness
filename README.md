@@ -233,6 +233,7 @@ bin/usage-upload.js          # ships the usage log to MBI Atlas — DEFAULT OFF 
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
 bin/preflight.js             # onboarding pre-flight checklist (git/remote/gate/tracker) for /start (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
+bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
 hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart · usage log (PostToolUse, UserPromptSubmit, PreCompact, SubagentStop)
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
