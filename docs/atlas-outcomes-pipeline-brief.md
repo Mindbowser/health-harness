@@ -1,0 +1,79 @@
+# Brief for the Atlas agent — fill Faster / Better / Done-right + account attribution
+
+Paste the block below to the **mbi-atlas** agent. It completes the v2 scorecard: today `faster` and `better`
+are `null` placeholders, `doneRight` is `partial: true`, and the account correlation has no adoption data.
+
+---
+
+## PROMPT (copy from here)
+
+Complete the Harness AI Usage scorecard. In `buildHarnessRollup()` (server.js ~line 2389) the `v2` object
+currently has `faster: null` and `better: null` (placeholders), `doneRight.partial = true`, and
+`correlationPanel` with no adoption attribution. Fill them by adding a **git/PR data step to the existing
+background rollup job** — NOT in any request path, and NOT by giving Atlas write access. Use a **read-only
+GitHub token** (`GITHUB_TOKEN` in server.env). If the token is absent, leave the field `null`/"—" and keep
+serving the rest (graceful degradation).
+
+### Where to compute: the background rollup job only
+`refreshHarnessRollup()` already runs on an interval + manual refresh and caches to
+`data/harness-usage-rollup.json`. Add the git/PR work there. Cache shallow clones / API results under
+`data/` and refresh incrementally; the `/api/harness/usage-report` endpoint keeps serving the cached rollup
+instantly. Rate-limit-friendly (batch, cache ETags/last-SHA).
+
+### Faster — cycle time per work item
+For each **merged PR** in the window: `cycle = first commit on its branch → merge time`. Report the
+**median** (org + per slice). Key each PR to its ticket via the **`issueKey`** in the branch name or PR title
+(same `[A-Z][A-Z0-9]+-\d+` pattern the telemetry uses). Exclude bot/dependabot PRs. `faster.medianHours`,
+plus `trend` vs prior window.
+
+### Better — churn / rework rate (GET THE DEFINITION RIGHT)
+Measure **rework of MERGED code only**: lines that landed on the default branch, then were rewritten or
+deleted **within ~14 days**, as a fraction of lines merged in the window. `better.reworkRate = churnedLines /
+mergedLines`, per repo, plus `trend`.
+- **CRITICAL:** do NOT count in-branch churn (pre-merge). Red-green-refactor churn is *healthy* — counting it
+  would punish good TDD, which is exactly what the harness promotes. Window starts at **merge**, not at first
+  write.
+- Exclude generated/vendored/lockfiles (`dist/`, `build/`, `node_modules/`, `*.lock`, `*.min.*`, snapshots).
+- Compute **per-repo** (not per-author — avoid blame). Implementation: shallow clone (or `git log -p`/blame
+  over the window) in the background job.
+- Treat as a **noisy trend**, never an absolute or a per-person score.
+
+### Done-right — complete it (drop `partial`)
+Per **merged PR** in the window, it's "done right" if ALL hold:
+1. **Aligned** — its `issueKey` had a `/align` command event in telemetry, AND
+2. **Gate-green** — a passing `gate_run` event for that work, AND
+3. **Reviewed** — ≥1 PR approval (GitHub), AND
+4. **Linked** — an `issueKey` is present (traceable to a ticket).
+`doneRight.rate = doneRightPRs / mergedPRs`. (Jira *status* is optional; issueKey-present is enough for
+"linked.") Remove `partial: true` once PR data is wired.
+
+### Account attribution — light up the correlation panel
+Add a **`repoId` → account** map (config: `data/repo-accounts.json`, `{ "<repo>": "<account domain/name>" }`,
+maintained by the team). Attribute each dev's harness activity (telemetry `repoId`) and each repo's
+outcomes to its account. Then the correlation panel compares **high-adoption vs low-adoption accounts** on
+the existing CSAT / open-flags / on-time it already queries from mbi.db — **only accounts with harness
+activity**, as a 2-cohort comparison, not the current 20-row dump. If a repo has no mapping, bucket it under
+"unmapped" (don't guess).
+
+### Config / secrets
+- `GITHUB_TOKEN` (read-only; repo + PR read) in `deploy/server.env`.
+- Repo set: either an org + topic filter, or an explicit list in `data/repo-accounts.json` (the same file
+  doubles as the account map). Document it.
+
+### Guardrails (unchanged)
+- Background only; request path serves cache; missing token/data → `null`/"—", never a crash.
+- Non-punitive; per-repo/account, not per-person ranking. Churn is a trend, not a verdict.
+- Leadership-gated (existing `effectiveUser(req).admin` check on `/api/harness/usage-report`).
+
+### Acceptance
+- `faster.medianHours`, `better.reworkRate`, `doneRight.rate` (no `partial`) populate when `GITHUB_TOKEN` is
+  set; degrade to "—" when not.
+- Churn counts **post-merge rework only** (verify: a PR with heavy pre-merge commits but no post-merge edits
+  has ~0 churn).
+- Correlation panel shows high- vs low-adoption account cohorts (active accounts only) with their CSAT/flags.
+- All computed in the background rollup; first paint never blocks; cached `<~100ms`.
+
+(Code anchors: `buildHarnessRollup` ~2389, the `v2` object ~2620 with `faster/better` null ~2627-2628,
+`correlationPanel` query ~2600, `refreshHarnessRollup` ~2659, report endpoint ~2674.)
+
+## END PROMPT
