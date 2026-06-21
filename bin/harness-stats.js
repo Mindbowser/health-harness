@@ -88,9 +88,10 @@ function main() {
     } catch { return []; }
   };
 
+  // window = the last `span` days INCLUDING today (i=0); prev = the `span` days before that, for deltas.
   const byDay = [], windowRecs = [], prevRecs = [];
-  for (let i = span; i >= 1; i--) { const d = new Date(now); d.setDate(d.getDate() - i); const ds = isoDate(d); const recs = readDay(ds); byDay.push({ day: ds, m: summarize(recs) }); windowRecs.push(...recs); }
-  for (let i = span * 2; i > span; i--) { const d = new Date(now); d.setDate(d.getDate() - i); prevRecs.push(...readDay(isoDate(d))); }
+  for (let i = span - 1; i >= 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); const ds = isoDate(d); const recs = readDay(ds); byDay.push({ day: ds, m: summarize(recs) }); windowRecs.push(...recs); }
+  for (let i = 2 * span - 1; i >= span; i--) { const d = new Date(now); d.setDate(d.getDate() - i); prevRecs.push(...readDay(isoDate(d))); }
 
   const coach = buildCoaching(summarize(windowRecs), span >= 7 ? 'weekly' : 'daily', summarize(prevRecs));
   process.stdout.write(renderDashboard({ rangeLabel: `last ${span} days`, byDay, coach }) + '\n');
