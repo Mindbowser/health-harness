@@ -1,0 +1,85 @@
+# Brief for the Atlas agent — Harness AI Usage v2 (CTO scorecard: outcomes, process, Jira slicing)
+
+Paste the block below to the **mbi-atlas** agent. It evolves the existing "Harness AI Usage" tab from an
+*activity* dashboard into a *did-we-get-better* instrument for an IT-services healthcare CTO.
+
+---
+
+## PROMPT (copy from here)
+
+Evolve the **Harness AI Usage** view in MBI Atlas. Today it shows AI *activity* (sessions, /align uses,
+push-backs, compactions…). That answers "are people doing the rituals," not the question the CTO actually
+has: **"Is the AI harness making us deliver faster, at higher quality, provably PHI-safe, with the process
+followed?"** We're an IT-services company in healthcare — productivity = more delivery per paid hour, quality
+= less rework + fewer defects, safety = zero PHI leaks, process = the Build Loop actually followed.
+
+### 1. Collapse the top line to FIVE simple numbers (each with a trend arrow vs the prior period)
+Demote the current 9 activity cards into a per-dev "coaching" drawer (they explain *why*, not *are we
+winning*). The CTO scorecard is exactly these five, and **every one must be filterable** (see §2):
+
+| # | Number | Definition | Data source |
+|---|---|---|---|
+| **Adopted** | % of engineers active this week **and** on the current harness version | harness telemetry |
+| **Faster** | median **cycle time per work item** = first commit (or first `/align`) on a ticket → its PR merged | git/PR + the ticket's Jira key |
+| **Better** | **rework rate** = % of changed lines reverted/rewritten within ~14 days (churn) | git history |
+| **Safer** | PHI/redaction catches + governance (wall) blocks; **headline target = 0 leaks** | telemetry: `wall` + new `redaction` events |
+| **Done-right** | % of shipped work that followed the loop: **aligned → test/gate-green → reviewed → linked to a Jira issue** | telemetry + git/PR + Jira status |
+
+Rules: keep it to these five. Show a **trend arrow** (this period vs last) — "gains" need a direction, not a
+snapshot. Do **not** add a "time in tool / session-duration" KPI — seat-time rewards the opposite of the goal
+(the harness should make work take *less* time). If you capture session duration at all, label it a
+wellbeing signal, never a productivity metric.
+
+### 2. Make the scorecard filterable by Jira work-item dimension
+This is the highest-value capability: productivity/quality mean different things for a P1 bug vs an epic. Add
+a filter so the five numbers recompute for a selected slice:
+- **issue type** (bug / story / task / epic), **priority**, **severity**, **story vs epic**.
+The questions it must answer: "Are P1/Critical issues getting tests + review (Done-right on what matters)?",
+"Is bug cycle time improving?", "Which epic is leaking rework?". Tag each unit of work with its Jira
+classification (see the data contract in §4) and group by it.
+
+### 3. The MB-unique view: adoption ↔ delivery outcomes
+Atlas already holds **delivery outcomes** (on-time, CSAT, red flags in mbi.db). Add one correlation panel:
+do **high-adoption / high-Done-right teams** deliver more on-time with better CSAT than low-adoption ones?
+That single correlation is the ROI proof no generic tool can produce — make it a first-class panel, sliced
+by delivery team/account.
+
+### 4. Data contract (what comes from where; degrade gracefully if a field is absent → show "—", never crash)
+- **From harness telemetry** (`/home/ubuntu/.openclaw/shared/harness-telemetry/<email>/<date>.jsonl`, one
+  JSON/line; you already ingest this):
+  - existing: `ts, userId, repoId, hv, event` + per-event fields (`gate_run.result`, `command.name`,
+    `prompt.hasContext`, `commit.*`, `wall.action`, …).
+  - **NEW fields the harness will add** (code against these; treat as optional): `command` events on a
+    ticket carry `issueKey` (e.g. "ACME-258"), `issueType`, `priority`, `severity`, `level` (story/epic/task);
+    a new `redaction` event with a `hits` count.
+- **From git/PR (Atlas computes — you already pull git):** cycle time (commit→merge), rework/churn, PR
+  reviewed/merged. **Link commits → Jira issue** via the key in the branch/PR name (or the telemetry
+  `issueKey`). This is how Faster/Better/Done-right get computed and sliced.
+- **From mbi.db (Atlas):** delivery outcomes for the §3 correlation.
+
+### 5. Performance — load async (unchanged from v1)
+Never read the telemetry files or compute joins in the request path. Background aggregator → cached rollup
+(in-memory + `data/harness-usage-rollup.json`), refreshed on an interval + manual "Refresh"; track file
+mtime/size for incremental re-reads; the page renders its shell and fetches the rollup async (like
+`/api/kpis`). The git/Jira joins for cycle-time/rework go in the same background job.
+
+### 6. Conventions & guardrails
+- Reuse Atlas's Express `server.js` patterns, the `.env` loader, Slack-OAuth `resolveUser` + leadership-role
+  gating, deploy via `deploy/deploy.sh`. Metadata only; identity = git email.
+- **Non-punitive:** this is for coaching + finding where to help, never ranking/PIPs. No per-dev leaderboard
+  framing on rung-3 numbers.
+- **Anti-Goodhart:** these are leading indicators of the outcomes — if a habit metric doesn't move the
+  outcome, surface that, don't reward the ritual. The scorecard stays five numbers; resist card sprawl.
+
+### 7. Acceptance
+- Top line = 5 numbers (Adopted/Faster/Better/Safer/Done-right) with trend arrows; activity detail moved to
+  a per-dev drawer.
+- The five recompute correctly when filtered by issue type/priority/severity/epic.
+- The adoption↔delivery correlation panel renders, sliced by team/account.
+- Rollup served from cache (<~100ms) for 50+ devs; first paint never blocks on file/git I/O; missing fields
+  render "—".
+
+(Reference in the harness repo: `docs/usage-coaching-prd.md`, `docs/atlas-telemetry-deploy.md`,
+`docs/atlas-usage-dashboard-brief.md` (v1), `bin/usage-coach.js`, `bin/harness-stats.js`.)
+
+## END PROMPT
