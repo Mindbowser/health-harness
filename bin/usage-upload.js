@@ -18,13 +18,22 @@
 
 const DEFAULT_INTERVAL_MS = 6 * 3600 * 1000; // at most ~4×/day; backfill covers offline gaps
 
-/** Pure: parse telemetry config from env. Disabled unless an endpoint is set (default OFF). */
+// Baked-in defaults so devs need zero config (private repo; metadata-only, write-only ingest token).
+// Env vars override these — FleetDM/managed settings can rotate the token without a code change, and
+// HARNESS_TELEMETRY_ENABLED=false is the opt-out. Rotating the token here = a release that propagates
+// to installs on next plugin update.
+const DEFAULT_ENDPOINT = 'https://mbi.mindbowser.com/atlas/api/harness/usage';
+const DEFAULT_TOKEN = '35ce0efd84e8e715514523d1a268925013f38206acc1be6f';
+
+/** Pure: parse telemetry config from env, falling back to the baked-in defaults (so it's ON by default).
+ * Opt out with HARNESS_TELEMETRY_ENABLED=false. */
 function telemetryConfig(env) {
   const e = env || {};
-  const endpoint = String(e.HARNESS_TELEMETRY_ENDPOINT || '').trim();
+  const endpoint = String(e.HARNESS_TELEMETRY_ENDPOINT || DEFAULT_ENDPOINT).trim();
+  const token = String(e.HARNESS_TELEMETRY_TOKEN || DEFAULT_TOKEN).trim();
   const enabled = endpoint !== '' && String(e.HARNESS_TELEMETRY_ENABLED || '').toLowerCase() !== 'false';
   const intervalMs = parseInt(e.HARNESS_TELEMETRY_INTERVAL_MS, 10) || DEFAULT_INTERVAL_MS;
-  return { enabled, endpoint, token: String(e.HARNESS_TELEMETRY_TOKEN || '').trim(), intervalMs };
+  return { enabled, endpoint, token, intervalMs };
 }
 
 /** Pure: throttle — run if we've never run, or the interval has elapsed. */

@@ -3,17 +3,19 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { telemetryConfig, dueForRun, newBytesPlan } = require('../bin/usage-upload.js');
 
-test('telemetryConfig: default OFF unless an endpoint is configured', () => {
-  // no endpoint → disabled (nothing leaves the machine)
-  assert.strictEqual(telemetryConfig({}).enabled, false);
-  // endpoint set → enabled, token + interval parsed
+test('telemetryConfig: ON by default via baked-in endpoint+token; env overrides; kill-switch opts out', () => {
+  // zero config → enabled with the baked-in defaults
+  const d = telemetryConfig({});
+  assert.strictEqual(d.enabled, true);
+  assert.ok(d.endpoint.includes('mbi.mindbowser.com'));
+  assert.ok(d.token.length > 0);
+  assert.ok(d.intervalMs > 0);
+  // env overrides the defaults (FleetDM rotation / a different endpoint)
   const c = telemetryConfig({ HARNESS_TELEMETRY_ENDPOINT: 'https://x/api', HARNESS_TELEMETRY_TOKEN: 'sek' });
-  assert.strictEqual(c.enabled, true);
   assert.strictEqual(c.endpoint, 'https://x/api');
   assert.strictEqual(c.token, 'sek');
-  assert.ok(c.intervalMs > 0);
-  // explicit kill-switch wins even with an endpoint
-  assert.strictEqual(telemetryConfig({ HARNESS_TELEMETRY_ENDPOINT: 'https://x', HARNESS_TELEMETRY_ENABLED: 'false' }).enabled, false);
+  // explicit kill-switch disables even with defaults present
+  assert.strictEqual(telemetryConfig({ HARNESS_TELEMETRY_ENABLED: 'false' }).enabled, false);
 });
 
 test('dueForRun: throttles to the interval but never blocks a first run', () => {

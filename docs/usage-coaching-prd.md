@@ -141,14 +141,15 @@ configurable.
    dashboard (activity sparkline + every coaching dimension + the motivational summary with progress
    deltas). Read-only, metadata-only, on-demand; window defaults to 7 days. The daily coach was also made
    **motivational** (leads with wins, shows improvement vs the prior period, one pointed 10x-framed lever).
-4. 🚧 **Telemetry uploader** — harness side **built v0.1.62, DEFAULT OFF**: `bin/usage-upload.js` runs on
+4. ✅ **Telemetry uploader** — built v0.1.62; **ON by default v0.1.64**: `bin/usage-upload.js` runs on
    SessionStart (detached, throttled ~6h), backfills un-sent days + ships new bytes of the current day to
-   `HARNESS_TELEMETRY_ENDPOINT` with a `Bearer HARNESS_TELEMETRY_TOKEN` (config via settings `env`; FleetDM
-   later). Records carry git company email (`userId`) + harness version (`hv`). No endpoint set = no-op, so
-   nothing leaves any machine. **Still TODO before enabling:** the MBI Atlas ingest endpoint
-   (`POST /atlas/api/harness/usage` → append to per-user JSONL folders at
-   `/home/ubuntu/.openclaw/shared/harness-telemetry/<email>/<date>.jsonl`, shared-token auth) **and** the
-   **disclosure/policy (+ EU DPIA)**. Rollout: Pravin + CH team first, then gradually everyone.
+   the Atlas endpoint with a `Bearer` token — **both baked into the script as defaults** (private repo;
+   metadata-only, write-only token), so devs need zero config. Env vars override (FleetDM rotation);
+   `HARNESS_TELEMETRY_ENABLED=false` opts out. Records carry git company email (`userId`) + harness version
+   (`hv`). Server side: `POST /atlas/api/harness/usage` (Bearer auth) appends to per-user JSONL folders at
+   `/home/ubuntu/.openclaw/shared/harness-telemetry/<email>/<date>.jsonl`. **Decision (2026-06-21):**
+   on-by-default accepted — harness is mostly on employee machines; customer installs are rare and
+   consent-backed. The written monitoring policy (+ EU DPIA) should still be put in place to back it.
 5. **Dashboard** — central store + de-identified team views (separate service; schema already ready).
 
 ## Open questions

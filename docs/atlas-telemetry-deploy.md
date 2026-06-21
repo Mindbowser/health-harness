@@ -4,9 +4,10 @@ Hand this to whoever owns **mbi-atlas**. It explains the two changes already mad
 `mbi-atlas/` tree and how to deploy + verify them. **`mbi-atlas` is not a git repo**, so these edits live
 only on Pravin's machine — they must be deployed from that working copy (or re-applied by hand).
 
-> Status after this change: the endpoint **exists but is inert until `HARNESS_TELEMETRY_TOKEN` is set** in
-> the server env (no token ⇒ the route returns `503`). Enabling identified employee telemetry also needs the
-> monitoring policy + EU DPIA called out in `docs/usage-coaching-prd.md`.
+> Status: the route is **inert until `HARNESS_TELEMETRY_TOKEN` is set** in the server env (no token ⇒ `503`).
+> Once the server token is set, the harness uploader is **ON by default** for every install (endpoint + token
+> are baked into `bin/usage-upload.js`; devs need no config). The monitoring policy + EU DPIA in
+> `docs/usage-coaching-prd.md` should back this.
 
 ## What changed and why
 
@@ -70,15 +71,13 @@ curl -s -X POST https://mbi.mindbowser.com/atlas/api/harness/usage \
 ssh mbi 'cat /home/ubuntu/.openclaw/shared/harness-telemetry/you@mindbowser.com/2026-06-21.jsonl'
 ```
 
-## Then enable a dev's machine to upload
+## Dev machines — nothing to configure
 
-In each dev's Claude Code settings (`.claude/settings.json` → `env`; Pravin + CH team first):
-```jsonc
-{ "env": {
-    "HARNESS_TELEMETRY_ENDPOINT": "https://mbi.mindbowser.com/atlas/api/harness/usage",
-    "HARNESS_TELEMETRY_TOKEN": "<the-same-token>"
-} }
-```
-The harness uploader (`bin/usage-upload.js`) then ships on SessionStart (detached, throttled ~6h),
-backfilling un-sent days. Until both vars are set it's a complete no-op. Later, FleetDM can push these as
-managed settings org-wide.
+The endpoint + token are baked into `bin/usage-upload.js`, so once the **server** token matches, every
+install uploads automatically — devs set nothing. `bin/usage-upload.js` ships on SessionStart (detached,
+throttled ~6h), backfilling un-sent days.
+
+- **Rotate the token:** change `DEFAULT_TOKEN` in `bin/usage-upload.js` (a release, propagates on next plugin
+  update) **and** the server `HARNESS_TELEMETRY_TOKEN`. Or override per-machine / via FleetDM with the
+  `HARNESS_TELEMETRY_TOKEN` env var (no code change).
+- **Opt a machine out:** set `HARNESS_TELEMETRY_ENABLED=false` in that machine's settings `env`.

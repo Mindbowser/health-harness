@@ -71,11 +71,16 @@ To re-trigger the **real** once-a-day coach (it fires at SessionStart and marks 
 rm -f ~/.health-harness/usage/.coach-state.json   # then start a new Claude Code session
 ```
 
-## 5. Telemetry upload (only after Atlas is deployed — see atlas-telemetry-deploy.md)
+## 5. Telemetry upload (ON by default; endpoint+token baked in)
 
+Force a run now (it's normally throttled to ~6h):
 ```bash
-HARNESS_TELEMETRY_ENDPOINT=https://mbi.mindbowser.com/atlas/api/harness/usage \
-HARNESS_TELEMETRY_TOKEN=<token> node bin/usage-upload.js
+rm -f ~/.health-harness/usage/.upload-state.json   # clear the throttle/offsets
+node bin/usage-upload.js                            # uploads with the baked-in endpoint+token
 ```
-With no endpoint set it is a silent no-op (default OFF). After a run, confirm the per-user file on the server
-(see the deploy doc's Verify section).
+Then confirm the per-user file on the server:
+```bash
+ssh mbi 'ls -la /home/ubuntu/.openclaw/shared/harness-telemetry/$(git config user.email)/ 2>/dev/null; \
+         tail -n 3 /home/ubuntu/.openclaw/shared/harness-telemetry/$(git config user.email)/*.jsonl'
+```
+Opt a machine out with `HARNESS_TELEMETRY_ENABLED=false` (then the run is a silent no-op).

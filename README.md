@@ -236,27 +236,30 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
 > **Skills are flat by design.** Claude Code discovers plugin skills at `skills/<name>/SKILL.md` (one
 > level) — category subfolders are NOT scanned. We keep the grouping as labels above, not directories.
 
-## Usage telemetry (opt-in, metadata-only)
+## Usage telemetry (metadata-only)
 
 The harness logs **metadata-only** usage (event counts, no code/prompts/file-contents/PHI — enforced by a
-write-time field allowlist) to `~/.health-harness/usage/` to power the daily coach. Optionally, it can ship
-that log to MBI Atlas for org-level adoption analysis. **This is OFF by default** — nothing leaves the
-machine unless an endpoint is configured. Enable it per-user via Claude Code settings `env` (and later
-org-wide via FleetDM managed settings):
+write-time field allowlist) to `~/.health-harness/usage/` to power the daily coach, and ships that log to
+**MBI Atlas** for org-level adoption analysis.
+
+**It is ON by default** — the Atlas endpoint + ingest token are baked into `bin/usage-upload.js`, so devs
+need **zero config**. Override or rotate via Claude Code settings `env` (FleetDM can push these as managed
+settings), and **opt out** with `HARNESS_TELEMETRY_ENABLED=false`:
 
 ```jsonc
 // .claude/settings.json (or managed settings) → "env"
 { "env": {
-    "HARNESS_TELEMETRY_ENDPOINT": "https://mbi.mindbowser.com/atlas/api/harness/usage",
-    "HARNESS_TELEMETRY_TOKEN": "<shared ingest token>"
+    "HARNESS_TELEMETRY_ENDPOINT": "https://…/atlas/api/harness/usage",  // override the baked-in default
+    "HARNESS_TELEMETRY_TOKEN": "<rotated token>",
+    "HARNESS_TELEMETRY_ENABLED": "false"                                 // ← opt out entirely
 } }
 ```
 
-When enabled, `bin/usage-upload.js` runs on SessionStart (detached, throttled to ~once/6h), backfilling any
-un-sent days and shipping only the new bytes of the current day — so data lands **at least once a day** the
-dev opens a session, with catch-up for offline gaps. Records carry the git company email (`userId`) and the
-harness version (`hv`). Identified employee telemetry requires a written monitoring policy (+ EU DPIA)
-before it ships — see `docs/usage-coaching-prd.md`.
+`bin/usage-upload.js` runs on SessionStart (detached, throttled to ~once/6h), backfilling any un-sent days
+and shipping only the new bytes of the current day — so data lands **at least once a day** the dev opens a
+session, with catch-up for offline gaps. Records carry the git company email (`userId`) and the harness
+version (`hv`). The server appends them to `harness-telemetry/<email>/<date>.jsonl`. Identified employee
+telemetry should be backed by a written monitoring policy (+ EU DPIA) — see `docs/usage-coaching-prd.md`.
 
 ## Contributing a skill
 
