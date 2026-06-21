@@ -92,7 +92,8 @@ async function updateNudge() {
 
 if (require.main === module) {
   (async () => {
-    let additionalContext = '';
+    const userMsgs = [];   // shown to the USER (systemMessage) — nudges + coaching
+    let modelContext = ''; // injected into the MODEL's context (additionalContext) — technical status
     try {
       const fs = require('fs');
       const path = require('path');
@@ -102,18 +103,20 @@ if (require.main === module) {
 
       const compliance = readJSON(path.join(dir, 'compliance.json'));
       const project = readJSON(path.join(dir, 'project.json'));
-      additionalContext = buildContext({
+      const ctx = buildContext({
         compliance: compliance && compliance.profile,
         sprint: readLine(path.join(dir, 'current-sprint')),
         gate: project && project.gate,
       });
+      // onboarded → the technical status is for the MODEL; not onboarded → the "run /start" nudge is for the USER
+      if (compliance && compliance.profile) modelContext = ctx; else userMsgs.push(ctx);
     } catch { /* fail-safe: inject nothing */ }
 
-    // Usage: record the session, and emit a coaching note AT MOST once/day (+ a weekly note Mondays).
+    // Usage: record the session, and emit a coaching note AT MOST once/day (+ a weekly note Mondays). USER-facing.
     try {
       require('./usage-log.js').appendEvent('session_start', {});
       const coach = require('./usage-coach.js').runCoach(new Date());
-      if (coach) additionalContext += (additionalContext ? '\n\n' : '') + coach;
+      if (coach) userMsgs.push(coach);
     } catch { /* coaching is best-effort — never block the session */ }
 
     // Telemetry upload (default OFF; no-op unless HARNESS_TELEMETRY_ENDPOINT is configured). Spawn it
@@ -124,14 +127,14 @@ if (require.main === module) {
         { detached: true, stdio: 'ignore' }).unref();
     } catch { /* best-effort */ }
 
-    // Update nudge (cached once/day) — can't update a live session, but tells you to restart.
-    try { const u = await updateNudge(); if (u) additionalContext += (additionalContext ? '\n\n' : '') + u; } catch { /* best-effort */ }
+    // Update nudge (cached once/day) — can't update a live session, but tells you to restart. USER-facing.
+    try { const u = await updateNudge(); if (u) userMsgs.push(u); } catch { /* best-effort */ }
 
-    if (additionalContext) {
-      process.stdout.write(JSON.stringify({
-        hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext },
-      }));
-    }
+    // systemMessage is shown to the USER; additionalContext is injected into the MODEL's context.
+    const out = {};
+    if (userMsgs.length) out.systemMessage = userMsgs.join('\n\n');
+    if (modelContext) out.hookSpecificOutput = { hookEventName: 'SessionStart', additionalContext: modelContext };
+    if (out.systemMessage || out.hookSpecificOutput) process.stdout.write(JSON.stringify(out));
     process.exit(0);
   })();
 }
