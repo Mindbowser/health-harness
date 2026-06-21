@@ -74,7 +74,7 @@ flowchart TD
         GRAB["grab top UNBLOCKED slice<br/>e.g. sub-task ACME-259"] --> BP["/align ACME-259 (BUILD-PREP) · Dev<br/>ground in live code → technical criteria + feasibility"]
         BP --> WIP["Jira → In Progress<br/>⚠ pre-flight: warn if already in QA/Done"]
         WIP --> TDD["/tdd · build sub-task ACME-259<br/>red → green → refactor · gate green<br/>governance: safe-logging · audit · redaction"]
-        TDD --> PRW["open PR + log worklog<br/>Jira → In Review (= Ready for QA)"]
+        TDD --> PRW["/ship · push → PR → Jira In Review → worklog<br/>(each step confirmed)"]
     end
 
     subgraph VERIFY["✅ CODE REVIEW + QA · Quality gate → Testing"]
@@ -177,7 +177,7 @@ guard). They load at session start, so **restart Claude Code**, then verify:
 
 ```bash
 claude plugin list                                 # → health-harness@mindbowser · Scope: user · enabled
-claude plugin details health-harness@mindbowser    # → Skills (18) + a PreToolUse hook (the wall)
+claude plugin details health-harness@mindbowser    # → Skills (19) + a PreToolUse hook (the wall)
 ```
 
 Open any repo and type **`/start`** — it detects new vs existing repo, runs the pre-flight, sets the
@@ -241,7 +241,7 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
   scaffold-from-boilerplate/   # front door — new repo
   onboard-existing-codebase/   # front door — existing repo
   sprint/ import-issues/       # sprint container + pull tracker items
-  align/ to-prd/ to-issues/ tdd/          # the Build Loop
+  align/ to-prd/ to-issues/ tdd/ ship/    # the Build Loop (ship = publish: push→PR→Jira→worklog)
   compliance-profile/ phi-redaction-check/ safe-logging/ audit-logging/   # healthcare governance
   role/                        # your persona (PM / engineer) — picks the /align mode
   writing-great-skills/        # the meta-skill: how to write skills here

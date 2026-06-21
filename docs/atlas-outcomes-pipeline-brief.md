@@ -47,18 +47,15 @@ Per **merged PR** in the window, it's "done right" if ALL hold:
 `doneRight.rate = doneRightPRs / mergedPRs`. (Jira *status* is optional; issueKey-present is enough for
 "linked.") Remove `partial: true` once PR data is wired.
 
-### Account attribution — light up the correlation panel
-Add a **`repoId` → account** map (config: `data/repo-accounts.json`, `{ "<repo>": "<account domain/name>" }`,
-maintained by the team). Attribute each dev's harness activity (telemetry `repoId`) and each repo's
-outcomes to its account. Then the correlation panel compares **high-adoption vs low-adoption accounts** on
-the existing CSAT / open-flags / on-time it already queries from mbi.db — **only accounts with harness
-activity**, as a 2-cohort comparison, not the current 20-row dump. If a repo has no mapping, bucket it under
-"unmapped" (don't guess).
+### Account attribution — SKIP for now
+**Decision (2026-06-21): do not build `repoId`→account attribution, and remove the account/correlation panel
+from the dashboard** (both the UI and the `correlationPanel` computation). It can't be attributed yet, so it
+was empty clutter. Faster/Better/Done-right above are computed **org-wide + per-repo + per-dev only** — no
+account rollup. (Account cohorts can return later if a `repoId`→account map and CSAT data both exist.)
 
 ### Config / secrets
 - `GITHUB_TOKEN` (read-only; repo + PR read) in `deploy/server.env`.
-- Repo set: either an org + topic filter, or an explicit list in `data/repo-accounts.json` (the same file
-  doubles as the account map). Document it.
+- Repo set: an org + topic filter, or an explicit repo list in `data/harness-repos.json`. Document it.
 
 ### Guardrails (unchanged)
 - Background only; request path serves cache; missing token/data → `null`/"—", never a crash.
@@ -70,7 +67,7 @@ activity**, as a 2-cohort comparison, not the current 20-row dump. If a repo has
   set; degrade to "—" when not.
 - Churn counts **post-merge rework only** (verify: a PR with heavy pre-merge commits but no post-merge edits
   has ~0 churn).
-- Correlation panel shows high- vs low-adoption account cohorts (active accounts only) with their CSAT/flags.
+- Account/correlation panel is **removed** (UI + `correlationPanel` computation); no `repoId`→account map.
 - All computed in the background rollup; first paint never blocks; cached `<~100ms`.
 
 (Code anchors: `buildHarnessRollup` ~2389, the `v2` object ~2620 with `faster/better` null ~2627-2628,

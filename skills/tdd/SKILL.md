@@ -96,70 +96,31 @@ thing you do. The tests are the proof; make that proof legible:
   recording for UI. This is the "demoable" proof.
 - **Scope honesty:** what's done vs deferred vs intentionally faked.
 
-Put this in the **PR description**, and post a short **Jira comment** on the ticket linking the PR +
-"acceptance criteria met." **Run `/phi-redaction-check` on the text first** — a PR/ticket is
-third-party-visible; synthetic examples only, no real PHI/secrets.
+This summary is the **handoff artifact** — produce it here; **`/ship` publishes it** (into the PR
+description + a Jira comment, after running `/phi-redaction-check` on the text). Don't post it from `/tdd`.
 
-## Branch + PR — the skill drives git, you approve the push
+## Branch + ticket — start of work (the skill drives git)
 
-Don't make the human do the git plumbing — but **never push without an OK.**
-- **Pre-flight the ticket status — warn before working on something already done/in QA.** Before anything,
-  read the ticket's current status via the tracker MCP. If it's **at or past review** — *In Review* /
-  *Ready for QA* / *QA* / *Done* / *Closed* / *Resolved* / *Cancelled* (status names vary by board — match
-  the **category**, not the exact label) — **STOP and warn**: *"ACME-123 is in `<status>` — it looks done
-  or already under QA. Start work on it anyway?"* Proceed only on the user's explicit confirmation. This
-  catches the wrong ticket key, re-opening finished work, and double-assignment. (A genuine reopen/bugfix
-  is fine once confirmed — then transition back to *In Progress*.)
-- **Then move the ticket to _In Progress_** (via the tracker MCP) and **create the working branch
-  yourself** — off the repo's **base branch**, using its **naming convention** (read
-  `.health-harness/project.json` `git` block / look at existing branches — e.g. CH branches a feature off
-  `dev`; do **not** impose MB's `fix/<KEY>` if the repo does otherwise). Respect the existing flow
-  (brownfield rule). The _In Progress_ transition also **anchors the worklog clock** (its timestamp is the
-  `started` fallback when git history is thin — see Time tracking).
-- **Never commit on the base branch.** A freshly-cloned repo sits on `main`/`master` (or the configured
-  `baseBranch`). Branch **before** the first commit — never let work land on the base. The wall enforces
-  this: a `git commit` while HEAD is on a base branch **ASKs**, so an accidental on-base commit stops for
-  your approval. (The repo's very first commit, when there's no history yet, is allowed.)
-- **During:** small, conventional commits referencing the ticket key.
-- **At the end (slice green + proof ready): open the PR** — title + the verification summary as the
-  description, **targeting the repo's PR base** (e.g. `dev`/`QA`, not `main`, if that's their flow),
-  linked to the Jira ticket. **Pushing + opening the PR is outward → do it only on the user's explicit
-  OK.** Never `--force`. Use `gh` if available; otherwise stage the branch+commits and hand the user the
-  exact push/PR command. When you later **re-push after review fixes**, add a **PR comment** noting what
-  changed + gate-green (don't silently update).
-- **Close the PM→dev loop in Jira:** once the PR is open, do **all three** — they are **separate MCP
-  calls**; doing one does not do the others:
-  1. **Move the ticket to _In Review_** (= _Ready for QA_; one status in our flow) via the tracker MCP.
-  2. **Comment** the PR link + "acceptance criteria met" + the criteria→test summary on the ticket.
-  3. **Log work (worklog) — and actually call it.** Run `node <health-harness>/bin/worklog-suggest.js`,
-     show the suggestion, then **call `addWorklogToJiraIssue`** (`cloudId`, `issueIdOrKey`, `timeSpent`,
-     `started`, `commentBody` = what was done + PR link) with the **user-confirmed** value and **confirm it
-     returned ok**. A posted comment or a transition is **not** a worklog. **Closeout is not done until the
-     worklog exists on the ticket** — unless the repo opted out (`project.json` `timeTracking.logWork:false`).
-     See **Time tracking** below.
+Don't make the human do the git plumbing. At the **start** of the slice:
+- **Pre-flight the ticket status — warn before working on something already done/in QA.** Read the ticket's
+  current status via the tracker MCP. If it's **at or past review** — *In Review* / *Ready for QA* / *QA* /
+  *Done* / *Closed* / *Resolved* / *Cancelled* (match the **category**, not the exact label) — **STOP and
+  warn**: *"ACME-123 is in `<status>` — start work on it anyway?"* Proceed only on explicit confirmation.
+  (A genuine reopen/bugfix is fine once confirmed — then transition back to *In Progress*.)
+- **Move the ticket to _In Progress_** (tracker MCP) — this also anchors the worklog clock.
+- **Create the working branch yourself** — off the repo's **base branch**, using its **naming convention**
+  (read `.health-harness/project.json` `git` block / existing branches — e.g. CH branches off `dev`; don't
+  impose MB's `fix/<KEY>` if the repo differs). Respect the existing flow.
+- **Never commit on the base branch** — branch before the first commit (the wall ASKs on a base-branch
+  commit). **During:** small, conventional commits referencing the ticket key. **Don't push without an OK.**
 
-  That hands the ticket off to CI + peer review + QA. The dev's job ends at **merge** (CI green + review
-  approved); **QA** then verifies the same criteria in the running app. Address review feedback by looping
-  back through `/tdd`, not by patching around the gate. All three writes are **outward → the wall ASKs**,
-  and **tracker-visible**: write **clean Markdown with `contentFormat:"markdown"`, never Jira wiki markup**
-  (`h2.`/`{{}}`), and **run `/phi-redaction-check` on the text first** (see `docs/jira.md` → *Formatting*).
+## Publish — hand off to /ship
 
-### Time tracking — suggest, then let the human set it
-
-Hand-logging hours gets skipped, so the harness proposes a number; the human sets the final value.
-There's **no perfect automatic number** — commits are the only deterministic signal, so the helper
-reports two figures and the user decides; **don't nudge them up or down.**
-- **Default = ACTIVE effort** from git on the working branch (`node bin/worklog-suggest.js`, or `--json`):
-  a small **lead-in** before the first commit + the gap before each commit **capped at an idle threshold**
-  (a long gap means you stepped away → capped, not summed). Beats raw wall-clock, which overcounts
-  overnight/lunch. `started` = the first commit's timestamp.
-- **Also shown: ELAPSED span** = first→last commit, for reference only.
-- **Fallbacks:** thin history (one commit) floors to the lead-in — prefer the ticket's **_In Progress_
-  transition** timestamp as `started`. No git/commits → suggest manually.
-- **Show, then let the user set it:** present active + elapsed plainly and log the **value the user gives
-  or confirms** — never auto-log, never argue the number up or down.
-- **Configurable** in `.health-harness/project.json` `timeTracking`: `logWork`, `roundTo` (default 15m),
-  `idleGapMins` (90), `leadInMins` (30), `maxPerDay` (8h).
+When the slice is **green and the verification summary is ready, run `/ship`**: it pushes → opens the PR →
+moves the ticket to **In Review** → comments the PR link + criteria→test → logs the worklog (suggested,
+user-confirmed) → redaction-checks first, each step confirmed. `/ship` owns that flow so it happens one
+consistent way — **don't re-implement push/PR/Jira/worklog here.** The dev's job ends at **merge**; address
+review feedback by looping back through `/tdd`, then `/ship` again.
 
 ## Anti-patterns
 
@@ -170,9 +131,7 @@ reports two figures and the user decides; **don't nudge them up or down.**
 - ❌ Refactoring while a test is red.
 - ❌ Declaring done without running the full gate.
 - ❌ Starting work on a ticket already in QA/Done/Closed without warning + explicit confirmation.
-- ❌ Treating a Jira comment or a status transition as "logged time" — the worklog is a separate
-  `addWorklogToJiraIssue` call; verify it landed.
-- ❌ Writing Jira in wiki markup (`h2.`, `{{...}}`) or omitting `contentFormat:"markdown"` — it renders garbled.
+- ❌ Re-implementing the publish flow (push/PR/Jira/worklog) here instead of handing off to `/ship`.
 
 ## Per-cycle checklist (checkable completion)
 
@@ -185,7 +144,7 @@ reports two figures and the user decides; **don't nudge them up or down.**
 - [ ] **Every** acceptance criterion is covered (looped to the goal, didn't stop early).
 - [ ] Green was earned by working behavior — no test deleted/weakened/skipped, no gate bypassed.
 - [ ] No destructive/irreversible action taken; work is on a branch, not force-pushed.
-- [ ] PR + Jira carry the proof: criteria→test map, gate-green, before/after evidence (redaction-checked).
+- [ ] Verification summary produced (criteria→test map, gate-green, before/after evidence).
 - [ ] Ticket status pre-flighted: not already in QA/Done/Closed (or the user explicitly confirmed a reopen).
-- [ ] Ticket lifecycle moved: **In Progress** at start → **In Review** (= Ready for QA) at PR open.
-- [ ] Worklog logged at the **user-confirmed** time (or the repo opted out via `timeTracking.logWork:false`).
+- [ ] Ticket moved to **In Progress** at start; work on a feature branch (not base).
+- [ ] Published via **`/ship`** (push → PR → In Review → criteria→test comment → worklog, redaction-checked).

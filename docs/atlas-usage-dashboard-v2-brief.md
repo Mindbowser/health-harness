@@ -55,23 +55,14 @@ plus the composite **Done-right %** and a **Focus area** (the single habit to co
 - Sortable by any column; default sort by Done-right ascending so "who needs support" surfaces first —
   framed as support, not blame.
 
-### 3. Account-level adoption ↔ delivery outcomes — DEFER, then build it focused (not a full table)
-This is eventually the ROI proof (do high-adoption accounts deliver better?), but **build it only when both
-sides have data — until then, do not render it** (an all-accounts table with blank CSAT and "tagging
-pending" is clutter, not signal). Two prerequisites:
-1. **Attribution** — tie harness usage to an account. Use the simplest bridge: **`repoId` → account** (each
-   client project is usually its own repo; map repo→account once). Do NOT attempt the harder
-   issueKey→Jira-project→account hop.
-2. **Outcome data** — CSAT / on-time / open-flags actually populated from mbi.db.
+### 3. Account-level adoption ↔ delivery outcomes — REMOVE for now
+**Decision (2026-06-21): remove the account/correlation panel from the dashboard entirely, and skip the
+`repoId`→account map.** It can't be attributed yet and CSAT was blank, so it was empty rows / clutter. Drop
+both the UI panel and the `correlationPanel` computation in `buildHarnessRollup()` — don't ship an empty
+table. The live dashboard is just the **5 KPIs + the per-dev health table** (§1, §2, §2b).
 
-When both exist, render it as a **comparison, not a 20-row dump**:
-- Show **only accounts with harness activity**, split into **high-adoption vs low-adoption** cohorts.
-- Compare their delivery outcomes: *high-adoption accounts → avg CSAT X, on-time Y%, flags Z; low-adoption → …*
-- That 2-cohort insight is the ROI answer; a flat list of every account is not.
-
-Until then, the live dashboard is just the **5 KPIs + the per-dev health table** (§1, §2, §2b) — those have
-real data and drive behavior. Keep the account panel out of the UI (or behind a "coming when attributed"
-note) rather than showing empty rows.
+(If revived later, build it as a high-vs-low-adoption **cohort comparison over active accounts only** — not a
+full account list — once `repoId`→account attribution and CSAT/on-time data both exist. Not now.)
 
 ### 4. Data contract (what comes from where; degrade gracefully if a field is absent → show "—", never crash)
 - **From harness telemetry** (`/home/ubuntu/.openclaw/shared/harness-telemetry/<email>/<date>.jsonl`, one
