@@ -158,39 +158,55 @@ tones). Plays **bundled spoken-voice clips** (`sounds/voice/`) via the OS audio 
 **every OS incl. Ubuntu, no TTS install**. Soft, never clinical-alarm-like. Swap in MB-recorded clips to
 own the brand voice; details in `sounds/README.md`.
 
-## Install in your project (CLI)
+## Install once, globally (recommended)
 
-Run these two commands **inside your project directory** (requires the `claude` CLI):
-
-```bash
-# 1. Register the harness marketplace for this repo
-claude plugin marketplace add Mindbowser/health-harness --scope project
-
-# 2. Install the plugin
-claude plugin install health-harness@mindbowser --scope project
-```
-
-This writes `.claude/settings.json` (the marketplace source + the enabled plugin). **Commit that file**
-— then everyone who clones the repo gets the harness automatically, no per-person setup. Installing the
-plugin brings **both the skills and the wall hook** (`hooks/outward-guard.js`, a `PreToolUse` guard).
-They load on the next session, so restart Claude Code (or run `/reload-plugins`), then verify:
+Install at **user scope** so the harness is active in **every repo you open** — install once, never set it
+up per-project again. Run these from anywhere (requires the `claude` CLI; `--scope user` is the default):
 
 ```bash
-claude plugin details health-harness@mindbowser   # → Skills (18) + a PreToolUse hook (the wall)
+# 1. Register the harness marketplace (globally, for your user)
+claude plugin marketplace add Mindbowser/health-harness
+
+# 2. Install the plugin (globally)
+claude plugin install health-harness@mindbowser
 ```
 
-Now just type **`/start`** — it detects new vs existing repo, sets the compliance profile (default
-`hipaa`), and routes you to the right front door. Or invoke skills directly: `/align`, `/to-prd`,
-`/to-issues`, `/tdd`. Works on any stack; it won't rewrite your code.
+This writes your **user** settings (`~/.claude/settings.json`) — the marketplace source + the enabled
+plugin. Installing brings **both the skills and the wall hook** (`hooks/outward-guard.js`, a `PreToolUse`
+guard). They load at session start, so **restart Claude Code**, then verify:
+
+```bash
+claude plugin list                                 # → health-harness@mindbowser · Scope: user · enabled
+claude plugin details health-harness@mindbowser    # → Skills (18) + a PreToolUse hook (the wall)
+```
+
+Open any repo and type **`/start`** — it detects new vs existing repo, runs the pre-flight, sets the
+compliance profile (default `hipaa`), and routes you to the right front door. Or invoke skills directly:
+`/align`, `/to-prd`, `/to-issues`, `/tdd`. Works on any stack; it won't rewrite your code.
 
 **New to the harness?** Type **`/harness-help`** for a one-screen guide — it ships *in the plugin*, so it
 works even if you don't have access to this repo.
 
-**Updating later:** turn on **auto-update** so this is hands-off — `/plugin` → Marketplaces → `mindbowser`
-→ enable auto-update (or enforce it org-wide via managed settings). To update by hand:
-`claude plugin marketplace update mindbowser`, then **reinstall** (`uninstall` + `install`) — prefer
-reinstall over `claude plugin update`, which is unreliable. **Personal trial only?** Use `--scope local`
-instead of `--scope project` — it writes to the gitignored `.claude/settings.local.json`.
+**Updates are hands-off.** The marketplace is registered with **auto-update**, so the plugin self-updates
+on startup; a SessionStart nudge tells you when a new version landed, and `/harness-update` bumps it on
+demand. (Manual fallback: `claude plugin marketplace update mindbowser` then reinstall — `uninstall` +
+`install` — which is more reliable than `claude plugin update`.)
+
+### Other scopes (when you don't want it everywhere)
+- **Pin it to a team repo** so everyone who clones gets it: add `--scope project` to both commands; this
+  writes a committable `.claude/settings.json`. Use this for a shared repo where the harness is mandatory.
+- **Personal trial in one repo:** `--scope local` writes the gitignored `.claude/settings.local.json`.
+
+### Reinstall cleanly / move from project- to global-scope
+If it's currently installed per-project and you want the global model:
+```bash
+claude plugin uninstall health-harness@mindbowser     # remove the existing install
+claude plugin marketplace remove mindbowser           # drop the marketplace
+# (optional) delete the plugin lines from that repo's .claude/settings.json so global is the only source
+claude plugin marketplace add Mindbowser/health-harness   # re-add globally (user scope)
+claude plugin install health-harness@mindbowser           # re-install globally
+# then RESTART Claude Code and verify with `claude plugin list` (Scope: user)
+```
 
 > **Rolling this out to a team / the whole org, and keeping everyone current?** See **`docs/rollout.md`** —
 > the GitHub-marketplace requirement for auto-update, per-repo vs MDM managed-settings install, and the
