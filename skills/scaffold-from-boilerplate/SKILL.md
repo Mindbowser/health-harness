@@ -26,9 +26,10 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/boilerplate-registry.js" list                # s
 node "${CLAUDE_PLUGIN_ROOT}/bin/boilerplate-registry.js" resolve "<stack>"   # → {"key","repo","kind"}
 ```
 
-- The registry is `registry.json` in a central repo (default `Mindbowser/boilerplates`; override with the
-  `MB_BOILERPLATE_REGISTRY` env var). Cloning private boilerplates uses `MB_BOILERPLATE_TOKEN` (set once in
-  `~/.claude/settings.json` → `env`, or org-wide via FleetDM). Format + setup: `docs/boilerplates.md`.
+- The registry is **baked into the plugin** (`config/boilerplates.json`) — zero setup. Cloning the private
+  boilerplates uses `MB_BOILERPLATE_TOKEN` (set once in `~/.claude/settings.json` → `env`, or org-wide via
+  FleetDM). Optionally point at a central registry repo with `MB_BOILERPLATE_REGISTRY`. See
+  `docs/boilerplates.md`.
 - **Flow:** if the user named a stack, `resolve` it; if it's ambiguous or unspecified, run `list` and let
   them pick. If `resolve` exits non-zero, show the available stacks — never invent a URL.
 

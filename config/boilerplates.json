@@ -1,0 +1,19 @@
+{
+  "react-ts":          { "repo": "https://github.com/Mindbowser/react_typescript_boilerplate",    "kind": "frontend", "aliases": ["react", "reactts", "react-typescript"], "description": "React + TypeScript" },
+  "reactjs":           { "repo": "https://github.com/Mindbowser/reactjs-boilerplate",              "kind": "frontend", "aliases": ["react-js"], "description": "React (JS)" },
+  "nextjs":            { "repo": "https://github.com/Mindbowser/nextjs-boilerplate",               "kind": "frontend", "aliases": ["next", "next.js"], "description": "Next.js" },
+  "angular":           { "repo": "https://github.com/Mindbowser/angular-boilerplate",              "kind": "frontend", "description": "Angular" },
+  "react-native":      { "repo": "https://github.com/Mindbowser/reactnative-boilerplate-typescript", "kind": "frontend", "aliases": ["rn", "reactnative", "react-native-ts"], "description": "React Native (TypeScript)" },
+  "react-native-expo": { "repo": "https://github.com/Mindbowser/reactnative-expo-boilerplate-ts",  "kind": "frontend", "aliases": ["expo", "rn-expo"], "description": "React Native + Expo (TS)" },
+  "flutter":           { "repo": "https://github.com/Mindbowser/flutter-boilerplate",              "kind": "frontend", "aliases": ["dart"], "description": "Flutter (mobile)" },
+  "nodejs":            { "repo": "https://github.com/Mindbowser/node.js-boilerplate",              "kind": "backend",  "aliases": ["node"], "description": "Node.js" },
+  "node-express-ts":   { "repo": "https://github.com/Mindbowser/node-express-ts-microservice",     "kind": "backend",  "aliases": ["express", "express-ts", "node-microservice", "microservice"], "description": "Node + Express + TS microservice" },
+  "nestjs":            { "repo": "https://github.com/Mindbowser/nestjs-boilerplate",               "kind": "backend",  "aliases": ["nest"], "description": "NestJS" },
+  "django":            { "repo": "https://github.com/Mindbowser/django-boilerplate",               "kind": "backend",  "aliases": ["python-django", "python"], "description": "Django (Python)" },
+  "rails":             { "repo": "https://github.com/Mindbowser/ror-boilerplate",                  "kind": "backend",  "aliases": ["ror", "ruby", "ruby-on-rails"], "description": "Ruby on Rails" },
+  "spring-rest":       { "repo": "https://github.com/Mindbowser/spring-rest-boilerplate",          "kind": "backend",  "aliases": ["spring", "springboot", "spring-boot", "java"], "description": "Spring Boot REST" },
+  "spring-jwt":        { "repo": "https://github.com/Mindbowser/spring-jwt-boilerplate",           "kind": "backend",  "aliases": ["spring-jwt"], "description": "Spring Boot + JWT auth" },
+  "spring-auth0":      { "repo": "https://github.com/Mindbowser/spring-auth0-boilerplate",         "kind": "backend",  "aliases": ["auth0"], "description": "Spring Boot + Auth0" },
+  "spring-ai":         { "repo": "https://github.com/Mindbowser/spring-ai-boilerplate",            "kind": "backend",  "aliases": ["springai"], "description": "Spring AI" },
+  "spring-fhir":       { "repo": "https://github.com/Mindbowser/spring-fhir-boilerplate",          "kind": "backend",  "aliases": ["fhir"], "description": "Spring Boot + FHIR (healthcare)" }
+}

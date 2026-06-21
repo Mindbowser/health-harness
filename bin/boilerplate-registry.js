@@ -49,16 +49,22 @@ function matchStack(reg, query) {
   return null;
 }
 
-/** Pure: where the registry lives (default central repo; env override). */
-function registrySource(env) { return String((env || {}).MB_BOILERPLATE_REGISTRY || '').trim() || 'Mindbowser/boilerplates'; }
+/** Pure: where the registry lives. Default = the registry baked into the plugin; env points elsewhere. */
+function registrySource(env) { return String((env || {}).MB_BOILERPLATE_REGISTRY || '').trim() || 'config/boilerplates.json (baked-in)'; }
 
 module.exports = { parseRegistry, listStacks, matchStack, registrySource, norm };
 
 // ── orchestration (impure) ──────────────────────────────────────────────────────
-/** Impure: fetch the registry.json text from the configured source (private-repo aware via gh / token). */
+/** Impure: fetch the registry.json text. Default = the file baked into the plugin (zero setup); if
+ * MB_BOILERPLATE_REGISTRY is set, read from there instead (owner/repo[:path] via gh, or a raw https URL). */
 function fetchRegistryText() {
+  const env = process.env;
+  const override = String(env.MB_BOILERPLATE_REGISTRY || '').trim();
+  if (!override) {
+    return require('fs').readFileSync(require('path').join(__dirname, '..', 'config', 'boilerplates.json'), 'utf8');
+  }
   const { execSync } = require('child_process');
-  const src = registrySource(process.env);
+  const src = override;
   const run = (c) => execSync(c, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
   if (/^https?:\/\//i.test(src)) {
     const tok = process.env.MB_BOILERPLATE_TOKEN || process.env.MB_GITHUB_TOKEN || '';

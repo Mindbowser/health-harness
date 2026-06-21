@@ -29,7 +29,22 @@ test('matchStack: exact key, alias, fuzzy (punctuation-insensitive)', () => {
   assert.strictEqual(matchStack(REG, ''), null);
 });
 
-test('registrySource: default repo, overridable by env', () => {
-  assert.strictEqual(registrySource({}), 'Mindbowser/boilerplates');
+test('registrySource: baked-in by default, overridable by env', () => {
+  assert.match(registrySource({}), /baked-in/);
   assert.strictEqual(registrySource({ MB_BOILERPLATE_REGISTRY: 'Acme/bp' }), 'Acme/bp');
+});
+
+test('the baked-in config/boilerplates.json is valid and resolvable', () => {
+  const fs = require('fs'), path = require('path');
+  const reg = parseRegistry(fs.readFileSync(path.join(__dirname, '..', 'config', 'boilerplates.json'), 'utf8'));
+  const stacks = listStacks(reg);
+  assert.ok(stacks.length >= 15, 'expected the full MB boilerplate set');
+  for (const k of stacks) {
+    assert.match(reg[k].repo, /github\.com\/Mindbowser\//, `${k} must point at a Mindbowser repo`);
+    assert.ok(['frontend', 'backend', 'monorepo'].includes(reg[k].kind), `${k} needs a valid kind`);
+  }
+  assert.strictEqual(matchStack(reg, 'next.js').key, 'nextjs');
+  assert.strictEqual(matchStack(reg, 'fhir').key, 'spring-fhir');
+  assert.strictEqual(matchStack(reg, 'flutter').key, 'flutter');
+  assert.strictEqual(matchStack(reg, 'spring boot').key, 'spring-rest');
 });

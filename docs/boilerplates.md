@@ -1,54 +1,60 @@
 # Boilerplate registry — one boilerplate per stack, resolved automatically
 
 `/scaffold-from-boilerplate` picks the right starter repo for a new project by looking up the chosen
-**tech stack** in a **central registry** — so devs never paste a URL and adding a new stack never needs a
-plugin release. Resolver: `bin/boilerplate-registry.js` (`list` / `resolve "<stack>"`).
+**tech stack** in a registry — so devs never paste a URL. Resolver: `bin/boilerplate-registry.js`
+(`list` / `resolve "<stack>"`).
 
-## The registry (single source of truth)
+## Where the registry lives
 
-A `registry.json` in a central repo — default **`Mindbowser/boilerplates`** — maps each stack to its repo:
+**Baked into the plugin** at `config/boilerplates.json` — **zero setup**, ships with the harness. The
+non-secret repo URLs live here; the only thing a dev needs is the clone token (below). Entry shape:
 
 ```json
 {
-  "react-node": { "repo": "https://github.com/Mindbowser/bp-react-node", "kind": "monorepo",
-                  "aliases": ["react+node", "mern"], "description": "React/TS + Node/Express/Postgres" },
-  "nextjs":     { "repo": "https://github.com/Mindbowser/bp-nextjs",     "kind": "frontend" },
-  "fastapi":    { "repo": "https://github.com/Mindbowser/bp-fastapi",    "kind": "backend" },
-  "react-native": { "repo": "https://github.com/Mindbowser/bp-react-native", "kind": "frontend",
-                    "aliases": ["expo", "rn"] }
+  "nextjs":      { "repo": "https://github.com/Mindbowser/nextjs-boilerplate", "kind": "frontend",
+                   "aliases": ["next", "next.js"], "description": "Next.js" },
+  "spring-fhir": { "repo": "https://github.com/Mindbowser/spring-fhir-boilerplate", "kind": "backend",
+                   "aliases": ["fhir"], "description": "Spring Boot + FHIR (healthcare)" }
 }
 ```
 
 - **`repo`** (required) — the boilerplate git URL (clone-only; the scaffold re-inits a fresh repo).
 - **`kind`** — `frontend` | `backend` | `monorepo` (drives the project layout).
-- **`aliases`** — extra names that should resolve here (matching is case/punctuation-insensitive and fuzzy,
-  so `"Next.js"`, `"react+node"`, `"fast api"` all work without aliases too).
-- **Add a stack** = a one-line PR to this file. It's live for everyone immediately — no harness release.
+- **`aliases`** — extra names that resolve here (matching is case/punctuation-insensitive and fuzzy, so
+  `"Next.js"`, `"spring boot"`, `"react native expo"` resolve without needing an alias).
 
-## One-time setup (org)
+**Add or change a stack** = edit `config/boilerplates.json` → `npm run release`. Devs pick it up on the next
+plugin auto-update.
 
-1. **Create the registry repo** `Mindbowser/boilerplates` with a `registry.json` like above (one entry per
-   existing per-stack boilerplate you already have).
-2. **Mint a read-only PAT** that can clone the private boilerplate repos, and distribute it as
-   `MB_BOILERPLATE_TOKEN` — globally via each dev's `~/.claude/settings.json` → `env` now, or org-wide via
-   FleetDM managed settings later (same pattern as the telemetry token):
-   ```jsonc
-   { "env": { "MB_BOILERPLATE_TOKEN": "<read-only PAT>" } }
-   ```
-   Reading the registry itself uses the dev's `gh` auth (private-repo aware), so no extra config for that.
+## The one thing that's NOT baked in: the clone token
 
-## Overrides
+The boilerplate repos are **private**, so cloning needs `MB_BOILERPLATE_TOKEN` (a read-only PAT). It is a
+**secret**, so it is deliberately **not** in the plugin — set it once, globally, in each dev's
+`~/.claude/settings.json` → `env` (or org-wide via FleetDM managed settings):
 
-- **`MB_BOILERPLATE_REGISTRY`** — point at a different registry: `owner/repo`, `owner/repo:path/to/registry.json`,
-  or a raw `https://…` URL. Default: `Mindbowser/boilerplates` (`registry.json`).
-- **`MB_BOILERPLATE_TOKEN`** (or `MB_GITHUB_TOKEN`) — PAT used to clone private boilerplates (and a raw-URL
-  registry).
+```jsonc
+{ "env": { "MB_BOILERPLATE_TOKEN": "<read-only PAT that can clone the private boilerplates>" } }
+```
+
+(`MB_GITHUB_TOKEN` is accepted as a fallback. Reading the *registry* needs nothing — it's baked in.)
+
+## Optional: point at a central registry repo instead
+
+If you'd rather edit the stack list without a harness release, set **`MB_BOILERPLATE_REGISTRY`** to a
+central source — `owner/repo`, `owner/repo:path/to/registry.json`, or a raw `https://…` URL. When set, the
+resolver reads from there (private repos via your `gh` auth) instead of the baked-in file. Adding a stack
+then becomes a one-line PR to that repo, instantly live. Leave it unset to use the baked-in default.
 
 ## How the skill uses it
 
 ```bash
-node bin/boilerplate-registry.js list                 # → the menu of stacks
-node bin/boilerplate-registry.js resolve "react+node" # → {"key":"react-node","repo":"…","kind":"monorepo"}
+node bin/boilerplate-registry.js list                 # the menu of stacks
+node bin/boilerplate-registry.js resolve "react+node" # → {"key","repo","kind"}
 ```
 The skill resolves the user's stated stack; if unspecified/ambiguous it shows `list` and asks. If nothing
 matches it prints the available stacks rather than inventing a URL.
+
+## Current stacks (baked in)
+
+react-ts · reactjs · nextjs · angular · react-native · react-native-expo · flutter · nodejs ·
+node-express-ts · nestjs · django · rails · spring-rest · spring-jwt · spring-auth0 · spring-ai · spring-fhir
