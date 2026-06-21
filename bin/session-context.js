@@ -40,8 +40,10 @@ function cmpVersion(a, b) {
 
 module.exports = { buildContext, cmpVersion };
 
-// fetch latest version from the GitHub marketplace repo (2s budget; null on any failure)
-function fetchLatest() {
+// fetch the latest version of the plugin.json on `main`. The repo is PRIVATE, so the unauthenticated
+// raw.githubusercontent URL 403s — try authenticated `gh` first (uses the dev's gh login), then fall back
+// to the raw URL (covers a future public repo / no-gh setup). 3s budget; null on any failure.
+function fetchLatestRaw() {
   return new Promise((resolve) => {
     try {
       const req = require('https').get(
@@ -53,6 +55,18 @@ function fetchLatest() {
       req.on('error', () => resolve(null));
       req.setTimeout(2000, () => { req.destroy(); resolve(null); });
     } catch { resolve(null); }
+  });
+}
+function fetchLatest() {
+  return new Promise((resolve) => {
+    try {
+      require('child_process').execFile('gh',
+        ['api', '-H', 'Accept: application/vnd.github.raw', 'repos/Mindbowser/health-harness/contents/.claude-plugin/plugin.json'],
+        { timeout: 3000 }, (err, stdout) => {
+          if (!err && stdout) { try { return resolve(JSON.parse(stdout).version || null); } catch { /* fall through */ } }
+          fetchLatestRaw().then(resolve);  // gh missing/unauth → try raw (public-repo path)
+        });
+    } catch { fetchLatestRaw().then(resolve); }
   });
 }
 
@@ -71,7 +85,7 @@ async function updateNudge() {
   }
   if (latest && cmpVersion(latest, installed) > 0) {
     return `⬆️ Update available: Mindbowser Health Harness ${latest} (you're on ${installed}). `
-      + 'Run `claude plugin marketplace update mindbowser` then restart Claude Code (or just restart if auto-update is on).';
+      + 'Run `/harness-update` (or `claude plugin marketplace update mindbowser` + `claude plugin update health-harness@mindbowser`), then restart Claude Code. Auto-update also catches up on its own, but on a delay.';
   }
   return '';
 }
