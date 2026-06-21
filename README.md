@@ -216,6 +216,7 @@ bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coac
 bin/usage-upload.js          # ships the usage log to MBI Atlas — DEFAULT OFF (no endpoint = no-op) (+ test/)
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
 bin/preflight.js             # onboarding pre-flight checklist (git/remote/gate/tracker) for /start (+ test/)
+bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
 hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart · usage log (PostToolUse, UserPromptSubmit, PreCompact, SubagentStop)
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)

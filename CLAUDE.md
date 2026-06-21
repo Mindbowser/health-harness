@@ -55,5 +55,13 @@ module, archetype, compliance profile, …). One word, one meaning.
 - **Docs-sync gate.** When you add or change a **user-facing feature** — a skill, a hook/wall rule, a
   `bin/` tool, or a flow/lifecycle change — update **`README.md`** in the **same change**, and its **flow
   diagram (mermaid) + the Build Loop table** if the flow or lifecycle changed. Bump the version
-  (`plugin.json`, `marketplace.json`, `package.json`). A feature change that leaves the README/diagram
-  stale is **incomplete** — don't merge it. (Full authoring contract: `skills/writing-great-skills`.)
+  (`plugin.json`, `marketplace.json`, `package.json` — **all three must agree**). A feature change that
+  leaves the README/diagram stale is **incomplete** — don't merge it. (Full authoring contract:
+  `skills/writing-great-skills`.)
+- **Release gate — every push to `main` releases.** This repo IS the plugin/marketplace, so `main` is the
+  release channel: never push `main` without cutting a release. After committing the version bump, run
+  **`npm run release`** (`bin/release.js`) — it verifies you're on a clean `main` with the three manifests
+  agreeing, runs the gate, pushes `main`, then creates + pushes the tag **`health-harness--v<version>`**
+  (lightweight-style annotated tags; no GitHub Releases). If you ever `git push origin main` by hand, you
+  MUST follow it with the matching tag. A pushed `main` commit with no new tag is an incomplete release.
+  (This applies ONLY to the harness repo — never auto-release a customer's repo.)
