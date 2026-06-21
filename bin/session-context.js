@@ -85,7 +85,7 @@ async function updateNudge() {
   }
   if (latest && cmpVersion(latest, installed) > 0) {
     return `⬆️ Update available: Mindbowser Health Harness ${latest} (you're on ${installed}). `
-      + 'Run `/harness-update` (or `claude plugin marketplace update mindbowser` + `claude plugin update health-harness@mindbowser`), then restart Claude Code. Auto-update also catches up on its own, but on a delay.';
+      + 'Run `/harness-update`, then restart Claude Code. (Auto-update also catches up on its own, on a delay.)';
   }
   return '';
 }

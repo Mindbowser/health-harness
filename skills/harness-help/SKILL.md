@@ -62,12 +62,10 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
   **ON by default.** To turn it off: **`export MB_HARNESS_SOUNDS=off`** (or `=chime` for tones; team-wide
   off via `.health-harness/sounds.json` `{"enabled":false}`). See `sounds/README.md`.
 
-**Updating the harness.** Restarting Claude Code does **not** fetch a new version on its own. Either turn
-on **auto-update** (`/plugin` → Marketplaces → `mindbowser` → enable auto-update; then it updates at
-startup), or update manually: `claude plugin marketplace update mindbowser` then **reinstall**
-(`uninstall` + `install` — `claude plugin update` is unreliable). Check with `claude plugin list`. Org-wide
-auto-update/install is set via managed settings — see `docs/rollout.md`. *(Auto-update needs the **GitHub**
-marketplace, not a local path.)*
+**Updating the harness.** Restarting Claude Code does **not** fetch a new version on its own. Just run
+**`/harness-update`** (it handles the marketplace refresh + reinstall), then restart Claude Code. When a
+newer version exists you'll also get a SessionStart nudge prompting it. Auto-update keeps you current over
+time on its own. Org-wide version control is set via managed settings (see `docs/rollout.md`).
 
 **Go deeper (if you have repo access):** the repo `README.md` (the flow diagram), `COMMANDS.md` (every
 command mapped to its Agile ceremony + SDLC phase), and `CONTEXT.md` (the vocabulary).
