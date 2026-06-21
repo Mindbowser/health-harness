@@ -38,6 +38,23 @@ The questions it must answer: "Are P1/Critical issues getting tests + review (Do
 "Is bug cycle time improving?", "Which epic is leaking rework?". Tag each unit of work with its Jira
 classification (see the data contract in §4) and group by it.
 
+### 2b. Per-developer health table (status, not a ranked score)
+Keep the per-dev table, but make each row a **best-practice health check**, not raw counts. One row per dev,
+columns = the habits that matter, each shown as a simple **status** (🟢 healthy / 🟡 thin / ⚪ no signal),
+plus the composite **Done-right %** and a **Focus area** (the single habit to coach next):
+
+| Dev | Active | Done-right | Feedback loop | Align-first | Validation (tests) | Prompt quality | Engagement | Safety | Focus area |
+|---|---|---|---|---|---|---|---|---|---|
+| dev@… | 🟢 4d, v0.1.78 | 72% | 🟢 | 🟡 | 🟢 | 🟡 | 🟢 | 🟢 | "align before building" |
+
+- Each habit cell is a 🟢/🟡/⚪ derived from that dev's metric vs a healthy threshold (calibrate empirically;
+  don't hardcode judgment). Hover/expand → the underlying numbers (this is where the old activity counts live).
+- **Do NOT show a single ranked 0–100 "score" or a leaderboard.** A composite score gets gamed and turns
+  coaching into ranking (anti-Goodhart; the program is non-punitive by policy). "Done-right %" + per-habit
+  status + a Focus area is the healthy framing: it tells a lead *where to help*, not *who's worst*.
+- Sortable by any column; default sort by Done-right ascending so "who needs support" surfaces first —
+  framed as support, not blame.
+
 ### 3. The MB-unique view: adoption ↔ delivery outcomes
 Atlas already holds **delivery outcomes** (on-time, CSAT, red flags in mbi.db). Add one correlation panel:
 do **high-adoption / high-Done-right teams** deliver more on-time with better CSAT than low-adoption ones?
@@ -49,9 +66,11 @@ by delivery team/account.
   JSON/line; you already ingest this):
   - existing: `ts, userId, repoId, hv, event` + per-event fields (`gate_run.result`, `command.name`,
     `prompt.hasContext`, `commit.*`, `wall.action`, …).
-  - **NEW fields the harness will add** (code against these; treat as optional): `command` events on a
-    ticket carry `issueKey` (e.g. "ACME-258"), `issueType`, `priority`, `severity`, `level` (story/epic/task);
-    a new `redaction` event with a `hits` count.
+  - **LIVE NOW (harness v0.1.78):** `command` and `prompt` events carry **`issueKey`** (e.g. "ACME-258") —
+    the Jira ticket the work is on; and a new **`redaction`** event carries **`hits`** (PHI/secret catches).
+  - **issueType / priority / severity / level are NOT in telemetry** — `issueKey` is the join key; **you
+    resolve the classification by looking the key up in Jira** (Atlas reads Jira; the key is the bridge).
+    Cache the key→classification map.
 - **From git/PR (Atlas computes — you already pull git):** cycle time (commit→merge), rework/churn, PR
   reviewed/merged. **Link commits → Jira issue** via the key in the branch/PR name (or the telemetry
   `issueKey`). This is how Faster/Better/Done-right get computed and sliced.

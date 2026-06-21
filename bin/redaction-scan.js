@@ -223,6 +223,8 @@ if (require.main === module) {
     process.stdout.write(jsonOut ? '[]\n' : `redaction: clean (no changed files)\n`); process.exit(0);
   }
   const { ok, hits } = validate(targets, { classes: cfg.classes, allow: cfg.allow, deny: cfg.deny });
+  // telemetry: record the scan + how many PHI/secret hits it caught (the "Safer" signal). Fire-and-forget.
+  try { require('./usage-log.js').appendEvent('redaction', { hits: hits.length }); } catch { /* ignore */ }
   if (jsonOut) { process.stdout.write(JSON.stringify(hits, null, 2) + '\n'); process.exit(ok ? 0 : 1); }
   if (ok) { process.stdout.write(`redaction: clean (${scope}, profile=${cfg.profile}, classes=${cfg.classes.join(',')})\n`); process.exit(0); }
   process.stderr.write(JSON.stringify(hits, null, 2) + '\n');

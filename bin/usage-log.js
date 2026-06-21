@@ -18,12 +18,13 @@ const ALLOW = {
   tool: ['tool', 'ok'],
   edit: ['ext'],
   gate_run: ['result'],
-  command: ['name'],
+  command: ['name', 'issueKey'],
   wall: ['action', 'why'],
   user_reject: [], interrupt: [], revert: [], correction: [],
-  prompt: ['lenBucket', 'hasContext'],
+  prompt: ['lenBucket', 'hasContext', 'issueKey'],
   prompt_quality: ['score', 'flags'],
   commit: ['sizeBucket', 'branchKind'],
+  redaction: ['hits'],
   compaction: [], subagent: [],
 };
 
@@ -54,6 +55,10 @@ function commandName(text) {
   const first = t.replace(/^\//, '').split(/\s+/)[0] || '';
   return first.split(':').pop();
 }
+/** Pure: extract a Jira/Linear issue key (e.g. ACME-258) from text — a non-sensitive identifier used to
+ * group work by ticket (Atlas joins it to Jira for type/priority/severity). '' if none. */
+const ISSUE_RE = /\b[A-Z][A-Z0-9]+-\d+\b/;
+function issueKey(text) { const m = String(text || '').match(ISSUE_RE); return m ? m[0] : ''; }
 /** Pure: bucket a prompt's length without storing it. */
 function lenBucket(len) { return len < 80 ? 's' : len < 400 ? 'm' : 'l'; }
 /** Pure: does the prompt carry intent-sharpening context (a file ref, a ticket id, or an @mention)? */
@@ -86,8 +91,9 @@ function eventsFromHook(hookType, input) {
     // also yields a command event (align/tdd adoption — feeds the "align before code" dimension).
     const text = String(inp.prompt || inp.user_prompt || '');
     const name = commandName(text);
-    if (name) out.push({ event: 'command', data: { name } });
-    out.push({ event: 'prompt', data: { lenBucket: lenBucket(text.length), hasContext: hasContextMarkers(text) } });
+    const key = issueKey(text); // the Jira ticket the work is on (for per-issue / by-type slicing)
+    if (name) out.push({ event: 'command', data: { name, ...(key ? { issueKey: key } : {}) } });
+    out.push({ event: 'prompt', data: { lenBucket: lenBucket(text.length), hasContext: hasContextMarkers(text), ...(key ? { issueKey: key } : {}) } });
   } else if (hookType === 'command') {
     // legacy/explicit command hook (kept for back-compat). Never store the args.
     const name = commandName(String(inp.command || inp.name || ''));
@@ -116,7 +122,7 @@ function enrichCommit(data) {
 }
 
 module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir,
-  commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion };
+  commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {

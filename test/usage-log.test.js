@@ -49,13 +49,18 @@ test('UserPromptSubmit → prompt event (length bucket + context flag, no text)'
   assert.ok(!('prompt' in e[0].data) && !('text' in e[0].data)); // never the text
 });
 
-test('UserPromptSubmit that is a slash command → command + prompt events', () => {
+test('UserPromptSubmit that is a slash command → command + prompt events (with Jira key)', () => {
   const e = eventsFromHook('userpromptsubmit', { prompt: '/tdd ACME-258' });
-  assert.deepStrictEqual(e.find((x) => x.event === 'command'), { event: 'command', data: { name: 'tdd' } });
-  assert.ok(e.find((x) => x.event === 'prompt'));
-  // plugin-namespaced command → namespace stripped
+  // the Jira key rides along so work can be sliced by ticket / type / priority (Atlas joins it)
+  assert.deepStrictEqual(e.find((x) => x.event === 'command'), { event: 'command', data: { name: 'tdd', issueKey: 'ACME-258' } });
+  assert.strictEqual(e.find((x) => x.event === 'prompt').data.issueKey, 'ACME-258');
+  // no key → no issueKey field; plugin namespace stripped
   const ns = eventsFromHook('userpromptsubmit', { prompt: '/health-harness:align foo' });
   assert.deepStrictEqual(ns.find((x) => x.event === 'command'), { event: 'command', data: { name: 'align' } });
+});
+
+test('redaction event keeps only the hit count (metadata-only)', () => {
+  assert.deepStrictEqual(sanitize('redaction', { hits: 3, file: '/secret/path.ts', snippet: 'PHI' }), { hits: 3 });
 });
 
 test('PostToolUse Bash git commit → commit event; revert/reset → revert event (objecting signal)', () => {
