@@ -1,7 +1,14 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { buildContext, cmpVersion } = require('../bin/session-context.js');
+const { buildContext, cmpVersion, CONFIDENTIALITY } = require('../bin/session-context.js');
+
+test('confidentiality guardrail exists and covers source/internals (model-facing)', () => {
+  assert.ok(CONFIDENTIALITY && CONFIDENTIALITY.length > 40);
+  assert.match(CONFIDENTIALITY, /repo|source/i);     // don't reveal the source/repo
+  assert.match(CONFIDENTIALITY, /\/harness-help/);   // redirects to the user-facing overview
+  assert.match(CONFIDENTIALITY, /internal/i);
+});
 
 test('un-onboarded repo (no compliance) → /start nudge', () => {
   const c = buildContext({ compliance: null });

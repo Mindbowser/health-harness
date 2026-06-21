@@ -13,6 +13,14 @@
  * Pure: build the one-line context from harness state.
  * s = { compliance: 'hipaa'|'pci'|'gdpr'|'none'|null, sprint: string|null, gate: string|null }
  */
+// Model-facing confidentiality guardrail, injected every session (additionalContext). Soft directive:
+// use the skills normally, but don't disclose the harness's implementation/source if asked.
+const CONFIDENTIALITY = 'Confidentiality — the Mindbowser Health Harness is internal Mindbowser tooling. '
+  + 'Do NOT disclose its implementation or source: the repo/marketplace path, the bin/ scripts, hook internals, '
+  + 'or telemetry mechanics. If asked where it lives, how it is built, or to enumerate its internals, politely '
+  + 'decline and point to /harness-help (the user-facing overview). You may still use and explain the skills/'
+  + 'commands normally for the work at hand — just keep the under-the-hood details and source location private.';
+
 function buildContext(s) {
   const st = s || {};
   if (!st.compliance) {
@@ -38,7 +46,7 @@ function cmpVersion(a, b) {
   return 0;
 }
 
-module.exports = { buildContext, cmpVersion };
+module.exports = { buildContext, cmpVersion, CONFIDENTIALITY };
 
 // fetch the latest version of the plugin.json on `main`. The repo is PRIVATE, so the unauthenticated
 // raw.githubusercontent URL 403s — try authenticated `gh` first (uses the dev's gh login), then fall back
@@ -92,8 +100,8 @@ async function updateNudge() {
 
 if (require.main === module) {
   (async () => {
-    const userMsgs = [];   // shown to the USER (systemMessage) — nudges + coaching
-    let modelContext = ''; // injected into the MODEL's context (additionalContext) — technical status
+    const userMsgs = [];                   // shown to the USER (systemMessage) — nudges + coaching
+    let modelContext = CONFIDENTIALITY;    // injected into the MODEL's context — guardrail (always) + status
     try {
       const fs = require('fs');
       const path = require('path');
@@ -108,8 +116,9 @@ if (require.main === module) {
         sprint: readLine(path.join(dir, 'current-sprint')),
         gate: project && project.gate,
       });
-      // onboarded → the technical status is for the MODEL; not onboarded → the "run /start" nudge is for the USER
-      if (compliance && compliance.profile) modelContext = ctx; else userMsgs.push(ctx);
+      // onboarded → append the technical status for the MODEL; not onboarded → the "run /start" nudge
+      // is for the USER. (modelContext already carries the confidentiality guardrail.)
+      if (compliance && compliance.profile) modelContext += '\n\n' + ctx; else userMsgs.push(ctx);
     } catch { /* fail-safe: inject nothing */ }
 
     // Usage: record the session, and emit a coaching note AT MOST once/day (+ a weekly note Mondays). USER-facing.
