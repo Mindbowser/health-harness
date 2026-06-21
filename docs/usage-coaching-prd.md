@@ -126,13 +126,29 @@ local log. **Code still drops anything outside the metadata allowlist** regardle
 configurable.
 
 ## Staged rollout (the `/to-issues` slices)
-1. ✅ **Schema + logger** *(built v0.1.57)* — `bin/usage-log.js`: pure `eventsFromHook` + field allowlist
-   (tested); writes metadata-only JSONL to `~/.health-harness/usage/`. Wired to PostToolUse + the wall.
-2. ✅ **Next-day coach** *(built v0.1.57)* — `bin/usage-coach.js`: pure cadence (`coachCadence` — **once a
-   day**, **weekly on Monday**) + `summarize` + `buildCoaching`; runs from `SessionStart`. Tested.
-3. **`/harness-stats` skill** — show *your own* trends on demand.
-4. **Telemetry uploader** — `bin/usage-upload.js`; daily metadata POST (identified by git company email);
-   enforced via managed settings (FleetDM). Ships only once the **disclosure/policy (+ EU DPIA)** is in place.
+1. ✅ **Schema + logger** *(built v0.1.57; coverage completed v0.1.62)* — `bin/usage-log.js`: pure
+   `eventsFromHook` + field allowlist (tested); writes metadata-only JSONL to `~/.health-harness/usage/`.
+   **Wired hooks:** PostToolUse (`tool`/`edit`/`gate_run` + `commit` with `sizeBucket`/`branchKind` via
+   `enrichCommit`, + `revert`), the wall (`wall`), SessionStart (`session_start`), **UserPromptSubmit**
+   (`prompt` length-bucket + `hasContext`, + `command` for `/align`,`/tdd`,…), **PreCompact** (`compaction`),
+   **SubagentStop** (`subagent`). *Not yet capturable (no clean Claude Code hook): `user_reject`,
+   `interrupt` — and `correction` (re-prompt-after-edit) is derivable at summarize-time, not yet wired.*
+2. ✅ **Next-day coach** *(built v0.1.57; dimensions extended v0.1.62)* — `bin/usage-coach.js`: pure cadence
+   (`coachCadence` — **once a day**, **weekly on Monday**) + `summarize` + `buildCoaching`; runs from
+   `SessionStart`. Coaches feedback-loop, align-before-code, objecting, governance, **prompt-quality
+   (context-rich asks), small-steps (commits), and smart-zone (compactions)**. Tested.
+3. ✅ **`/harness-stats` skill** *(built v0.1.62)* — `bin/harness-stats.js`: a private `/usage`-style
+   dashboard (activity sparkline + every coaching dimension + the motivational summary with progress
+   deltas). Read-only, metadata-only, on-demand; window defaults to 7 days. The daily coach was also made
+   **motivational** (leads with wins, shows improvement vs the prior period, one pointed 10x-framed lever).
+4. 🚧 **Telemetry uploader** — harness side **built v0.1.62, DEFAULT OFF**: `bin/usage-upload.js` runs on
+   SessionStart (detached, throttled ~6h), backfills un-sent days + ships new bytes of the current day to
+   `HARNESS_TELEMETRY_ENDPOINT` with a `Bearer HARNESS_TELEMETRY_TOKEN` (config via settings `env`; FleetDM
+   later). Records carry git company email (`userId`) + harness version (`hv`). No endpoint set = no-op, so
+   nothing leaves any machine. **Still TODO before enabling:** the MBI Atlas ingest endpoint
+   (`POST /atlas/api/harness/usage` → append to per-user JSONL folders at
+   `/home/ubuntu/.openclaw/shared/harness-telemetry/<email>/<date>.jsonl`, shared-token auth) **and** the
+   **disclosure/policy (+ EU DPIA)**. Rollout: Pravin + CH team first, then gradually everyone.
 5. **Dashboard** — central store + de-identified team views (separate service; schema already ready).
 
 ## Open questions

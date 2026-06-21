@@ -35,3 +35,42 @@ test('command hook → command name (no content)', () => {
   assert.deepStrictEqual(eventsFromHook('command', { command: '/align ACME-258 as author' }),
     [{ event: 'command', data: { name: 'align' } }]);
 });
+
+test('UserPromptSubmit → prompt event (length bucket + context flag, no text)', () => {
+  // a short raw one-liner with no file/ticket refs
+  assert.deepStrictEqual(eventsFromHook('userpromptsubmit', { prompt: 'make it work' }),
+    [{ event: 'prompt', data: { lenBucket: 's', hasContext: false } }]);
+  // a long, context-rich prompt (file ref + ticket ref) → hasContext true, no text stored
+  const long = 'Refactor src/foo/bar.ts for ACME-258 '.repeat(20);
+  const e = eventsFromHook('userpromptsubmit', { prompt: long });
+  assert.strictEqual(e[0].event, 'prompt');
+  assert.strictEqual(e[0].data.lenBucket, 'l');
+  assert.strictEqual(e[0].data.hasContext, true);
+  assert.ok(!('prompt' in e[0].data) && !('text' in e[0].data)); // never the text
+});
+
+test('UserPromptSubmit that is a slash command → command + prompt events', () => {
+  const e = eventsFromHook('userpromptsubmit', { prompt: '/tdd ACME-258' });
+  assert.deepStrictEqual(e.find((x) => x.event === 'command'), { event: 'command', data: { name: 'tdd' } });
+  assert.ok(e.find((x) => x.event === 'prompt'));
+  // plugin-namespaced command → namespace stripped
+  const ns = eventsFromHook('userpromptsubmit', { prompt: '/health-harness:align foo' });
+  assert.deepStrictEqual(ns.find((x) => x.event === 'command'), { event: 'command', data: { name: 'align' } });
+});
+
+test('PostToolUse Bash git commit → commit event; revert/reset → revert event (objecting signal)', () => {
+  const c = eventsFromHook('posttooluse', { tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
+  assert.ok(c.find((x) => x.event === 'commit'), 'git commit should emit a commit event');
+  const r = eventsFromHook('posttooluse', { tool_name: 'Bash', tool_input: { command: 'git checkout -- src/a.ts' } });
+  assert.ok(r.find((x) => x.event === 'revert'), 'git checkout -- <file> should emit a revert event');
+  const rh = eventsFromHook('posttooluse', { tool_name: 'Bash', tool_input: { command: 'git reset --hard HEAD~1' } });
+  assert.ok(rh.find((x) => x.event === 'revert'), 'git reset --hard should emit a revert event');
+  // a plain commit is not a revert and vice-versa
+  assert.ok(!c.find((x) => x.event === 'revert'));
+  assert.ok(!r.find((x) => x.event === 'commit'));
+});
+
+test('PreCompact → compaction event; SubagentStop → subagent event', () => {
+  assert.deepStrictEqual(eventsFromHook('precompact', {}), [{ event: 'compaction', data: {} }]);
+  assert.deepStrictEqual(eventsFromHook('subagentstop', {}), [{ event: 'subagent', data: {} }]);
+});

@@ -42,6 +42,25 @@ function sanitize(event, data) {
 }
 
 const GATE_RE = /\b(npm (run )?(test|lint|build|typecheck)|yarn (test|lint)|pnpm (test|lint)|jest|vitest|pytest|go test|gradle|mvn|tsc|eslint|make( test| ci)?)\b/i;
+// committing AI work (small-steps signal) vs reverting it (an "objecting" / hard-harnessing signal)
+const COMMIT_RE = /\bgit\s+commit\b/i;
+const REVERT_RE = /\bgit\s+(revert\b|reset\s+--hard\b|checkout\s+(--?|HEAD|[0-9a-f]{7,})|restore\b|clean\s+-[a-z]*f)/i;
+
+/** Pure: parse a slash-command name from raw prompt/command text. Strips the leading '/' and any plugin
+ * namespace ("health-harness:align" → "align"). Never returns the args. '' if not a command. */
+function commandName(text) {
+  const t = String(text || '').trim();
+  if (!t.startsWith('/')) return '';
+  const first = t.replace(/^\//, '').split(/\s+/)[0] || '';
+  return first.split(':').pop();
+}
+/** Pure: bucket a prompt's length without storing it. */
+function lenBucket(len) { return len < 80 ? 's' : len < 400 ? 'm' : 'l'; }
+/** Pure: does the prompt carry intent-sharpening context (a file ref, a ticket id, or an @mention)? */
+function hasContextMarkers(text) {
+  const t = String(text || '');
+  return /[\w./-]+\.[a-z]{1,8}\b/i.test(t) || /\b[A-Z]{2,}-\d+\b/.test(t) || /(^|\s)@[\w./-]+/.test(t);
+}
 
 /** Pure: map a hook's stdin payload to zero+ {event,data} records. */
 function eventsFromHook(hookType, input) {
@@ -59,18 +78,45 @@ function eventsFromHook(hookType, input) {
     if (tool === 'Bash') {
       const cmd = String((inp.tool_input || {}).command || '');
       if (GATE_RE.test(cmd)) out.push({ event: 'gate_run', data: { result: ok ? 'pass' : 'fail' } });
+      if (ok && COMMIT_RE.test(cmd)) out.push({ event: 'commit', data: {} }); // branchKind/sizeBucket enriched in entry
+      if (ok && REVERT_RE.test(cmd)) out.push({ event: 'revert', data: {} });
     }
-  } else if (hookType === 'command') {
-    // UserPromptExpansion → which skill/command was invoked. First token = command; strip any plugin
-    // namespace ("health-harness:align" → "align"). Never store the args.
-    const first = String(inp.command || inp.name || '').replace(/^\//, '').trim().split(/\s+/)[0] || '';
-    const name = first.split(':').pop();
+  } else if (hookType === 'userpromptsubmit') {
+    // The raw user turn. Metadata only: length bucket + a context flag, never the text. A leading '/'
+    // also yields a command event (align/tdd adoption — feeds the "align before code" dimension).
+    const text = String(inp.prompt || inp.user_prompt || '');
+    const name = commandName(text);
     if (name) out.push({ event: 'command', data: { name } });
+    out.push({ event: 'prompt', data: { lenBucket: lenBucket(text.length), hasContext: hasContextMarkers(text) } });
+  } else if (hookType === 'command') {
+    // legacy/explicit command hook (kept for back-compat). Never store the args.
+    const name = commandName(String(inp.command || inp.name || ''));
+    if (name) out.push({ event: 'command', data: { name } });
+  } else if (hookType === 'precompact') {
+    out.push({ event: 'compaction', data: {} });
+  } else if (hookType === 'subagentstop') {
+    out.push({ event: 'subagent', data: {} });
   }
   return out;
 }
 
-module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir };
+/** Impure: enrich a commit event with branchKind + sizeBucket from git (PostToolUse fires after the
+ * commit succeeded, so HEAD is the new commit). Best-effort — returns data unchanged on any failure. */
+function enrichCommit(data) {
+  try {
+    const { execSync } = require('child_process');
+    const run = (c) => execSync(c, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
+    const branch = run('git rev-parse --abbrev-ref HEAD');
+    const out = { ...data };
+    if (branch) out.branchKind = /^(main|master|develop|release.*)$/i.test(branch) ? 'base' : 'feature';
+    const n = parseInt(run('git show --stat --format="" HEAD | tail -1 | grep -oE "[0-9]+ insertion" | grep -oE "[0-9]+"') || '0', 10) || 0;
+    out.sizeBucket = n < 25 ? 's' : n < 150 ? 'm' : 'l';
+    return out;
+  } catch { return data; }
+}
+
+module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir,
+  commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -85,6 +131,14 @@ function gitEmail() {
   } catch { _email = null; }
   return _email;
 }
+let _ver; // memoize the installed harness version (stamped on every record for cohort/version analysis)
+function harnessVersion() {
+  if (_ver !== undefined) return _ver;
+  try {
+    _ver = require('../.claude-plugin/plugin.json').version || null;
+  } catch { _ver = null; }
+  return _ver;
+}
 function appendEvent(event, data) {
   try {
     const fs = require('fs'), path = require('path');
@@ -93,7 +147,7 @@ function appendEvent(event, data) {
     const now = new Date();
     const dir = usageDir();
     fs.mkdirSync(dir, { recursive: true });
-    const rec = { v: 1, ts: now.toISOString(), userId: gitEmail(), repoId: repoId(), event, ...clean };
+    const rec = { v: 1, ts: now.toISOString(), userId: gitEmail(), repoId: repoId(), hv: harnessVersion(), event, ...clean };
     fs.appendFileSync(path.join(dir, `${now.toISOString().slice(0, 10)}.jsonl`), JSON.stringify(rec) + '\n');
   } catch { /* fire-and-forget */ }
 }
@@ -112,7 +166,9 @@ if (require.main === module) {
   const go = () => {
     try {
       const input = raw ? JSON.parse(raw) : {};
-      for (const e of eventsFromHook(hookType, input)) appendEvent(e.event, e.data);
+      for (const e of eventsFromHook(hookType, input)) {
+        appendEvent(e.event, e.event === 'commit' ? enrichCommit(e.data) : e.data);
+      }
     } catch { /* defer */ }
     process.exit(0);
   };

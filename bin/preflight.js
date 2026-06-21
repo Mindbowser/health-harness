@@ -1,0 +1,91 @@
+#!/usr/bin/env node
+/**
+ * preflight.js — deterministic first-run connectivity checks for onboarding (`/start` calls it). Turns the
+ * silent failures a new user hits (no git email → mis-attributed commits/metrics; no remote → push fails
+ * mid-build; no test gate → no safe AFK build) into a clear, actionable checklist with fix commands.
+ *
+ * It can only check what's deterministic from the shell/filesystem. The Jira/Linear MCP connectivity check
+ * stays an agent action (try to list issues) — here we only report whether coords are recorded.
+ *
+ * Pure (assess / renderPreflight) is exported for tests; gather()/main() are impure.
+ */
+'use strict';
+
+const PERSONAL = /@(gmail|yahoo|outlook|hotmail|icloud|proton(mail)?|live|aol)\./i;
+
+/** Pure: facts → an ordered checklist of {key,status,label,detail,fix}. status ∈ ok|warn|fail. */
+function assess(f) {
+  const checks = [];
+  const email = f.email || '';
+  if (!email) checks.push({ key: 'git_email', status: 'fail', label: 'Git identity', detail: 'user.email is not set', fix: 'git config user.email you@mindbowser.com' });
+  else if (PERSONAL.test(email)) checks.push({ key: 'git_email', status: 'warn', label: 'Git identity', detail: `${email} looks personal — use your company email (commits, PRs, and usage metrics key off it)`, fix: 'git config user.email you@mindbowser.com' });
+  else checks.push({ key: 'git_email', status: 'ok', label: 'Git identity', detail: email, fix: '' });
+
+  if (!f.hasRemote) checks.push({ key: 'git_remote', status: 'warn', label: 'Git remote', detail: 'no origin — pushing a branch will fail later', fix: 'git remote add origin <url>' });
+  else checks.push({ key: 'git_remote', status: 'ok', label: 'Git remote', detail: 'origin set', fix: '' });
+
+  if (f.branch && /^(main|master|develop)$/i.test(f.branch)) checks.push({ key: 'branch', status: 'warn', label: 'Branch', detail: `on base branch '${f.branch}' — branch before your first commit (the wall will stop a base-branch commit)`, fix: 'git checkout -b feature/<name>' });
+  else checks.push({ key: 'branch', status: 'ok', label: 'Branch', detail: f.branch || '(none yet)', fix: '' });
+
+  const g = f.gate || {};
+  if (!g.hasTestScript) checks.push({ key: 'gate', status: 'fail', label: 'Feedback-loop gate', detail: 'no test gate found — establish one (characterization tests) before any AFK build', fix: '' });
+  else if (g.isStub) checks.push({ key: 'gate', status: 'fail', label: 'Feedback-loop gate', detail: 'test script is the default stub ("no test specified") — that is not a gate', fix: '' });
+  else checks.push({ key: 'gate', status: 'ok', label: 'Feedback-loop gate', detail: 'test gate present', fix: '' });
+
+  if (!f.compliance) checks.push({ key: 'compliance', status: 'warn', label: 'Compliance profile', detail: 'not set — onboarding will default to hipaa', fix: 'run /compliance-profile' });
+  else checks.push({ key: 'compliance', status: 'ok', label: 'Compliance profile', detail: 'set', fix: '' });
+
+  if (!f.jiraCoords) checks.push({ key: 'tracker', status: 'warn', label: 'Tracker (Jira/Linear)', detail: 'no coords recorded — connect the MCP or note paste-mode (the agent verifies the live connection)', fix: 'see docs/jira.md' });
+  else checks.push({ key: 'tracker', status: 'ok', label: 'Tracker (Jira/Linear)', detail: 'coords recorded', fix: '' });
+
+  return checks;
+}
+
+const GLYPH = { ok: '✅', warn: '⚠️ ', fail: '❌' };
+
+/** Pure: render the checklist; fixes only shown for non-ok items. */
+function renderPreflight(checks) {
+  const L = ['Onboarding pre-flight:'];
+  for (const c of checks) {
+    L.push(`  ${GLYPH[c.status] || '·'} ${c.label} — ${c.detail}`);
+    if (c.status !== 'ok' && c.fix) L.push(`       ↳ ${c.fix}`);
+  }
+  const fails = checks.filter((c) => c.status === 'fail').length;
+  const warns = checks.filter((c) => c.status === 'warn').length;
+  L.push(fails ? `\n${fails} blocker(s)${warns ? `, ${warns} warning(s)` : ''} — clear the ❌ before building.`
+    : warns ? `\nReady — ${warns} warning(s) worth a look.` : `\nAll clear — you're set.`);
+  return L.join('\n');
+}
+
+module.exports = { assess, renderPreflight };
+
+// ── orchestration (impure) ──────────────────────────────────────────────────────
+function gather() {
+  const fs = require('fs'), path = require('path');
+  const { execSync } = require('child_process');
+  const run = (c) => { try { return execSync(c, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim(); } catch { return ''; } };
+  const inRepo = run('git rev-parse --is-inside-work-tree') === 'true';
+  const email = run('git config user.email') || null;
+  const hasRemote = !!run('git remote');
+  const branch = run('git rev-parse --abbrev-ref HEAD') || null;
+
+  let gate = { hasTestScript: false, isStub: false };
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+    const t = (pkg.scripts && pkg.scripts.test) || '';
+    gate = { hasTestScript: !!t, isStub: /no test specified/i.test(t) };
+  } catch { /* no package.json — leave hasTestScript false (other ecosystems: the agent confirms the gate) */ }
+
+  const hh = path.join(process.cwd(), '.health-harness');
+  const compliance = fs.existsSync(path.join(hh, 'compliance.json'));
+  let jiraCoords = false;
+  try { const p = JSON.parse(fs.readFileSync(path.join(hh, 'project.json'), 'utf8')); jiraCoords = !!(p.jira && (p.jira.projectKey || p.jira.cloudId)); } catch { /* none */ }
+
+  return { inRepo, email, hasRemote, branch, gate, compliance, jiraCoords };
+}
+
+if (require.main === module) {
+  const f = gather();
+  if (!f.inRepo) { process.stdout.write('Onboarding pre-flight: ❌ not inside a git repo — run `git init` first.\n'); process.exit(0); }
+  process.stdout.write(renderPreflight(assess(f)) + '\n');
+}

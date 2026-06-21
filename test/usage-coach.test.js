@@ -40,20 +40,49 @@ test('summarize aggregates events', () => {
   assert.strictEqual(m.gatePass, 1);
   assert.strictEqual(m.commands.align, 1);
   assert.strictEqual(m.wallDeny, 1);
-  assert.strictEqual(m.objections, 2);
+  assert.strictEqual(m.objections, 2); // revert + correction
 });
 
-test('buildCoaching: loose loop + rubber-stamping + governance produce tips; quiet day → empty', () => {
+test('summarize aggregates prompt quality and smart-zone events', () => {
+  const m = summarize([
+    { event: 'prompt', lenBucket: 's', hasContext: false },
+    { event: 'prompt', lenBucket: 'm', hasContext: true },
+    { event: 'compaction' }, { event: 'compaction' },
+    { event: 'commit', sizeBucket: 's', branchKind: 'feature' },
+  ]);
+  assert.strictEqual(m.prompts, 2);
+  assert.strictEqual(m.promptsCtx, 1);
+  assert.strictEqual(m.compactions, 2);
+  assert.strictEqual(m.commits, 1);
+});
+
+test('buildCoaching: thin-context prompts and context bloat produce tips', () => {
+  const thin = buildCoaching({ edits: 0, gateRuns: 0, gatePass: 0, commands: {}, wallDeny: 0, objections: 0,
+    prompts: 8, promptsCtx: 1, compactions: 0 }, 'daily');
+  assert.match(thin, /context/i);
+  const bloat = buildCoaching({ edits: 0, gateRuns: 0, gatePass: 0, commands: {}, wallDeny: 0, objections: 0,
+    prompts: 0, promptsCtx: 0, compactions: 4 }, 'daily');
+  assert.match(bloat, /smart zone|clear/i);
+});
+
+test('buildCoaching: motivational — leads with a win, ONE pointed lever, governance, encouragement', () => {
   const loose = buildCoaching({ edits: 12, gateRuns: 1, gatePass: 1, commands: {}, wallDeny: 1, objections: 0 }, 'daily');
-  assert.match(loose, /Tighten the loop/);
-  assert.match(loose, /rubber-stamp/);
-  assert.match(loose, /blocked action/);
   assert.match(loose, /^📊 Harness — yesterday/);
+  assert.match(loose, /gate/i);            // the lever names the feedback loop
+  assert.match(loose, /branch/i);          // governance note (blocked action → branch + PR)
+  assert.match(loose, /10x|lever|keep going|strong|nice|💪|🎯/i); // motivational framing, not just criticism
 
   const good = buildCoaching({ edits: 5, gateRuns: 4, gatePass: 4, commands: { align: 2 }, wallDeny: 0, objections: 3 }, 'weekly');
-  assert.match(good, /Strong:/);
+  assert.match(good, /🔥|Wins|Strong/i);   // celebrates wins
   assert.match(good, /^📊 Harness — last week/);
 
-  // nothing notable → empty string (no nag)
+  // nothing happened at all → empty string (never nag on a no-activity day)
   assert.strictEqual(buildCoaching({ edits: 0, gateRuns: 0, gatePass: 0, commands: {}, wallDeny: 0, objections: 0 }, 'daily'), '');
+});
+
+test('buildCoaching: shows improvement vs the prior period (positive reinforcement)', () => {
+  const cur = { edits: 5, gateRuns: 4, gatePass: 4, commands: { align: 2 }, wallDeny: 0, objections: 2, prompts: 5, promptsCtx: 4, compactions: 0, commits: 3 };
+  const prev = { edits: 10, gateRuns: 4, gatePass: 2, commands: { align: 0 }, wallDeny: 0, objections: 0, prompts: 5, promptsCtx: 1, compactions: 0, commits: 0 };
+  const out = buildCoaching(cur, 'weekly', prev);
+  assert.match(out, /📈|improv|up from|→/i); // surfaces an improvement delta
 });

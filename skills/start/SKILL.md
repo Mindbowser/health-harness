@@ -11,6 +11,18 @@ ingest a handover. It also makes sure the compliance profile is set, which every
 
 ## Process
 
+0. **Run the pre-flight check first** — turn silent setup gaps into a clear checklist before anything else:
+
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/bin/preflight.js"
+   ```
+
+   Show the user the output. It deterministically checks git identity (company email), git remote, current
+   branch, the test gate, the compliance profile, and recorded tracker coords. **Clear every ❌ before
+   building** (no git email → mis-attributed commits/metrics; no/stub gate → no safe AFK build); ⚠️ items
+   are worth fixing now rather than mid-build. The pre-flight can't see the live Jira/Linear MCP — verify
+   that in step 4 by actually listing issues.
+
 1. **Detect the archetype** from the working directory — two cases:
    - **Empty / no source** (just `.git`, maybe a README) → **new repo (greenfield)**.
    - **Has existing source code** (any stack) → **existing repo**.
@@ -55,6 +67,7 @@ ingest a handover. It also makes sure the compliance profile is set, which every
 
 ## Completion criteria
 
+- [ ] Pre-flight run and every ❌ cleared (git email set, a real test gate exists).
 - [ ] The archetype is detected (new vs existing) AND confirmed by the user.
 - [ ] `.health-harness/compliance.json` exists (default `hipaa`).
 - [ ] Tracker MCP connected (Jira coords in `project.json`) **or** paste-mode noted; `git user.email` = company email.

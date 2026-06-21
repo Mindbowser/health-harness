@@ -51,6 +51,33 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/play-sound.js\" subagent",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js\" subagentstop",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js\" userpromptsubmit",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js\" precompact",
+            "timeout": 5
           }
         ]
       }

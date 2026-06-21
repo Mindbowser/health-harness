@@ -102,6 +102,14 @@ if (require.main === module) {
       if (coach) additionalContext += (additionalContext ? '\n\n' : '') + coach;
     } catch { /* coaching is best-effort — never block the session */ }
 
+    // Telemetry upload (default OFF; no-op unless HARNESS_TELEMETRY_ENDPOINT is configured). Spawn it
+    // DETACHED so any network I/O never blocks session start.
+    try {
+      const { spawn } = require('child_process');
+      spawn(process.execPath, [path.join(__dirname, 'usage-upload.js'), 'sessionstart'],
+        { detached: true, stdio: 'ignore' }).unref();
+    } catch { /* best-effort */ }
+
     // Update nudge (cached once/day) — can't update a live session, but tells you to restart.
     try { const u = await updateNudge(); if (u) additionalContext += (additionalContext ? '\n\n' : '') + u; } catch { /* best-effort */ }
 

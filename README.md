@@ -51,7 +51,7 @@ Governance and the wall run automatically throughout. (A consolidation `prd.md` 
 
 ```mermaid
 flowchart TD
-    SETUP["🔧 ONBOARDING · Inception — once per repo<br/>/start → scaffold | onboard · /compliance-profile · connect tracker + git · establish the gate"]
+    SETUP["🔧 ONBOARDING · Inception — once per repo<br/>/start → pre-flight (git/remote/gate/tracker) · scaffold | onboard · /compliance-profile · establish the gate"]
 
     subgraph PLAN["📋 SPRINT PLANNING · Requirements"]
         direction TB
@@ -176,7 +176,7 @@ plugin brings **both the skills and the wall hook** (`hooks/outward-guard.js`, a
 They load on the next session, so restart Claude Code (or run `/reload-plugins`), then verify:
 
 ```bash
-claude plugin details health-harness@mindbowser   # → Skills (17) + a PreToolUse hook (the wall)
+claude plugin details health-harness@mindbowser   # → Skills (18) + a PreToolUse hook (the wall)
 ```
 
 Now just type **`/start`** — it detects new vs existing repo, sets the compliance profile (default
@@ -213,8 +213,11 @@ bin/gen-sounds.js            # generates the cross-platform fallback chime .wav 
 bin/session-context.js       # SessionStart hook — injects status + runs the daily coach (+ test/)
 bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/ (+ test/)
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
+bin/usage-upload.js          # ships the usage log to MBI Atlas — DEFAULT OFF (no endpoint = no-op) (+ test/)
+bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
+bin/preflight.js             # onboarding pre-flight checklist (git/remote/gate/tracker) for /start (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
-hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart · PostToolUse usage log
+hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart · usage log (PostToolUse, UserPromptSubmit, PreCompact, SubagentStop)
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
   start/                       # router: detect new vs existing → route to a front door
   scaffold-from-boilerplate/   # front door — new repo
@@ -226,10 +229,33 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
   writing-great-skills/        # the meta-skill: how to write skills here
   harness-help/                # in-plugin guide (/harness-help) — usable without repo access
   harness-update/              # one-step plugin update (/harness-update)
+  harness-stats/               # your own usage dashboard (/harness-stats) — private, read-only
 ```
 
 > **Skills are flat by design.** Claude Code discovers plugin skills at `skills/<name>/SKILL.md` (one
 > level) — category subfolders are NOT scanned. We keep the grouping as labels above, not directories.
+
+## Usage telemetry (opt-in, metadata-only)
+
+The harness logs **metadata-only** usage (event counts, no code/prompts/file-contents/PHI — enforced by a
+write-time field allowlist) to `~/.health-harness/usage/` to power the daily coach. Optionally, it can ship
+that log to MBI Atlas for org-level adoption analysis. **This is OFF by default** — nothing leaves the
+machine unless an endpoint is configured. Enable it per-user via Claude Code settings `env` (and later
+org-wide via FleetDM managed settings):
+
+```jsonc
+// .claude/settings.json (or managed settings) → "env"
+{ "env": {
+    "HARNESS_TELEMETRY_ENDPOINT": "https://mbi.mindbowser.com/atlas/api/harness/usage",
+    "HARNESS_TELEMETRY_TOKEN": "<shared ingest token>"
+} }
+```
+
+When enabled, `bin/usage-upload.js` runs on SessionStart (detached, throttled to ~once/6h), backfilling any
+un-sent days and shipping only the new bytes of the current day — so data lands **at least once a day** the
+dev opens a session, with catch-up for offline gaps. Records carry the git company email (`userId`) and the
+harness version (`hv`). Identified employee telemetry requires a written monitoring policy (+ EU DPIA)
+before it ships — see `docs/usage-coaching-prd.md`.
 
 ## Contributing a skill
 
