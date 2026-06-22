@@ -1,46 +1,46 @@
-# Brief for the Atlas agent — add a "Hygiene" strip to Harness AI Usage
+# Brief for the Atlas agent — surface hygiene telemetry as ONE CTO number
 
-Paste the block below to the **mbi-atlas** agent. The harness now emits best-practice/hygiene signals; this
-surfaces them org-wide (non-punitive).
+Paste the block below to the **mbi-atlas** agent. The harness now emits best-practice/hygiene signals; surface
+them **simply** — one number a CTO reads in 2 seconds, with the breakdown on drill-down. Non-punitive.
 
 ---
 
 ## PROMPT (copy from here)
 
-The harness now emits **hygiene signals** as metadata-only telemetry events (in the same per-user JSONL you
-already ingest). Add a small **"Hygiene" strip** to the Harness AI Usage view that aggregates them. Keep it
-**non-punitive** (org/team trend + "where to help", never a per-person ranking).
+The harness now emits **hygiene signals** as metadata-only telemetry (in the per-user JSONL you already
+ingest). Surface them on the Harness AI Usage view as **ONE leading-indicator number**, not a cluster of
+metrics — a CTO should grasp it instantly.
 
-### New event types in the telemetry (code against these; all optional, metadata-only)
-- `breaking_change` — fields: `kind` (api|schema|event), `confirmed` (bool), `issueKey`. A change to an
-  existing contract that `/align` flagged + the dev confirmed.
-- `migration` — `pattern` (e.g. `expand-contract`), `issueKey`. A schema change done the safe way.
-- `migration_gap` — `reason` (e.g. `no-migration-layer`). A repo has a DB but no migration tool.
-- `coverage_drop` — `delta` (coverage points dropped).
-- `dep_hygiene` — `kind` (stale|unpinned|major|vuln), `count`.
-- `test_strength` — `kind` (mutation|property), `score`. **Captured cheaply** (CI mutation score POSTed in, or
-  property-test presence) — do NOT expect one per build.
+### The one number: "Hygiene gaps"
+Add a single tile next to the existing KPIs (or as a sub-line under **Better**, since these *predict* rework):
 
-### What to show (org-wide, in the rollup `buildHarnessRollup()`; cache as today)
-A compact **Hygiene** strip, each a count over the window + trend vs prior:
-- **Migration gaps** (DBs with no migration layer) — target 0.
-- **Coverage drops** — target 0.
-- **Dependency flags** (stale/unpinned/major/vuln).
-- **Breaking changes**: total, and **% confirmed** (confirmed=true ÷ all) — the healthy signal is that
-  breaking changes are *acknowledged with a compat plan*, not zero breaking changes.
-- **Test strength** (if any `test_strength` events): latest mutation score / property-test presence.
+> **Hygiene gaps: N** (trend vs prior period · target 0)
+
+where **N = count over the window of**: `migration_gap` + `coverage_drop` + `dep_hygiene` + **unconfirmed**
+`breaking_change` (i.e. `breaking_change` with `confirmed` != true). These are the "bites-you-later" items.
+Lower is better; **0 is the goal**; show the trend arrow.
+
+Position it as a **leading indicator of Better/Safer** — a rising hygiene-gap count predicts rework and
+incidents before they show up in the outcome metrics.
+
+### Drill-down (for leads, not the CTO top line)
+On expand, show the breakdown — counts of: migration gaps, coverage drops, dependency flags, and breaking
+changes (total + **% confirmed**, since the healthy signal is breaking changes *acknowledged with a compat
+plan*, not zero). Optionally `test_strength` (latest mutation score / property-test presence) if any
+`test_strength` events exist. Keep this behind the tile, not on the main scorecard.
+
+### Event fields (code against these; all optional, metadata-only)
+`migration_gap{reason}` · `coverage_drop{delta}` · `dep_hygiene{kind,count}` ·
+`breaking_change{kind,confirmed,issueKey}` · `migration{pattern,issueKey}` · `test_strength{kind,score}`.
 
 ### Rules
-- Aggregate in the existing background rollup (`buildHarnessRollup` ~2389); serve from cache; missing → "—".
-- **Non-punitive:** org/team level; if you show per-dev, keep it in the existing health-table style (status,
-  "focus area"), never a ranked hygiene score.
-- These join the 5 KPIs as **leading indicators of the "Better/Safer" outcomes** — a hygiene gap predicts
-  rework/incidents later.
+- Aggregate in the existing background rollup (`buildHarnessRollup` ~2389); serve from cache; missing → "—"/0.
+- **Non-punitive** — org/team level; if shown per-dev, use the existing health-table style (status + focus
+  area), never a ranked hygiene score.
+- Don't add a 5-metric "hygiene panel" to the top line — **one number + drill-down**. Resist card sprawl.
 
 ### Acceptance
-- Hygiene strip renders the counts + trend from the new events; degrades to "—" when absent; cached, async.
-
-(Reference: `bin/usage-log.js` `ALLOW` for the exact fields; `bin/usage-coach.js` `summarize()` for how the
-harness counts the same signals — match it so org and personal numbers reconcile.)
+- One "Hygiene gaps" number with trend on the scorecard; the 4-way breakdown only on drill-down; degrades to
+  "—"/0 when no events; cached/async; reconciles with `bin/usage-coach.js summarize()`.
 
 ## END PROMPT
