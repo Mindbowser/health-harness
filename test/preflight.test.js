@@ -7,6 +7,7 @@ test('assess: a fully-set-up repo is all-green', () => {
   const checks = assess({
     inRepo: true, email: 'dev@mindbowser.com', hasRemote: true, branch: 'feature/x',
     gate: { hasTestScript: true, isStub: false }, compliance: true, jiraCoords: true,
+    role: 'engineer', db: { present: true, hasMigrationLayer: true },
   });
   assert.ok(checks.every((c) => c.status === 'ok'), 'all checks should pass');
 });
@@ -33,6 +34,25 @@ test('assess: a personal email is flagged (warn), a stub gate is flagged (fail)'
   const by = Object.fromEntries(checks.map((c) => [c.key, c]));
   assert.strictEqual(by.git_email.status, 'warn');        // looks personal, not company
   assert.strictEqual(by.gate.status, 'fail');             // stub "no test specified" ≠ a real gate
+});
+
+test('assess: role unset → warn; set → ok', () => {
+  const base = { inRepo: true, email: 'dev@mindbowser.com', hasRemote: true, branch: 'feat/x', gate: { hasTestScript: true, isStub: false }, compliance: true, jiraCoords: true };
+  const unset = Object.fromEntries(assess({ ...base, role: null }).map((c) => [c.key, c]));
+  assert.strictEqual(unset.role.status, 'warn');
+  assert.ok(unset.role.fix.includes('/role'));
+  const set = Object.fromEntries(assess({ ...base, role: 'engineer' }).map((c) => [c.key, c]));
+  assert.strictEqual(set.role.status, 'ok');
+});
+
+test('assess: DB present without a migration layer → warn; with → ok; no DB → no check', () => {
+  const base = { inRepo: true, email: 'dev@mindbowser.com', hasRemote: true, branch: 'feat/x', gate: { hasTestScript: true, isStub: false }, compliance: true, jiraCoords: true, role: 'engineer' };
+  const gap = Object.fromEntries(assess({ ...base, db: { present: true, hasMigrationLayer: false } }).map((c) => [c.key, c]));
+  assert.strictEqual(gap.migrations.status, 'warn');
+  const ok = Object.fromEntries(assess({ ...base, db: { present: true, hasMigrationLayer: true } }).map((c) => [c.key, c]));
+  assert.strictEqual(ok.migrations.status, 'ok');
+  const none = Object.fromEntries(assess({ ...base, db: { present: false } }).map((c) => [c.key, c]));
+  assert.ok(!('migrations' in none)); // no DB → silent, no migration check at all
 });
 
 test('renderPreflight shows status glyphs and only surfaces fixes for non-ok checks', () => {

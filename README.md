@@ -227,11 +227,11 @@ bin/worklog-suggest.js       # suggests a Jira worklog time from git activity (+
 bin/play-sound.js            # optional spoken-voice cues, on by default (+ test/)
 bin/gen-sounds.js            # generates the cross-platform fallback chime .wav files
 bin/session-context.js       # SessionStart hook — injects status + runs the daily coach (+ test/)
-bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/ (+ test/)
+bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/; `emit` CLI for hygiene signals (+ test/)
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
 bin/usage-upload.js          # ships the usage log to MBI Atlas — DEFAULT OFF (no endpoint = no-op) (+ test/)
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
-bin/preflight.js             # onboarding pre-flight checklist (git/remote/gate/tracker) for /start (+ test/)
+bin/preflight.js             # onboarding pre-flight (git/remote/gate/tracker/role/db-migration-layer) for /start (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)

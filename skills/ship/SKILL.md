@@ -32,7 +32,8 @@ rather than re-implementing it (one definition, no drift).
    should already exist; commit any remainder first (on a feature branch).
 4. **Open the PR** (on OK) — title + the **verification summary as the body**, targeting the repo's **PR base**
    (e.g. `dev`/`QA`, not `main`, if that's their flow), linked to the ticket. Use `gh pr create` if present;
-   otherwise hand the user the exact `git push` + PR command/URL.
+   otherwise hand the user the exact `git push` + PR command/URL. **Surface the "Breaking change:" line near the
+   top of the PR body** (none, or YES + the compat plan) so the reviewer must consciously sign off on it.
 5. **Close the PM→dev loop in Jira** — these are **three separate MCP calls**; doing one does not do the others:
    1. **Transition** the ticket to **In Review** (= Ready for QA in our flow).
    2. **Comment** the PR link + "acceptance criteria met" + the criteria→test summary. Write clean Markdown

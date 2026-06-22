@@ -25,6 +25,10 @@ const ALLOW = {
   prompt_quality: ['score', 'flags'],
   commit: ['sizeBucket', 'branchKind'],
   redaction: ['hits'],
+  // best-practice / hygiene signals (emitted by skills via the `emit` CLI; metadata only)
+  breaking_change: ['kind', 'confirmed', 'issueKey'],
+  migration: ['pattern', 'issueKey'],
+  migration_gap: ['reason'],
   compaction: [], subagent: [],
 };
 
@@ -122,7 +126,7 @@ function enrichCommit(data) {
 }
 
 module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir,
-  commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey };
+  commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey, parseKv };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -164,9 +168,27 @@ function repoId() {
   } catch { return null; }
 }
 
+/** Pure: parse `k=v` CLI args into a data object, coercing true/false and plain numbers. */
+function parseKv(args) {
+  const out = {};
+  for (const a of args || []) {
+    const i = String(a).indexOf('=');
+    if (i <= 0) continue;
+    const k = a.slice(0, i), v = a.slice(i + 1);
+    out[k] = v === 'true' ? true : v === 'false' ? false : /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
+  }
+  return out;
+}
+
 // ── hook entry ──────────────────────────────────────────────────────────────────
 if (require.main === module) {
   const hookType = process.argv[2] || '';
+  // `emit` subcommand — skills record a metadata-only signal: usage-log.js emit <event> k=v …
+  // (allowlist still applies via appendEvent→sanitize, so non-allowed fields are dropped.)
+  if (hookType === 'emit') {
+    try { appendEvent(process.argv[3] || '', parseKv(process.argv.slice(4))); } catch { /* ignore */ }
+    process.exit(0);
+  }
   let raw = '';
   process.stdin.on('data', (c) => { raw += c; });
   const go = () => {

@@ -63,6 +63,18 @@ test('redaction event keeps only the hit count (metadata-only)', () => {
   assert.deepStrictEqual(sanitize('redaction', { hits: 3, file: '/secret/path.ts', snippet: 'PHI' }), { hits: 3 });
 });
 
+test('hygiene signals are allowlisted (breaking_change / migration / migration_gap)', () => {
+  assert.deepStrictEqual(sanitize('breaking_change', { kind: 'api', confirmed: true, detail: 'renamed field x' }),
+    { kind: 'api', confirmed: true }); // free-text `detail` dropped
+  assert.deepStrictEqual(sanitize('migration', { pattern: 'expand-contract', sql: 'DROP ...' }), { pattern: 'expand-contract' });
+  assert.deepStrictEqual(sanitize('migration_gap', { reason: 'no-orm' }), { reason: 'no-orm' });
+});
+
+test('parseKv coerces booleans + numbers, ignores malformed pairs', () => {
+  const { parseKv } = require('../bin/usage-log.js');
+  assert.deepStrictEqual(parseKv(['kind=api', 'confirmed=true', 'n=3', 'bad']), { kind: 'api', confirmed: true, n: 3 });
+});
+
 test('PostToolUse Bash git commit → commit event; revert/reset → revert event (objecting signal)', () => {
   const c = eventsFromHook('posttooluse', { tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
   assert.ok(c.find((x) => x.event === 'commit'), 'git commit should emit a commit event');

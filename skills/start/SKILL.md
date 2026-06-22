@@ -38,6 +38,9 @@ ingest a handover. It also makes sure the compliance profile is set, which every
      the `/tdd` worklog don't re-derive them. **Don't hard-block** if it can't connect — note paste-mode.
    - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
      commits, PRs, and the harness usage metrics); set it if it's missing or personal.
+   - **Your role (once per person)** — if `~/.health-harness/role` is unset, ask whether they're **PM/BA** or
+     **Engineer** and run `/role <answer>` to persist it. This sets `/align`'s default mode so it never has to
+     guess. (Set once; it carries across all repos.)
 5. **Route to the front door:**
 
    | Archetype | Front door |
@@ -71,4 +74,5 @@ ingest a handover. It also makes sure the compliance profile is set, which every
 - [ ] The archetype is detected (new vs existing) AND confirmed by the user.
 - [ ] `.health-harness/compliance.json` exists (default `hipaa`).
 - [ ] Tracker MCP connected (Jira coords in `project.json`) **or** paste-mode noted; `git user.email` = company email.
+- [ ] Harness role set (`~/.health-harness/role` = `pm` or `engineer`) so `/align` doesn't guess.
 - [ ] The correct front-door skill has been invoked.

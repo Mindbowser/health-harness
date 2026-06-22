@@ -95,6 +95,10 @@ thing you do. The tests are the proof; make that proof legible:
   fix (e.g. the old leaky JWKS body vs the new generic one), a curl/CLI example, or a screenshot/short
   recording for UI. This is the "demoable" proof.
 - **Scope honesty:** what's done vs deferred vs intentionally faked.
+- **Breaking change:** state it explicitly so the reviewer can't miss it — **"Breaking change: none"**, or
+  **"Breaking change: YES — `<what contract/schema>`; compat plan: `<additive / versioned / expand-contract>`;
+  consumers: `<who>`."** (Carry over whatever `/align` flagged + confirmed.) This is the line the reviewer
+  must sign off on.
 
 This summary is the **handoff artifact** — produce it here; **`/ship` publishes it** (into the PR
 description + a Jira comment, after running `/phi-redaction-check` on the text). Don't post it from `/tdd`.

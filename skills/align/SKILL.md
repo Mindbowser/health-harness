@@ -74,6 +74,21 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    - *safe logs:* "Given an error on a PHI path → the log contains record ids/references, **never PHI**."
    AUTHOR states them as business/compliance criteria; BUILD-PREP makes them technical + testable. No-op
    for `none` (but `secrets` are never logged).
+4b. **Breaking-change + schema-safety check → confirm, then write criteria.** Before finalizing, ask: does
+   this change an **existing contract** — a public API signature, an endpoint/route, a response shape, a
+   removed/renamed field, an event payload, or a **DB schema**?
+   - **If yes (breaking risk):** STOP and **confirm with the user** — *"this changes an existing contract;
+     intended? who consumes it?"* — and write **backward-compatibility acceptance criteria**: additive-first
+     / deprecate-don't-remove / version the change / keep old + new during transition. Record the signal:
+     `node <health-harness>/bin/usage-log.js emit breaking_change kind=<api|schema|event> confirmed=true issueKey=<KEY>`.
+   - **If it changes a DB schema (and the repo has a DB):** add **expand-contract** acceptance criteria —
+     *add* the new column/table → backfill → switch reads/writes → drop the old in a **later** migration;
+     migration tested **up *and* down**; run on **prod-shaped synthetic data** (never real PHI); reversible.
+     Record: `... emit migration pattern=expand-contract issueKey=<KEY>`. **No DB in the repo → skip this
+     entirely** (don't manufacture migration criteria). If a schema change is needed but the repo has **no
+     migration layer**, flag it (`... emit migration_gap reason=no-migration-layer`) and tell the user to add
+     one before schema work.
+   - **No contract/schema impact → skip** (most slices). Don't invent breaking-change theater.
 5. **Reflect back** the understanding + the acceptance criteria (Given/When/Then) and get a yes.
 6. **Write the criteria where they belong — don't make the human run a second command:**
    - **AUTHOR mode (PM refining a ticket):** **update the Jira ticket** with the agreed Given/When/Then
@@ -107,7 +122,7 @@ edge cases). **Technical tickets** (bugs, refactors, infra) → the engineer dri
 inherently technical. **Feasibility is a BUILD-PREP job, never an AUTHOR-mode deep-dive.** The builder
 must *inherit* the criteria before coding — a clear PM-written ticket satisfies that without a meeting.
 
-**How the mode is picked (explicit → role → infer → ask):**
+**How the mode is picked (explicit → role → ASK → infer). Prefer asking once over guessing.**
 0. **Explicit persona in the invocation wins** — for the run, overriding role/inference. Recognize a
    persona token in the args: **`as pm` / `as author` / `--author`** → AUTHOR; **`as engineer` / `as dev` /
    `as build-prep` / `--build-prep`** → BUILD-PREP. (e.g. `/align ACME-258 as author`.)
@@ -115,12 +130,13 @@ must *inherit* the criteria before coding — a clear PM-written ticket satisfie
    **AUTHOR first** to write the business criteria, **then BUILD-PREP** on the same ticket to add the
    technical ones. Naming it explicitly never re-asks and doesn't change your persisted `/role` default.
 1. **Persisted role next.** Read `~/.health-harness/role` (set via `/role`): `pm` → default **AUTHOR**;
-   `engineer` → default **BUILD-PREP**.
-2. **Infer if no role.** Fresh idea / thin story, no build intent → AUTHOR; a concrete ticket you're
-   about to build in a repo → BUILD-PREP.
-3. **Ask if still unclear.** If the role is unset AND the item type doesn't decide it, **ask one
-   question and confirm** ("Author business criteria (PM), or build-prep against the code (engineer)?"),
-   then offer to persist it via `/role`.
+   `engineer` → default **BUILD-PREP**. (If role is set, don't ask — just announce it.)
+2. **Role unset → ASK once, then persist (don't guess).** If `~/.health-harness/role` is missing, **ask one
+   question** ("Author business criteria (PM/BA), or build-prep against the code (engineer)?"), use the
+   answer for this run, and **offer to persist via `/role`** so it's never asked again. Guessing the mode
+   silently is wrong — confirm it once. (Onboarding via `/start` normally sets this already.)
+3. **Infer only as a last resort** — if asking isn't possible (e.g. non-interactive). Then: fresh idea /
+   thin story, no build intent → AUTHOR; a concrete ticket you're about to build in a repo → BUILD-PREP.
 4. **Announce it** at the start — *"Acting as **PM · AUTHOR mode**"* (or engineer/BUILD-PREP) — and note
    *"say 'as engineer' to switch."* Switching mid-item is a one-word override; `/role` changes the default.
 

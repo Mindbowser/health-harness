@@ -33,6 +33,9 @@ it — their conventions, their architecture, their IP.
    - If it's missing, broken, or thin → **write characterization tests** that pin the *current*
      behavior around where you'll work, and assemble a one-command gate. **Do not change any behavior
      until this gate is green.** No feedback loop ⇒ no AFK build (Matt: no loop = no quality ceiling).
+   - **DB check:** the pre-flight flags it, but confirm — if the repo has a **database but no migration
+     layer** (Prisma/Knex/TypeORM/Alembic/Liquibase/Rails/Django/…), raise it: schema changes have no safe,
+     reversible path. Recommend adding one *before* any schema work (no DB → ignore).
 4. **Declare the compliance profile.** Run `/compliance-profile` (default `hipaa`) → `.health-harness/compliance.json`.
    Run the scanner once for a baseline: `node <health-harness>/bin/redaction-scan.js --path .` so you know
    what's already there before you add anything.

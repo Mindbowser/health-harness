@@ -38,6 +38,15 @@ function assess(f) {
   if (!f.jiraCoords) checks.push({ key: 'tracker', status: 'warn', label: 'Tracker (Jira/Linear)', detail: 'no coords recorded — connect the MCP or note paste-mode (the agent verifies the live connection)', fix: 'see docs/jira.md' });
   else checks.push({ key: 'tracker', status: 'ok', label: 'Tracker (Jira/Linear)', detail: 'coords recorded', fix: '' });
 
+  // role — set once so /align doesn't have to guess your mode (PM/BA vs Engineer)
+  if (!f.role) checks.push({ key: 'role', status: 'warn', label: 'Harness role', detail: 'not set — /align will guess your mode (PM/BA vs Engineer); set it once', fix: 'run /role pm|engineer' });
+  else checks.push({ key: 'role', status: 'ok', label: 'Harness role', detail: f.role, fix: '' });
+
+  // DB migration layer — only relevant when a database is present (skip silently otherwise)
+  const db = f.db || {};
+  if (db.present && !db.hasMigrationLayer) checks.push({ key: 'migrations', status: 'warn', label: 'DB migration layer', detail: 'a database is present but no migration tool detected — schema changes have no safe, reversible path', fix: 'add a migration layer (Prisma / Knex / TypeORM / Alembic / Liquibase / Rails / Django / …)' });
+  else if (db.present) checks.push({ key: 'migrations', status: 'ok', label: 'DB migration layer', detail: 'present', fix: '' });
+
   return checks;
 }
 
@@ -81,7 +90,29 @@ function gather() {
   let jiraCoords = false;
   try { const p = JSON.parse(fs.readFileSync(path.join(hh, 'project.json'), 'utf8')); jiraCoords = !!(p.jira && (p.jira.projectKey || p.jira.cloudId)); } catch { /* none */ }
 
-  return { inRepo, email, hasRemote, branch, gate, compliance, jiraCoords };
+  // role is user-level (persists across projects)
+  let role = null;
+  try { role = (fs.readFileSync(path.join(require('os').homedir(), '.health-harness', 'role'), 'utf8').split('\n')[0].trim()) || null; } catch { /* unset */ }
+
+  return { inRepo, email, hasRemote, branch, gate, compliance, jiraCoords, role, db: detectDb(fs, path) };
+}
+
+/** Heuristic: is a DB present in this repo, and is there a migration layer? Best-effort (a warn, not a gate). */
+function detectDb(fs, path) {
+  const cwd = process.cwd();
+  const exists = (p) => { try { return fs.existsSync(path.join(cwd, p)); } catch { return false; } };
+  const anyFile = (re, dir) => { try { return fs.readdirSync(path.join(cwd, dir)).some((n) => re.test(n)); } catch { return false; } };
+  // dependencies that imply a database (JS + Python)
+  let deps = '';
+  try { const p = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf8')); deps = JSON.stringify({ ...p.dependencies, ...p.devDependencies }); } catch { /* none */ }
+  let py = '';
+  for (const f of ['requirements.txt', 'pyproject.toml', 'Pipfile']) { try { py += fs.readFileSync(path.join(cwd, f), 'utf8'); } catch { /* none */ } }
+  const DB_DEP = /\b(pg|mysql2?|mongoose|mongodb|sqlite3|better-sqlite3|typeorm|prisma|@prisma\/client|sequelize|knex|drizzle-orm|sqlalchemy|psycopg2?|django|asyncpg|mongoengine)\b/i;
+  const MIG_DEP = /\b(prisma|knex|typeorm|sequelize|sequelize-cli|drizzle-kit|alembic|flyway|liquibase|node-pg-migrate|db-migrate|@mikro-orm\/migrations)\b/i;
+  // config/dir markers
+  const dbMarker = exists('prisma/schema.prisma') || exists('knexfile.js') || exists('knexfile.ts') || exists('ormconfig.json') || exists('alembic.ini') || exists('db/schema.rb') || exists('drizzle.config.ts') || DB_DEP.test(deps) || DB_DEP.test(py);
+  const migMarker = exists('prisma/migrations') || exists('migrations') || exists('db/migrate') || exists('alembic') || exists('liquibase.properties') || anyFile(/knexfile/, '.') || exists('drizzle.config.ts') || MIG_DEP.test(deps) || MIG_DEP.test(py);
+  return { present: !!dbMarker, hasMigrationLayer: !!migMarker };
 }
 
 if (require.main === module) {
