@@ -29,6 +29,9 @@ const ALLOW = {
   breaking_change: ['kind', 'confirmed', 'issueKey'],
   migration: ['pattern', 'issueKey'],
   migration_gap: ['reason'],
+  test_strength: ['kind', 'score'],   // kind=mutation|property; score = mutation %, cheap/CI-ingested
+  coverage_drop: ['delta'],           // coverage points dropped
+  dep_hygiene: ['kind', 'count'],     // kind=stale|unpinned|major|vuln
   compaction: [], subagent: [],
 };
 

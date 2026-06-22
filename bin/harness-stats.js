@@ -29,9 +29,9 @@ function bar(n, max, width) {
 function pct(r) { return r === null || r === undefined ? '—' : `${Math.round(r * 100)}%`; }
 
 function sumDays(byDay) {
-  const t = { sessions: 0, edits: 0, gateRuns: 0, gatePass: 0, commands: {}, commits: 0, prompts: 0, promptsCtx: 0, compactions: 0, objections: 0, wallDeny: 0 };
+  const t = { sessions: 0, edits: 0, gateRuns: 0, gatePass: 0, commands: {}, commits: 0, prompts: 0, promptsCtx: 0, compactions: 0, objections: 0, wallDeny: 0, migrationGaps: 0, coverageDrops: 0, depFlags: 0, breakingChanges: 0 };
   for (const { m } of byDay || []) {
-    for (const k of ['sessions', 'edits', 'gateRuns', 'gatePass', 'commits', 'prompts', 'promptsCtx', 'compactions', 'objections', 'wallDeny']) t[k] += m[k] || 0;
+    for (const k of ['sessions', 'edits', 'gateRuns', 'gatePass', 'commits', 'prompts', 'promptsCtx', 'compactions', 'objections', 'wallDeny', 'migrationGaps', 'coverageDrops', 'depFlags', 'breakingChanges']) t[k] += m[k] || 0;
     for (const [c, n] of Object.entries(m.commands || {})) t.commands[c] = (t.commands[c] || 0) + n;
   }
   return t;
@@ -46,7 +46,7 @@ function renderDashboard({ rangeLabel, byDay, prev, coach }) {
   const ctxRate = t.prompts > 0 ? t.promptsCtx / t.prompts : null;
   const align = t.commands.align || 0, tdd = t.commands.tdd || 0;
   const L = [];
-  L.push(`╭─ 📊 Your harness usage — ${rangeLabel} ${'─'.repeat(Math.max(2, 34 - rangeLabel.length))}╮`);
+  L.push(`╭─ 📊 Your MB Harness usage — ${rangeLabel} ${'─'.repeat(Math.max(2, 31 - rangeLabel.length))}╮`);
   L.push(`│ Activity   ${pad(sparkline(days.map((d) => d.m.edits || 0)), 14)} ${t.edits} edits · ${t.sessions} sessions`);
   L.push(`│`);
   L.push(`│ Feedback loop`);
@@ -62,6 +62,13 @@ function renderDashboard({ rangeLabel, byDay, prev, coach }) {
   L.push(`│ Smart zone`);
   L.push(`│   compactions      ${t.compactions}`);
   if (t.wallDeny > 0) L.push(`│ 🛡️  wall blocks     ${t.wallDeny}`);
+  // hygiene — only show the row if anything fired (keeps a clean day clean)
+  if (t.migrationGaps || t.coverageDrops || t.depFlags) {
+    L.push(`│ Hygiene`);
+    if (t.migrationGaps) L.push(`│   migration gaps   ${t.migrationGaps}`);
+    if (t.coverageDrops) L.push(`│   coverage drops   ${t.coverageDrops}`);
+    if (t.depFlags)      L.push(`│   dep flags        ${t.depFlags}`);
+  }
   L.push(`╰${'─'.repeat(52)}╯`);
   if (coach) L.push('', coach);
   return L.join('\n');

@@ -38,7 +38,9 @@ function coachCadence(now, state) {
 /** Pure: aggregate JSONL records into the coaching metrics. */
 function summarize(records) {
   const m = { sessions: 0, edits: 0, gateRuns: 0, gatePass: 0, commands: {}, wallDeny: 0, wallAsk: 0,
-    objections: 0, commits: 0, prompts: 0, promptsCtx: 0, compactions: 0 };
+    objections: 0, commits: 0, prompts: 0, promptsCtx: 0, compactions: 0,
+    // hygiene (best-practice) signals
+    breakingChanges: 0, migrationGaps: 0, coverageDrops: 0, depFlags: 0 };
   for (const r of records || []) {
     switch (r.event) {
       case 'session_start': m.sessions++; break;
@@ -50,6 +52,10 @@ function summarize(records) {
       case 'commit': m.commits++; break;
       case 'prompt': m.prompts++; if (r.hasContext) m.promptsCtx++; break;
       case 'compaction': m.compactions++; break;
+      case 'breaking_change': m.breakingChanges++; break;
+      case 'migration_gap': m.migrationGaps++; break;
+      case 'coverage_drop': m.coverageDrops++; break;
+      case 'dep_hygiene': m.depFlags++; break;
       default: break;
     }
   }
@@ -66,7 +72,7 @@ function rate(n, d) { return d > 0 ? n / d : null; }
  */
 function buildCoaching(m, kind, prev) {
   if (!m || (!m.edits && !m.gateRuns && !(Object.keys(m.commands || {}).length) && !m.wallDeny && !m.objections
-    && !m.commits && !m.prompts && !m.compactions)) return ''; // nothing happened — stay silent
+    && !m.commits && !m.prompts && !m.compactions && !m.migrationGaps && !m.coverageDrops && !m.depFlags)) return ''; // nothing happened — stay silent
 
   const cmd = m.commands || {};
   const align = cmd.align || 0, tdd = cmd.tdd || 0;
@@ -109,13 +115,20 @@ function buildCoaching(m, kind, prev) {
     lever = `you compacted ${m.compactions}× — clear and reload a focused context instead. Staying in the smart zone keeps the model sharp.`;
 
   // ── build the note ──────────────────────────────────────────────────────
-  const head = kind === 'weekly' ? '📊 Harness — last week' : '📊 Harness — yesterday';
+  const head = kind === 'weekly' ? '📊 MB Harness — last week' : '📊 MB Harness — yesterday';
   const lines = [head];
   if (wins.length) lines.push(`🔥 Wins: ${wins.slice(0, 3).join(', ')}.`);
   if (ups.length) lines.push(`📈 Improving: ${ups.slice(0, 2).join(', ')} — keep it going.`);
   if (lever) lines.push(`🎯 Next lever: ${lever}`);
   // governance always surfaces (it's a guardrail, framed as a habit not a scolding)
   if (m.wallDeny > 0) lines.push(`🛡️ ${m.wallDeny} action(s) the wall blocked (e.g. force-push) — branch + PR keeps history safe.`);
+
+  // hygiene signals — surface as guardrails (non-punitive), the "bites you later" stuff
+  const hyg = [];
+  if (m.migrationGaps > 0) hyg.push('a DB change hit a repo with no migration layer — add one (Prisma/Knex/Alembic/…) before schema work so changes are reversible');
+  if (m.coverageDrops > 0) hyg.push('test coverage dropped — add tests for the new paths before moving on');
+  if (m.depFlags > 0) hyg.push('dependency hygiene flagged (stale/unpinned/major bump) — review before it bites');
+  if (hyg.length) lines.push(`🧹 Hygiene: ${hyg.slice(0, 2).join('; ')}.`);
   // motivational closer — vary by whether they got a lever or are cruising
   if (lever) lines.push('💪 Pick that one thing today — small habit, compounding returns.');
   else if (wins.length || ups.length) lines.push('💪 Strong day — this is what becoming a 10x AI dev looks like.');

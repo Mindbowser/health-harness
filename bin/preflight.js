@@ -39,8 +39,8 @@ function assess(f) {
   else checks.push({ key: 'tracker', status: 'ok', label: 'Tracker (Jira/Linear)', detail: 'coords recorded', fix: '' });
 
   // role — set once so /align doesn't have to guess your mode (PM/BA vs Engineer)
-  if (!f.role) checks.push({ key: 'role', status: 'warn', label: 'Harness role', detail: 'not set — /align will guess your mode (PM/BA vs Engineer); set it once', fix: 'run /role pm|engineer' });
-  else checks.push({ key: 'role', status: 'ok', label: 'Harness role', detail: f.role, fix: '' });
+  if (!f.role) checks.push({ key: 'role', status: 'warn', label: 'MB Harness role', detail: 'not set — /align will guess your mode (PM/BA vs Engineer); set it once', fix: 'run /role pm|engineer' });
+  else checks.push({ key: 'role', status: 'ok', label: 'MB Harness role', detail: f.role, fix: '' });
 
   // DB migration layer — only relevant when a database is present (skip silently otherwise)
   const db = f.db || {};
@@ -54,7 +54,7 @@ const GLYPH = { ok: '✅', warn: '⚠️ ', fail: '❌' };
 
 /** Pure: render the checklist; fixes only shown for non-ok items. */
 function renderPreflight(checks) {
-  const L = ['Onboarding pre-flight:'];
+  const L = ['MB Harness — onboarding pre-flight:'];
   for (const c of checks) {
     L.push(`  ${GLYPH[c.status] || '·'} ${c.label} — ${c.detail}`);
     if (c.status !== 'ok' && c.fix) L.push(`       ↳ ${c.fix}`);
@@ -117,6 +117,6 @@ function detectDb(fs, path) {
 
 if (require.main === module) {
   const f = gather();
-  if (!f.inRepo) { process.stdout.write('Onboarding pre-flight: ❌ not inside a git repo — run `git init` first.\n'); process.exit(0); }
+  if (!f.inRepo) { process.stdout.write('MB Harness — onboarding pre-flight: ❌ not inside a git repo — run `git init` first.\n'); process.exit(0); }
   process.stdout.write(renderPreflight(assess(f)) + '\n');
 }

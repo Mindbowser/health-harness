@@ -75,6 +75,7 @@ flags, **no text**) · `prompt_quality` (`{score, flags}` — local-scored, text
 | Governance | force-push & commit-on-base attempts · redaction hits | zero |
 | **Prompt quality** | prompt-quality score (heuristic now; local judge later) · vague-prompt rework rate | high score, low rework |
 | **Critical engagement (objecting)** | rejections · interrupts · reverts · corrections per AI change | active — *not* rubber-stamping |
+| **Hygiene** *(built v0.1.84)* | breaking-changes (% confirmed) · migration gaps · coverage drops · dep flags · test-strength (mutation/property, CI-ingested — never agent-run inline) | gaps → 0; breaking changes acknowledged w/ compat plan |
 
 ### Measuring "right prompts" without reading prompts
 - **Heuristic (metadata, ships first):** structured-ask signals — did they `/align` vs a raw one-liner ·

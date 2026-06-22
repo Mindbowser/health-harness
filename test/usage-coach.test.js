@@ -56,6 +56,20 @@ test('summarize aggregates prompt quality and smart-zone events', () => {
   assert.strictEqual(m.commits, 1);
 });
 
+test('summarize counts hygiene signals; buildCoaching surfaces them (non-punitive)', () => {
+  const m = summarize([
+    { event: 'breaking_change', confirmed: true }, { event: 'migration_gap', reason: 'no-orm' },
+    { event: 'coverage_drop', delta: 4 }, { event: 'dep_hygiene', kind: 'stale' },
+  ]);
+  assert.strictEqual(m.breakingChanges, 1);
+  assert.strictEqual(m.migrationGaps, 1);
+  assert.strictEqual(m.coverageDrops, 1);
+  assert.strictEqual(m.depFlags, 1);
+  const out = buildCoaching(m, 'daily');
+  assert.match(out, /🧹 Hygiene/);
+  assert.match(out, /migration layer/i);
+});
+
 test('buildCoaching: thin-context prompts and context bloat produce tips', () => {
   const thin = buildCoaching({ edits: 0, gateRuns: 0, gatePass: 0, commands: {}, wallDeny: 0, objections: 0,
     prompts: 8, promptsCtx: 1, compactions: 0 }, 'daily');
@@ -67,14 +81,14 @@ test('buildCoaching: thin-context prompts and context bloat produce tips', () =>
 
 test('buildCoaching: motivational — leads with a win, ONE pointed lever, governance, encouragement', () => {
   const loose = buildCoaching({ edits: 12, gateRuns: 1, gatePass: 1, commands: {}, wallDeny: 1, objections: 0 }, 'daily');
-  assert.match(loose, /^📊 Harness — yesterday/);
+  assert.match(loose, /^📊 MB Harness — yesterday/);
   assert.match(loose, /gate/i);            // the lever names the feedback loop
   assert.match(loose, /branch/i);          // governance note (blocked action → branch + PR)
   assert.match(loose, /10x|lever|keep going|strong|nice|💪|🎯/i); // motivational framing, not just criticism
 
   const good = buildCoaching({ edits: 5, gateRuns: 4, gatePass: 4, commands: { align: 2 }, wallDeny: 0, objections: 3 }, 'weekly');
   assert.match(good, /🔥|Wins|Strong/i);   // celebrates wins
-  assert.match(good, /^📊 Harness — last week/);
+  assert.match(good, /^📊 MB Harness — last week/);
 
   // nothing happened at all → empty string (never nag on a no-activity day)
   assert.strictEqual(buildCoaching({ edits: 0, gateRuns: 0, gatePass: 0, commands: {}, wallDeny: 0, objections: 0 }, 'daily'), '');
