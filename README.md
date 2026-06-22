@@ -149,6 +149,22 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
 your approval, and the catastrophic ones are blocked outright. Tested in `test/outward-guard.test.js`.
 
+## Judgment points — the agent governs, it doesn't gatekeep
+
+The harness moves humans from *gatekeeping every step* to *governing at the moments that need a human's
+values*. The agent decides the mechanical, reversible, inferable things itself and stops you **only** at a
+**judgment point** — and only when the call is **irreversible** *and* **not inferable** (from the
+alignment, PRD, or compliance profile) *and* **load-bearing now**. Fail any one of those and it just
+proceeds (logging reversible low-stakes choices, batching deferrable ones into a single defaults digest at
+QA). Foreseeable judgment calls are **front-loaded into `/align`**, where you're already deciding, so AFK
+build stays quiet.
+
+When the agent does stop, it's unmistakable: the reserved opener **`Your call —`**, the **axis** of the
+decision (**Taste · Risk · Scope · Compliance** — shown as the header chip in an `AskUserQuestion` popup,
+one per question), the cost of each side, and a recommendation. That opener appears **nowhere else** —
+permission prompts stay terse and defaulted — so its scarcity is the signal to *stop and govern*. Full
+contract in `CONTEXT.md` ("Judgment points").
+
 ## Sound cues (optional)
 
 **Spoken voice** cues for lifecycle events — **Claude waiting** ("Your turn.", People), the **safety gate**

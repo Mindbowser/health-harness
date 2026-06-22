@@ -29,6 +29,45 @@ needs a term not defined here, add it here rather than redefining it locally.
   issues and looping. Contrast with the human-in-the-loop phases (Align, Slice, QA).
 - **QA** — fresh-context human review (tests → code → manual) where taste and acceptance are imposed.
 
+## Judgment points — when the agent stops for the human
+
+- **Judgment point** — a decision that needs a human's *values* (taste, risk tolerance, scope, or
+  compliance), not correctness the agent can verify on its own. The agent **governs** the mechanical
+  decisions and stops the human **only** here. The aim is *humans at judgment points, not gatekeepers at
+  every step* — and the signal only works if it stays **scarce**. Interrupting for decisions the agent
+  could have made trains the human to rubber-stamp, which defeats the whole point.
+
+**1. The interrupt gate — stop ONLY if all three hold; otherwise proceed.**
+- **Irreversible** — hard or expensive to undo later (schema, data-retention period, a shipped/public
+  API shape, a migration). *Reversible → just do it.*
+- **Not inferable** — the answer isn't in the alignment, the PRD, or the compliance profile; it needs a
+  human value. *Inferable → infer it* (that's what Align + the profile are *for*).
+- **Load-bearing now** — it blocks correct progress and can't wait. *Can wait → batch it (rule 3).*
+
+  Fail any one → **don't interrupt.** This is what keeps the marker rare and meaningful.
+
+**2. The phrasing — a reserved opener, used nowhere else.** When the gate passes, open with **`Your
+  call —`**, then: name the **axis**, give the **cost of each side**, and **recommend**. Never spend this
+  opener on mechanical/permission prompts — those stay terse and defaulted (*"Proceeding with X unless you
+  stop me"*). The scarcity *is* the signal: the engineer learns that `Your call —` means *stop and
+  govern*, and everything else just flows past.
+  - **Axis (closed set, exactly one per question):** **Taste** · **Risk** · **Scope** · **Compliance**.
+    In an `AskUserQuestion` popup the axis is the **header chip** (one chip per question, never the whole
+    set). Keep the four fixed so the chip is readable at a glance — *Compliance* = slow down, *Taste* =
+    quick gut call. Don't invent a fifth axis; a generic catch-all erodes the signal.
+
+**3. Everything else — proceed + log, or batch to QA.** Reversible low-stakes calls (naming, file
+  layout, retry counts, which existing helper): just make them, one terse line at most — no question.
+  Deferrable taste calls (copy tone, error wording, ordering): collect silently and present as **one
+  digest** at the next natural break (end of slice / QA) — *"here are the N defaults I picked; override
+  any."* One review of N defaults beats N interrupts.
+
+**Front-load to Align.** Foreseeable judgment calls belong in `/align`, where the human is already in
+  judgment mode — not drip-fed during AFK build when they've context-switched away. If the agent finds
+  itself wanting to ask mid-build, that's usually a sign alignment was thin; the question should have been
+  raised at the front. Done right, AFK build trends toward *silence punctuated by one or two real calls*,
+  with judgment clustered at the two human phases (**Align** and **QA**).
+
 ## Engineering terms
 
 - **Gate** — the repo's single one-command quality check (e.g. `pnpm verify` = typecheck + build +

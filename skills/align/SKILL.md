@@ -35,6 +35,13 @@ Align is a **dial, not a fixed interrogation**:
 If you've already investigated the item and there's no real disagreement left, you're done — say so and
 move to `/to-prd`. **Over-aligning a clear ticket is as much a failure as under-aligning a fuzzy one.**
 
+**Front-load the judgment points here.** Align is *the* place to surface the irreversible-and-uninferable
+calls (taste, risk, scope, compliance) — the human is already deciding, so raising them now keeps the
+later AFK build quiet. Phrase each genuine fork as a **judgment point** (CONTEXT.md): reserved opener
+`Your call —`, name the **axis** (in an `AskUserQuestion` popup, the axis is the header chip — one of
+**Taste · Risk · Scope · Compliance**), give the cost of each side, and recommend. Mechanical/inferable
+choices are NOT forks — decide them and move on.
+
 ## Why it exists
 
 An agent's default failure is producing a plan from a thin prompt — "specs-to-code", confident slop.

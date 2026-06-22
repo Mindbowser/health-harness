@@ -29,6 +29,17 @@ tests** that pin current behavior before changing anything. **Hard gate: no loop
 Don't stop at the first passing test — work through all the criteria. You're done only when the whole
 slice is demoable end-to-end and the gate is green. Track which criteria are covered so you don't quit early.
 
+## Keep the build quiet — interrupt only at real judgment points
+
+AFK build should run *silent*, breaking only for decisions a human must own. Apply the **interrupt gate**
+(CONTEXT.md): stop **only** when a choice is **irreversible** *and* **not inferable** (from the alignment,
+PRD, or compliance profile) *and* **load-bearing now** — fail any one and **proceed**. When you do stop,
+use the reserved opener `Your call —`, name the axis (**Taste · Risk · Scope · Compliance**), give the
+cost of each side, and recommend. Everything reversible/low-stakes: just decide it (one terse line) or
+**batch it into a single defaults digest for QA** — never a live interrupt. Wanting to ask a lot mid-build
+is a signal the alignment was thin; note it for the next `/align`, don't drip-feed questions now. (This is
+about *decisions*; the next rule is about being *blocked*.)
+
 ## When stuck — stop and surface, never flail or cheat
 
 If a step won't go green after **~2–3 genuine attempts**, or you're thrashing, **STOP and surface to the
