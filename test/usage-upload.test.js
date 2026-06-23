@@ -46,6 +46,20 @@ test('newBytesPlan: backfills un-sent days and ships only new bytes of partial d
   assert.deepStrictEqual(newBytesPlan([{ day: '2026-06-21', path: '/u/x', size: 200 }], state), []);
 });
 
+test('chunkCuts: cuts JSONL on newline boundaries, <= maxBytes, never splitting a record', () => {
+  const { chunkCuts } = uploader;
+  const buf = Buffer.from('aaaa\nbbbb\ncccc\n'); // three 5-byte lines (incl \n) = 15 bytes
+  // big cap → one chunk
+  assert.deepStrictEqual(chunkCuts(buf, 1000), [15]);
+  // cap 10 → first chunk is two whole lines (10 bytes), then the last line
+  assert.deepStrictEqual(chunkCuts(buf, 10), [10, 15]);
+  // cap 6 → one line per chunk (can't fit two; backs up to the newline)
+  assert.deepStrictEqual(chunkCuts(buf, 6), [5, 10, 15]);
+  // a single line LONGER than the cap is kept whole (records are atomic), not split mid-record
+  const big = Buffer.from('x'.repeat(50) + '\n' + 'y\n');
+  assert.deepStrictEqual(chunkCuts(big, 8), [51, 53]);
+});
+
 test('planLastRun: advances the throttle only when fully caught up; else stays "due" for a fast retry', () => {
   // drained the whole plan → stamp now, so we throttle (~4×/day)
   assert.strictEqual(planLastRun(1000, true, 9999), 9999);

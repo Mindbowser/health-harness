@@ -33,6 +33,10 @@ const ALLOW = {
   coverage_drop: ['delta'],           // coverage points dropped
   dep_hygiene: ['kind', 'count'],     // kind=stale|unpinned|major|vuln
   compaction: [], subagent: [],
+  // issue-switch nudge (bin/issue-switch-nudge.js): the user referenced a DIFFERENT issue key than the one
+  // this session started on. The signal we care about = did they pile new work onto a heavy session?
+  // contextBucket = size of carried context when it happened; nudged = whether we showed the reminder.
+  issue_switch: ['contextBucket', 'nudged'],
 };
 
 // keep only allowlisted, scalar fields (no nested objects/content)
@@ -160,7 +164,10 @@ function appendEvent(event, data) {
     const now = new Date();
     const dir = usageDir();
     fs.mkdirSync(dir, { recursive: true });
-    const rec = { v: 1, ts: now.toISOString(), userId: gitEmail(), repoId: repoId(), hv: harnessVersion(), event, ...clean };
+    // `id` is a stable per-record dedup key: written ONCE here, so an at-least-once re-send (a slice that
+    // POSTed but whose offset wasn't recorded before a crash) carries the SAME id → the server drops the
+    // duplicate. Without it, retries would over-count. See bin/usage-upload.js + the Atlas ingest route.
+    const rec = { v: 1, id: require('crypto').randomUUID(), ts: now.toISOString(), userId: gitEmail(), repoId: repoId(), hv: harnessVersion(), event, ...clean };
     fs.appendFileSync(path.join(dir, `${now.toISOString().slice(0, 10)}.jsonl`), JSON.stringify(rec) + '\n');
   } catch { /* fire-and-forget */ }
 }
@@ -199,6 +206,17 @@ if (require.main === module) {
       const input = raw ? JSON.parse(raw) : {};
       for (const e of eventsFromHook(hookType, input)) {
         appendEvent(e.event, e.event === 'commit' ? enrichCommit(e.data) : e.data);
+      }
+      // Issue-switch nudge — folded into THIS already-running hook (no extra process per turn). evaluate()
+      // short-circuits unless the prompt names a NEW ticket different from the session's anchor, so the
+      // common turn costs only a regex. A returned string is surfaced to the user as a systemMessage.
+      if (hookType === 'userpromptsubmit') {
+        const msg = require('./issue-switch-nudge.js').evaluate({
+          prompt: String(input.prompt || input.user_prompt || ''),
+          sessionId: input.session_id,
+          transcriptPath: input.transcript_path,
+        });
+        if (msg) process.stdout.write(JSON.stringify({ systemMessage: msg }));
       }
     } catch { /* defer */ }
     process.exit(0);

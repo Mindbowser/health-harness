@@ -18,6 +18,7 @@
 
 const DEFAULT_INTERVAL_MS = 6 * 3600 * 1000; // at most ~4×/day; backfill covers offline gaps
 const DEFAULT_POST_TIMEOUT_MS = 2500; // per-slice network deadline — short, so an inline (hook) run stays snappy
+const DEFAULT_CHUNK_BYTES = 32 * 1024; // ship a big day in <=32KB pieces so no single POST can outlast the timeout
 
 // Baked-in defaults so devs need zero config (private repo; metadata-only, write-only ingest token).
 // Env vars override these — FleetDM/managed settings can rotate the token without a code change, and
@@ -55,6 +56,28 @@ function newBytesPlan(files, state) {
   return plan;
 }
 
+/** Pure: split a Buffer of newline-terminated JSONL into ascending cut offsets so each chunk is <= maxBytes
+ * and never splits a record (cuts only land on '\n'). A single line longer than maxBytes becomes its own
+ * chunk (records are atomic). The last cut equals buf.length. This bounds every POST so a large day-file
+ * ships in pieces — the offset advances per chunk — instead of one oversized request that outlives the
+ * per-POST timeout and can never make progress. */
+function chunkCuts(buf, maxBytes) {
+  const cuts = [];
+  const n = buf.length;
+  let start = 0;
+  while (start < n) {
+    let end = Math.min(start + maxBytes, n);
+    if (end < n) {
+      const nl = buf.lastIndexOf(0x0a, end - 1); // last '\n' at/under the cap within this chunk
+      if (nl >= start) end = nl + 1;
+      else { const next = buf.indexOf(0x0a, end); end = next === -1 ? n : next + 1; } // line > maxBytes: keep whole
+    }
+    cuts.push(end);
+    start = end;
+  }
+  return cuts;
+}
+
 /** Pure: when to persist the throttle clock. Advance `lastRun` ONLY when we fully drained the plan; if we
  * stopped early (deadline hit or a POST failed) keep the previous value so the next session is still "due"
  * and retries the remainder immediately instead of waiting out the interval. Never loses progress — offsets
@@ -64,7 +87,7 @@ function planLastRun(prevLastRun, completedAll, nowMs) {
 }
 
 // runUpload is hoisted (function declaration below) so it's safe to export here alongside the pure helpers.
-module.exports = { telemetryConfig, dueForRun, newBytesPlan, planLastRun, runUpload, DEFAULT_INTERVAL_MS, DEFAULT_POST_TIMEOUT_MS };
+module.exports = { telemetryConfig, dueForRun, newBytesPlan, planLastRun, chunkCuts, runUpload, DEFAULT_INTERVAL_MS, DEFAULT_POST_TIMEOUT_MS, DEFAULT_CHUNK_BYTES };
 
 // ── orchestration (impure) ────────────────────────────────────────────────────────
 const DAY_RE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;
@@ -114,24 +137,30 @@ async function runUpload(opts = {}) {
 
   const offsets = { ...(state.offsets || {}) };
   const userId = gitEmail(), hv = harnessVersion();
-  const plan = newBytesPlan(files, state);
+  const chunkBytes = parseInt(process.env.HARNESS_TELEMETRY_CHUNK_BYTES, 10) || DEFAULT_CHUNK_BYTES;
   let sent = 0, completedAll = true;
-  for (const slice of plan) {
-    if (Date.now() >= deadline) { completedAll = false; break; } // out of budget — remainder ships next session
-    let chunk = '';
+  outer:
+  for (const slice of newBytesPlan(files, state)) {
+    let dayBuf;
     try {
       const fd = fs.openSync(slice.path, 'r');
-      const buf = Buffer.alloc(slice.to - slice.from);
-      fs.readSync(fd, buf, 0, buf.length, slice.from);
+      dayBuf = Buffer.alloc(slice.to - slice.from);
+      fs.readSync(fd, dayBuf, 0, dayBuf.length, slice.from);
       fs.closeSync(fd);
-      chunk = buf.toString('utf8');
     } catch { completedAll = false; break; }
-    const records = chunk.split('\n').filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-    if (!records.length) { offsets[slice.day] = slice.to; continue; }
-    const ok = await postSlice(cfg, { userId, harnessVersion: hv, day: slice.day, records }, opts.postTimeoutMs);
-    if (!ok) { completedAll = false; break; } // stop on first failure; retry next run from the same offset
-    offsets[slice.day] = slice.to;
-    sent += records.length;
+    let pos = 0; // bytes of THIS day's slice confirmed-sent so far
+    for (const cut of chunkCuts(dayBuf, chunkBytes)) {
+      if (Date.now() >= deadline) { completedAll = false; break outer; } // out of budget — resume mid-day next run
+      const records = dayBuf.slice(pos, cut).toString('utf8').split('\n')
+        .filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+      if (records.length) {
+        const ok = await postSlice(cfg, { userId, harnessVersion: hv, day: slice.day, records }, opts.postTimeoutMs);
+        if (!ok) { completedAll = false; break outer; } // stop on first failure; resume from this offset next run
+        sent += records.length;
+      }
+      pos = cut;
+      offsets[slice.day] = slice.from + pos; // advance the durable cursor PER CHUNK, not per day
+    }
   }
 
   const lastRun = planLastRun(state.lastRun, completedAll, Date.now());

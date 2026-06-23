@@ -244,8 +244,9 @@ bin/play-sound.js            # optional spoken-voice cues, on by default (+ test
 bin/gen-sounds.js            # generates the cross-platform fallback chime .wav files
 bin/session-context.js       # SessionStart hook — injects status + runs the daily coach (+ test/)
 bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/; `emit` CLI for hygiene signals (+ test/)
+bin/issue-switch-nudge.js    # smart-zone reminder: new ticket in a heavy session → suggest a clean one (+ test/)
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
-bin/usage-upload.js          # ships the usage log to MBI Atlas — DEFAULT OFF (no endpoint = no-op) (+ test/)
+bin/usage-upload.js          # ships the usage log to MBI Atlas — inline, time-boxed, chunked (+ test/)
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
 bin/preflight.js             # onboarding pre-flight (git/remote/gate/tracker/role/db-migration-layer) for /start (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
@@ -288,11 +289,20 @@ settings), and **opt out** with `HARNESS_TELEMETRY_ENABLED=false`:
 } }
 ```
 
-`bin/usage-upload.js` runs on SessionStart (detached, throttled to ~once/6h), backfilling any un-sent days
-and shipping only the new bytes of the current day — so data lands **at least once a day** the dev opens a
-session, with catch-up for offline gaps. Records carry the git company email (`userId`) and the harness
-version (`hv`). The server appends them to `harness-telemetry/<email>/<date>.jsonl`. Identified employee
-telemetry should be backed by a written monitoring policy (+ EU DPIA) — see `docs/usage-coaching-prd.md`.
+`bin/usage-upload.js` runs on SessionStart **inline but strictly time-boxed** (≤2.5s budget; throttled to
+~once/6h), backfilling any un-sent days and shipping only the new bytes of the current day in ≤32KB
+**chunks** — so a large day ships in pieces (the byte-offset cursor advances per chunk) and no single POST
+can outlive the timeout. Delivery is **at-least-once with no data loss**: the offset advances only after the
+server 200s a chunk, and every record carries a stable `id` so a retried duplicate is dropped server-side.
+Records also carry the git company email (`userId`) and harness version (`hv`); the server appends them to
+`harness-telemetry/<email>/<date>.jsonl`. Identified employee telemetry should be backed by a written
+monitoring policy (+ EU DPIA) — see `docs/usage-coaching-prd.md`.
+
+**Smart-zone reminder.** When you bring an *unrelated* new ticket into a session already carrying a lot of
+context, the harness shows a one-time nudge to start a clean session (better quality + cheaper turns — the
+[smart zone](#non-negotiable-principles)). It's folded into the existing prompt hook (no per-turn cost) and
+only triggers on a genuinely new ticket key past a context-size threshold. Tune with
+`HARNESS_ISSUE_NUDGE_TOKENS` (default 60000) or disable with `HARNESS_ISSUE_NUDGE=off`.
 
 ## Contributing a skill
 
