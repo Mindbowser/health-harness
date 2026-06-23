@@ -104,7 +104,16 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
      `contentFormat:"markdown"`, never Jira wiki markup** (`h2.`/`{{}}`); keep it ticket-sized — bold
      labels + bullets, not big `#` headings (see `docs/jira.md` → *Formatting*). *This is the refinement
      output — the PM is done; no separate `/to-issues` needed.*
-   - **BUILD-PREP mode (engineer):** save `align.md`; slicing into sub-tasks happens next in `/to-issues`.
+   - **BUILD-PREP mode (engineer):** the criteria **still belong in Jira — the kept spec** (per the completion
+     criterion: *visible in Jira, not a local file*). Don't leave them only in `align.md`:
+     - **Ticket has no criteria yet** (title-only, or no PM ever AUTHORed it — the solo-engineer case) → **push
+       the agreed Given/When/Then to the ticket now:** show them, **confirm once** (it's an outward write),
+       `/phi-redaction-check` first, clean markdown (`contentFormat:"markdown"`). This is the same write
+       AUTHOR mode does — being the engineer doesn't exempt you from recording the spec.
+     - **A PM already AUTHORed business criteria** → append/confirm your **technical** criteria on the same ticket.
+     Save `align.md` as the working note; `/to-issues` if multi-part. **Record the criteria in Jira FIRST (the
+     confirmation above), and only THEN offer `/tdd`** — never present building as an equal alternative to
+     recording the spec. No criteria in the ticket ⇒ not ready to build.
 
 ## Two modes — state which one (it decides whether you do feasibility)
 
@@ -157,6 +166,9 @@ Also read `.health-harness/project.json` (Jira coords, repos, stack) so you don'
 - ❌ A wall of questions at once, or a question without your recommended answer.
 - ❌ Guessing the spec from a ticket *title* when the real content is a screenshot — read the image or ask.
 - ❌ Turning the sprint statement into a blocking yes/no when the sprint is already set.
+- ❌ Offering `/tdd` (or offering it as an *equal option* to "update the ticket") while the criteria still
+  live only in `align.md` — **record them in Jira first** (confirmed), build second. The kept spec is the
+  ticket, not a local file; no criteria in the ticket ⇒ not ready for `/tdd`.
 
 ## Completion criteria
 
