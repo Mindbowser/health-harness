@@ -147,8 +147,10 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   deterministic format so messages aren't guessed — a conventional `type(scope): subject` prefix (on by
   default) and, opt-in, a ticket key for traceability + the worklog signal. A bad message is blocked with the
   reason so the agent fixes and retries — you're never asked. Policy is `.health-harness/project.json`
-  `commit` (`conventional`, `requireTicket`, `types`); on a customer repo that uses a different convention,
-  onboarding sets `commit.conventional:false` to respect theirs.
+  `commit` (`conventional`, `requireTicket`, `types`). On a customer repo, onboarding **respects a deliberate
+  convention** (sets `commit.conventional:false` if they consistently use a different style) but **elevates the
+  absence of one** — inconsistent/low-quality history keeps the gate on and is flagged as an improvement, not
+  mirrored.
 - **DEFER** (untouched): reads, local/reversible work (a well-formed `git commit` on a feature branch,
   branch, tests, the scanner).
 
