@@ -151,12 +151,19 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   convention** (sets `commit.conventional:false` if they consistently use a different style) but **elevates the
   absence of one** — inconsistent/low-quality history keeps the gate on and is flagged as an improvement, not
   mirrored.
+- **DENY → redaction egress gate** (no human): the **outbound content** of a text egress (a `gh pr`/`issue`
+  body, a Jira/Linear MCP write) is scanned with the deterministic profile-driven scanner *before* it leaves.
+  A **PHI/PII/secret literal** → hard-blocked with the offending **classes** (never the value) so the agent
+  swaps in synthetic data and retries; a confirmed false positive is allow-listed once in `compliance.json`.
+  Scanner error → fail-**closed** to ASK (never silently allows, never bricks shipping). This is a *backstop*
+  for literal PHI — it does **not** catch code that *logs* PHI at runtime (that's safe-logging, enforced as
+  project TDD tests). So redaction is now *enforced at egress*, not just a remembered `/ship` step.
 - **DEFER** (untouched): reads, local/reversible work (a well-formed `git commit` on a feature branch,
   branch, tests, the scanner).
 
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
-your approval, the catastrophic ones are blocked outright, and commit messages are format-gated
-deterministically. Tested in `test/outward-guard.test.js`.
+your approval, the catastrophic ones are blocked outright, commit messages are format-gated, and PHI/secret
+literals are blocked at egress — all deterministically. Tested in `test/outward-guard.test.js`.
 
 ## Judgment points — the agent governs, it doesn't gatekeep
 

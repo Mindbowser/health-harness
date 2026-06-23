@@ -26,8 +26,11 @@ rather than re-implementing it (one definition, no drift).
    `<base>` → move `<TICKET>` to In Review → comment the PR link → log `<suggested time>`.* Let the user
    approve all, edit, or cherry-pick steps. Detect what's available up front: `gh` installed? tracker MCP
    connected? — and adapt (see fallbacks).
-2. **Redaction-check first.** A PR/ticket is third-party-visible — run `/phi-redaction-check` on the PR title,
-   body, and Jira comment text. Synthetic examples only; no real PHI/secrets. Fix before sending.
+2. **Redaction-check first (proactive — the wall also enforces it).** A PR/ticket is third-party-visible —
+   run `/phi-redaction-check` on the PR title, body, and Jira comment text. Synthetic examples only; no real
+   PHI/secrets. Fix before sending. *This is the proactive pass:* the wall now also scans the outbound content
+   of every PR/issue body + MCP write and **DENYs** a PHI/PII/secret literal at egress, so an unscanned send
+   can't slip through — but catch it here first so you're not bounced at the gate.
 3. **Push the branch** (on OK). Never `--force`. Small, conventional commits referencing the ticket key
    should already exist; commit any remainder first (on a feature branch).
 4. **Open the PR** (on OK) — title + the **verification summary as the body**, targeting the repo's **PR base**

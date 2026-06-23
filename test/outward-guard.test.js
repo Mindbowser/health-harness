@@ -1,9 +1,30 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp } = require('../hooks/outward-guard.js');
 
 const action = (d) => (d ? d.action : null);
+
+test('redaction egress gate: PHI in an outbound payload → DENY; clean → defer; reads not scanned', () => {
+  // a Jira/Linear MCP WRITE carrying PHI is hard-blocked (before the outward ASK)
+  const phiWrite = decideRedactionMcp('mcp__atlassian__addCommentToJiraIssue', { commentBody: 'patient MRN: 558231 still failing' });
+  assert.strictEqual(action(phiWrite), 'deny');
+  assert.ok(/redaction found/.test(phiWrite.reason) && !/558231/.test(phiWrite.reason)); // names the class, NOT the PHI value
+  // a clean write → no redaction decision (falls through to the normal outward ASK)
+  assert.strictEqual(decideRedactionMcp('mcp__atlassian__addCommentToJiraIssue', { commentBody: 'criteria met; see PR #42' }), null);
+  // a READ MCP carries no outbound content → never scanned
+  assert.strictEqual(decideRedactionMcp('mcp__atlassian__getJiraIssue', { issueKey: 'ABC-1' }), null);
+
+  // gh pr body with a secret → DENY; clean body → defer; non-egress command → not scanned
+  assert.strictEqual(action(decideRedactionBash('gh pr create --title x --body "key AKIA1234567890ABCD99"')), 'deny');
+  assert.strictEqual(decideRedactionBash('gh pr create --body "feat: clean summary"'), null);
+  assert.strictEqual(decideRedactionBash('npm test'), null);
+});
+
+test('redaction gate wins over the outward ASK (decide routes PHI write to deny, clean write to ask)', () => {
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'DOB: 1980-04-02' } })), 'deny');
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'synthetic ticket' } })), 'ask');
+});
 
 test('extractCommitMessage: pulls the -m subject across quoting styles; defers editor/-F', () => {
   assert.strictEqual(extractCommitMessage('git commit -m "feat: x"'), 'feat: x');

@@ -144,20 +144,75 @@ function decideMcp(tool) {
   return null;
 }
 
+// ── redaction egress gate → DENY (PHI/PII/secrets must not leave) ──────────────
+// Backstop for the literal-PHI vector: scan the OUTBOUND content of a text egress (gh pr/issue body, MCP
+// Jira/Linear writes) with the deterministic profile-driven scanner. A hit → DENY (the agent redacts to
+// synthetic + retries; a confirmed false positive is allow-listed once in compliance.json). Scanner error →
+// fail-CLOSED to ASK (never silently allow; never brick shipping). NOTE: this catches PHI *literals* in the
+// payload — not code that LOGS PHI at runtime (that's safe-logging, enforced as project TDD tests).
+const TEXT_EGRESS_RE = /\bgh\s+(pr|issue|release|gist)\b|--body\b|--body-file\b|--notes(-file)?\b/i;
+
+function redactionHits(text, cwd) {
+  try {
+    const rs = require('../bin/redaction-scan.js');
+    const cfg = rs.loadConfig(cwd || process.cwd()); // { profile, classes, allow, deny } — hipaa default
+    return rs.scanText(String(text || ''), { classes: cfg.classes, allow: cfg.allow, deny: cfg.deny });
+  } catch { return null; } // scanner unavailable/threw → couldn't verify
+}
+
+// Pull --body-file / --notes-file / -F referenced file contents into the scannable text (best-effort).
+function expandFileRefs(command, cwd) {
+  let extra = '';
+  try {
+    const fs = require('fs'), path = require('path');
+    const re = /(?:--body-file|--notes-file|-F)[=\s]+(['"]?)([^'"\s]+)\1/g;
+    let m;
+    while ((m = re.exec(String(command || '')))) {
+      try { extra += '\n' + fs.readFileSync(path.resolve(cwd || process.cwd(), m[2]), 'utf8'); } catch { /* unreadable → skip */ }
+    }
+  } catch { /* ignore */ }
+  return extra;
+}
+
+function redactionDecision(hits) {
+  if (hits === null) return { action: 'ask', reason: 'health-harness wall: could not verify redaction (scanner error) — review the content for PHI/PII/secrets, then approve.' };
+  if (hits.length) {
+    const classes = [...new Set(hits.map((h) => h.class))].join(', ');
+    return { action: 'deny', reason: `health-harness wall — send blocked: redaction found ${classes} (${hits.length} hit${hits.length > 1 ? 's' : ''}) in the outbound content. Run /phi-redaction-check for locations; replace with synthetic data and retry, or allow-list a confirmed false positive in compliance.json.` };
+  }
+  return null;
+}
+
+function decideRedactionBash(command, cwd) {
+  const cmd = String(command || '');
+  if (!TEXT_EGRESS_RE.test(cmd)) return null; // only scan text-egress commands (perf + fewer false positives)
+  return redactionDecision(redactionHits(cmd + expandFileRefs(cmd, cwd), cwd));
+}
+
+function decideRedactionMcp(tool, toolInput, cwd) {
+  if (!MCP_WRITE.test(String(tool || ''))) return null; // reads carry no outbound content
+  return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
+}
+
 function decide(toolName, toolInput, gitState) {
   try {
+    const cwd = process.cwd();
     if (toolName === 'Bash') {
       const cmd = (toolInput || {}).command;
-      return decideBash(cmd)
+      return decideRedactionBash(cmd, cwd)        // PHI in PR/issue body → DENY before the outward ASK
+        || decideBash(cmd)
         || decideCommitGuard(cmd, gitState !== undefined ? gitState : gitProbe())
         || decideCommitMessage(cmd);
     }
-    if (String(toolName).startsWith('mcp__')) return decideMcp(toolName);
+    if (String(toolName).startsWith('mcp__')) {
+      return decideRedactionMcp(toolName, toolInput, cwd) // PHI in a Jira/Linear write → DENY before the ASK
+        || decideMcp(toolName);
+    }
   } catch { /* fail-safe: defer */ }
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, gitProbe, baseBranches };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, gitProbe, baseBranches };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
