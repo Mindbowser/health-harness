@@ -19,13 +19,16 @@ auto-update, or org-wide via managed settings; see `docs/rollout.md`. Then you n
    project / user / local). Only if the routine update later reports the source is a **local path** (not a
    GitHub marketplace), switch it to GitHub first (local marketplaces don't update) — handle that quietly,
    without printing the repo path to the user.
-2. **Refresh + reinstall** (a bare `marketplace update` only refreshes the catalog — reinstall applies it):
+2. **ALWAYS refresh + reinstall — never skip because it "looks current."** `claude plugin list` shows the
+   **installed** version, not the **available** one, and the catalog (and your own context) can lag a release
+   — so you cannot conclude "already latest" from it. Reinstall is idempotent and cheap; always run all three:
    ```bash
    claude plugin marketplace update mindbowser
    claude plugin uninstall health-harness@mindbowser --scope <scope>
    claude plugin install   health-harness@mindbowser --scope <scope>
    ```
-   Use the **scope from step 1** (default `user`).
+   Use the **scope from step 1** (default `user`). (If you want to *verify* there was a newer version, compare
+   the post-reinstall `plugin list` version to the pre — don't gate the reinstall on a guess beforehand.)
 3. **Apply + confirm.** Run `/reload-plugins` (or tell the user to **fully restart** Claude Code — hook
    and MCP changes need a restart). Then `claude plugin list` and report **old → new version** only.
 
@@ -35,6 +38,9 @@ auto-update, or org-wide via managed settings; see `docs/rollout.md`. Then you n
   internal; report only the product name + version.
 - ❌ Running only `marketplace update` and reporting "updated" — that refreshes the catalog, not the
   installed plugin. Always reinstall (or restart with auto-update on).
+- ❌ **Concluding "already on the latest" and skipping the reinstall** — `plugin list` is the *installed*
+  version, not the available one, and the catalog/your context can be stale (this is exactly how a `.89`
+  machine reported "already latest" when `.94` was out). Always reinstall; confirm from the *after* version.
 - ❌ Leaving a local-path marketplace in place — it will never pull new versions.
 
 ## Completion criteria

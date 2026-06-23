@@ -165,6 +165,12 @@ So every **outward** action — anything that leaves your machine or mutates a s
 your approval, the catastrophic ones are blocked outright, commit messages are format-gated, and PHI/secret
 literals are blocked at egress — all deterministically. Tested in `test/outward-guard.test.js`.
 
+**One approval per publish, not one per step.** `/ship` shows a single **verbatim outbound preview** (PR
+title+body, status from→to, the exact comment, the worklog + how it was derived); on your approval it sets a
+short-TTL **grant** (`bin/ship-grant.js`) that makes the wall **stand down on the batch's outward ASKs** — so
+you're not re-asked on push, then PR, then each Jira write. The grant only suppresses the *ASK* layer: a
+catastrophic command or a PHI/secret in any payload is **still DENY'd**, grant or not.
+
 ## Judgment points — the agent governs, it doesn't gatekeep
 
 The harness moves humans from *gatekeeping every step* to *governing at the moments that need a human's
@@ -266,6 +272,7 @@ bin/usage-upload.js          # ships the usage log to MBI Atlas — inline, time
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
 bin/preflight.js             # onboarding pre-flight (git/remote/gh-cli/gate/tracker/role/db-migration-layer) for /start (+ test/)
 bin/jira-transitions.js      # infer + persist the Jira workflow transition map so /ship transitions by id, never guesses (+ test/)
+bin/ship-grant.js            # short-TTL "user approved this publish batch" marker so the wall doesn't re-ask each step (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)

@@ -26,6 +26,18 @@ test('redaction gate wins over the outward ASK (decide routes PHI write to deny,
   assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'synthetic ticket' } })), 'ask');
 });
 
+test('ship grant suppresses the outward ASK (one approval covers the batch) but NEVER DENY/redaction', () => {
+  // clean outward write: no grant → ASK; active grant → defer (no re-prompt)
+  assert.strictEqual(action(decide('mcp__atlassian__addCommentToJiraIssue', { commentBody: 'PR #42 up' }, undefined, false)), 'ask');
+  assert.strictEqual(decide('mcp__atlassian__addCommentToJiraIssue', { commentBody: 'PR #42 up' }, undefined, true), null);
+  // git push under a grant → defer; without → ASK
+  assert.strictEqual(action(decide('Bash', { command: 'git push origin feat/x' }, { hasHistory: true, branch: 'feat/x', bases: ['main'] }, false)) === null ? 'defer' : 'ask', 'ask');
+  assert.strictEqual(decide('Bash', { command: 'git push origin feat/x' }, { hasHistory: true, branch: 'feat/x', bases: ['main'] }, true), null);
+  // a grant must NOT let PHI through, nor catastrophic commands
+  assert.strictEqual(action(decide('mcp__atlassian__addCommentToJiraIssue', { commentBody: 'MRN: 7781' }, undefined, true)), 'deny');
+  assert.strictEqual(action(decide('Bash', { command: 'git push --force origin main' }, undefined, true)), 'deny');
+});
+
 test('extractCommitMessage: pulls the -m subject across quoting styles; defers editor/-F', () => {
   assert.strictEqual(extractCommitMessage('git commit -m "feat: x"'), 'feat: x');
   assert.strictEqual(extractCommitMessage("git commit -am 'fix: y'"), 'fix: y');

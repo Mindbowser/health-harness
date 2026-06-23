@@ -21,11 +21,24 @@ rather than re-implementing it (one definition, no drift).
 - Resolve the **ticket key** from the branch/commits (the `[A-Z][A-Z0-9]+-\d+` pattern) or the argument; if
   none, ask — or proceed PR-only and note no ticket was linked.
 
-## Process — each outward step is confirmation-gated
-1. **Show the plan, get one confirmation.** State exactly what will happen: *push `<branch>` → open PR into
-   `<base>` → move `<TICKET>` to In Review → comment the PR link → log `<suggested time>`.* Let the user
-   approve all, edit, or cherry-pick steps. Detect what's available up front: `gh` installed? tracker MCP
-   connected? — and adapt (see fallbacks).
+## Process — one verbatim confirmation, then execute
+1. **Show the VERBATIM outbound preview, get ONE approval.** Don't approve a vague plan — render exactly what
+   will leave, so the user signs off on the real words + numbers:
+   ```
+   About to publish <TICKET>:
+     PR        "<title>"  → base: <base>
+               body: <the verification summary, shown in full>
+     Status    <from-status> → <to-status>        (transition id <onShip.id>)
+     Comment   "<the exact Jira comment text>"     (rendered markdown)
+     Worklog   <N> min  (<basis> — e.g. "real-hours; active 10:00–10:55 minus 95-min break")
+               + agent runtime <M> → productivity (not billed)
+   ```
+   Let the user approve all / edit any field / cherry-pick steps. Detect availability up front (publish path
+   per the order below; tracker MCP connected?) and adapt.
+   **On approval, grant the batch so the wall doesn't re-ask each step:** run
+   `node "${CLAUDE_PLUGIN_ROOT}/bin/ship-grant.js" set`. This suppresses only the wall's *outward ASK* for ~3
+   min — **DENY still fires** (a catastrophic command or a PHI/secret in the payload is still blocked, grant or
+   not). Run `… ship-grant.js clear` once publishing finishes (or on abort).
 2. **Redaction-check first (proactive — the wall also enforces it).** A PR/ticket is third-party-visible —
    run `/phi-redaction-check` on the PR title, body, and Jira comment text. Synthetic examples only; no real
    PHI/secrets. Fix before sending. *This is the proactive pass:* the wall now also scans the outbound content

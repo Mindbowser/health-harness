@@ -194,19 +194,25 @@ function decideRedactionMcp(tool, toolInput, cwd) {
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
 }
 
-function decide(toolName, toolInput, gitState) {
+function decide(toolName, toolInput, gitState, shipGrant) {
   try {
     const cwd = process.cwd();
+    // A live ship grant means the user already approved this publish batch on /ship's verbatim preview — so
+    // we DON'T re-ASK on the individual outward steps. It NEVER suppresses DENY (catastrophic + redaction).
+    const granted = shipGrant !== undefined ? shipGrant : require('../bin/ship-grant.js').isShipGrantActive(cwd);
+    const dropAsk = (d) => (granted && d && d.action === 'ask' ? null : d); // grant downgrades ASK→defer
     if (toolName === 'Bash') {
       const cmd = (toolInput || {}).command;
-      return decideRedactionBash(cmd, cwd)        // PHI in PR/issue body → DENY before the outward ASK
-        || decideBash(cmd)
-        || decideCommitGuard(cmd, gitState !== undefined ? gitState : gitProbe())
+      const red = decideRedactionBash(cmd, cwd); // PHI → DENY/ASK, NEVER suppressed by a grant
+      if (red) return red;
+      return dropAsk(decideBash(cmd))            // catastrophic DENY stands; outward ASK suppressed under grant
+        || decideCommitGuard(cmd, gitState !== undefined ? gitState : gitProbe()) // commit guards: not part of the batch
         || decideCommitMessage(cmd);
     }
     if (String(toolName).startsWith('mcp__')) {
-      return decideRedactionMcp(toolName, toolInput, cwd) // PHI in a Jira/Linear write → DENY before the ASK
-        || decideMcp(toolName);
+      const red = decideRedactionMcp(toolName, toolInput, cwd); // PHI → DENY, NEVER suppressed
+      if (red) return red;
+      return dropAsk(decideMcp(toolName));       // Jira/Linear write ASK suppressed under an active grant
     }
   } catch { /* fail-safe: defer */ }
   return null;
