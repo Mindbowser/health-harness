@@ -17,6 +17,7 @@
 'use strict';
 
 const DEFAULT_INTERVAL_MS = 6 * 3600 * 1000; // at most ~4×/day; backfill covers offline gaps
+const DEFAULT_POST_TIMEOUT_MS = 2500; // per-slice network deadline — short, so an inline (hook) run stays snappy
 
 // Baked-in defaults so devs need zero config (private repo; metadata-only, write-only ingest token).
 // Env vars override these — FleetDM/managed settings can rotate the token without a code change, and
@@ -54,16 +55,25 @@ function newBytesPlan(files, state) {
   return plan;
 }
 
-module.exports = { telemetryConfig, dueForRun, newBytesPlan, DEFAULT_INTERVAL_MS };
+/** Pure: when to persist the throttle clock. Advance `lastRun` ONLY when we fully drained the plan; if we
+ * stopped early (deadline hit or a POST failed) keep the previous value so the next session is still "due"
+ * and retries the remainder immediately instead of waiting out the interval. Never loses progress — offsets
+ * are persisted independently of this. */
+function planLastRun(prevLastRun, completedAll, nowMs) {
+  return completedAll ? nowMs : (prevLastRun || 0);
+}
+
+// runUpload is hoisted (function declaration below) so it's safe to export here alongside the pure helpers.
+module.exports = { telemetryConfig, dueForRun, newBytesPlan, planLastRun, runUpload, DEFAULT_INTERVAL_MS, DEFAULT_POST_TIMEOUT_MS };
 
 // ── orchestration (impure) ────────────────────────────────────────────────────────
 const DAY_RE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;
 
 function statePath(dir, path) { return path.join(dir, '.upload-state.json'); }
 
-async function postSlice(cfg, body) {
+async function postSlice(cfg, body, timeoutMs) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8000);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs || DEFAULT_POST_TIMEOUT_MS);
   try {
     const res = await fetch(cfg.endpoint, {
       method: 'POST',
@@ -75,16 +85,23 @@ async function postSlice(cfg, body) {
   } catch { return false; } finally { clearTimeout(timer); }
 }
 
-async function main() {
+/** Ship un-sent usage bytes to Atlas. Safe to call inline from a hook: it self-throttles, never throws, and
+ * is strictly time-boxed by opts.deadlineMs so it can't delay session start. Returns {sent, completedAll}.
+ *   opts.deadlineMs   — overall wall-clock budget; stop sending past it (remainder ships next session).
+ *   opts.postTimeoutMs — per-slice network timeout.
+ * NO DATA LOSS: a day's offset advances ONLY after the server 200s that slice; on any failure/deadline we
+ * stop and leave the offset so the exact same bytes re-send next run (at-least-once). */
+async function runUpload(opts = {}) {
   const fs = require('fs'), path = require('path');
   const { usageDir, gitEmail, harnessVersion } = require('./usage-log.js');
   const cfg = telemetryConfig(process.env);
-  if (!cfg.enabled) return; // default OFF — nothing leaves the machine
+  if (!cfg.enabled) return { sent: 0, completedAll: true }; // opted out — nothing leaves the machine
 
+  const deadline = opts.deadlineMs ? Date.now() + opts.deadlineMs : Infinity;
   const dir = usageDir();
   let state = {};
   try { state = JSON.parse(fs.readFileSync(statePath(dir, path), 'utf8')); } catch { /* none */ }
-  if (!dueForRun(state, Date.now(), cfg.intervalMs)) return;
+  if (!dueForRun(state, Date.now(), cfg.intervalMs)) return { sent: 0, completedAll: true };
 
   let files = [];
   try {
@@ -93,11 +110,14 @@ async function main() {
       if (!m) return null;
       return { day: m[1], path: path.join(dir, n), size: fs.statSync(path.join(dir, n)).size };
     }).filter(Boolean);
-  } catch { return; }
+  } catch { return { sent: 0, completedAll: false }; }
 
   const offsets = { ...(state.offsets || {}) };
   const userId = gitEmail(), hv = harnessVersion();
-  for (const slice of newBytesPlan(files, state)) {
+  const plan = newBytesPlan(files, state);
+  let sent = 0, completedAll = true;
+  for (const slice of plan) {
+    if (Date.now() >= deadline) { completedAll = false; break; } // out of budget — remainder ships next session
     let chunk = '';
     try {
       const fd = fs.openSync(slice.path, 'r');
@@ -105,17 +125,20 @@ async function main() {
       fs.readSync(fd, buf, 0, buf.length, slice.from);
       fs.closeSync(fd);
       chunk = buf.toString('utf8');
-    } catch { continue; }
+    } catch { completedAll = false; break; }
     const records = chunk.split('\n').filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
     if (!records.length) { offsets[slice.day] = slice.to; continue; }
-    const ok = await postSlice(cfg, { userId, harnessVersion: hv, day: slice.day, records });
-    if (!ok) break; // stop on first failure; retry next run from the same offset
+    const ok = await postSlice(cfg, { userId, harnessVersion: hv, day: slice.day, records }, opts.postTimeoutMs);
+    if (!ok) { completedAll = false; break; } // stop on first failure; retry next run from the same offset
     offsets[slice.day] = slice.to;
+    sent += records.length;
   }
 
-  try { fs.writeFileSync(statePath(dir, path), JSON.stringify({ ...state, offsets, lastRun: Date.now() })); } catch { /* ignore */ }
+  const lastRun = planLastRun(state.lastRun, completedAll, Date.now());
+  try { fs.writeFileSync(statePath(dir, path), JSON.stringify({ ...state, offsets, lastRun })); } catch { /* ignore */ }
+  return { sent, completedAll };
 }
 
 if (require.main === module) {
-  main().catch(() => {}).finally(() => process.exit(0));
+  runUpload().catch(() => {}).finally(() => process.exit(0)); // CLI/manual run: unbounded, drains everything
 }

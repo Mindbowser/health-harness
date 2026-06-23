@@ -1,7 +1,12 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { telemetryConfig, dueForRun, newBytesPlan } = require('../bin/usage-upload.js');
+const uploader = require('../bin/usage-upload.js');
+const { telemetryConfig, dueForRun, newBytesPlan, planLastRun } = uploader;
+
+test('runUpload is exported as a function (session-context calls it inline; a missing export stalls telemetry silently)', () => {
+  assert.strictEqual(typeof uploader.runUpload, 'function');
+});
 
 test('telemetryConfig: ON by default via baked-in endpoint+token; env overrides; kill-switch opts out', () => {
   // zero config → enabled with the baked-in defaults
@@ -39,4 +44,13 @@ test('newBytesPlan: backfills un-sent days and ships only new bytes of partial d
   ]);
   // nothing new → empty plan
   assert.deepStrictEqual(newBytesPlan([{ day: '2026-06-21', path: '/u/x', size: 200 }], state), []);
+});
+
+test('planLastRun: advances the throttle only when fully caught up; else stays "due" for a fast retry', () => {
+  // drained the whole plan → stamp now, so we throttle (~4×/day)
+  assert.strictEqual(planLastRun(1000, true, 9999), 9999);
+  // stopped early (deadline/failure) → keep prev lastRun so next session is still due and ships the remainder
+  assert.strictEqual(planLastRun(1000, false, 9999), 1000);
+  // never run + incomplete → 0 (falsy) keeps dueForRun true next time, no progress lost
+  assert.strictEqual(planLastRun(undefined, false, 9999), 0);
 });

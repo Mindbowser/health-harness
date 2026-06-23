@@ -128,13 +128,19 @@ if (require.main === module) {
       if (coach) userMsgs.push(coach);
     } catch { /* coaching is best-effort — never block the session */ }
 
-    // Telemetry upload (default OFF; no-op unless HARNESS_TELEMETRY_ENDPOINT is configured). Spawn it
-    // DETACHED so any network I/O never blocks session start.
+    // Telemetry upload — run INLINE but strictly time-boxed. (A previously detached spawn was torn down by
+    // the hook runner the moment this process exited, so its POST never completed and telemetry silently
+    // stalled.) runUpload self-throttles (~4×/day), never throws, and honours deadlineMs; the outer race is
+    // a hard cap so a hung network can never delay session start beyond the budget — the remainder backfills
+    // next session (offsets only advance on a server 200, so nothing is lost).
     try {
-      const { spawn } = require('child_process');
-      spawn(process.execPath, [path.join(__dirname, 'usage-upload.js'), 'sessionstart'],
-        { detached: true, stdio: 'ignore' }).unref();
-    } catch { /* best-effort */ }
+      const { runUpload } = require('./usage-upload.js');
+      const UPLOAD_BUDGET_MS = 2500;
+      await Promise.race([
+        runUpload({ deadlineMs: UPLOAD_BUDGET_MS, postTimeoutMs: 2000 }).catch(() => {}),
+        new Promise((r) => setTimeout(r, UPLOAD_BUDGET_MS + 300)),
+      ]);
+    } catch { /* best-effort — never block the session */ }
 
     // Update nudge (cached once/day) — can't update a live session, but tells you to restart. USER-facing.
     try { const u = await updateNudge(); if (u) userMsgs.push(u); } catch { /* best-effort */ }
