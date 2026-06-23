@@ -270,7 +270,7 @@ bin/issue-switch-nudge.js    # smart-zone reminder: new ticket in a heavy sessio
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
 bin/usage-upload.js          # ships the usage log to MBI Atlas — inline, time-boxed, chunked (+ test/)
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
-bin/preflight.js             # onboarding pre-flight (git/remote/gh-cli/gate/tracker/role/db-migration-layer) for /start (+ test/)
+bin/preflight.js             # onboarding pre-flight (git/remote-reachable/gh-cli/gate/tracker/role/db-migration-layer) for /start (+ test/)
 bin/jira-transitions.js      # infer + persist the Jira workflow transition map so /ship transitions by id, never guesses (+ test/)
 bin/ship-grant.js            # short-TTL "user approved this publish batch" marker so the wall doesn't re-ask each step (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>

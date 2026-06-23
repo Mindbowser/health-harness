@@ -12,6 +12,18 @@ test('assess: a fully-set-up repo is all-green', () => {
   assert.ok(checks.every((c) => c.status === 'ok'), 'all checks should pass');
 });
 
+test('assess: git remote — reachable → ok; set-but-unreachable → warn (creds); presence-only → ok (back-compat)', () => {
+  const base = { inRepo: true, email: 'dev@mindbowser.com', branch: 'feat/x', gate: { hasTestScript: true, isStub: false }, compliance: true, jiraCoords: true, role: 'engineer' };
+  const reach = Object.fromEntries(assess({ ...base, hasRemote: true, remoteReachable: true }).map((c) => [c.key, c]));
+  assert.strictEqual(reach.git_remote.status, 'ok');
+  assert.ok(reach.git_remote.detail.includes('reachable'));
+  const unreach = Object.fromEntries(assess({ ...base, hasRemote: true, remoteReachable: false }).map((c) => [c.key, c]));
+  assert.strictEqual(unreach.git_remote.status, 'warn');                 // can't auth → push will fail
+  assert.ok(/SSH key|gh auth|token/.test(unreach.git_remote.detail));
+  const presenceOnly = Object.fromEntries(assess({ ...base, hasRemote: true }).map((c) => [c.key, c]));
+  assert.strictEqual(presenceOnly.git_remote.status, 'ok');              // remoteReachable undefined → ok (not checked)
+});
+
 test('assess: gh missing → warn (with install hint); installed-but-unauthed → warn (gh auth login); absent fact → no check', () => {
   const base = { inRepo: true, email: 'dev@mindbowser.com', hasRemote: true, branch: 'feat/x', gate: { hasTestScript: true, isStub: false }, compliance: true, jiraCoords: true, role: 'engineer' };
   const missing = Object.fromEntries(assess({ ...base, gh: { installed: false, installHint: 'brew install gh' } }).map((c) => [c.key, c]));

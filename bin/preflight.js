@@ -22,7 +22,8 @@ function assess(f) {
   else checks.push({ key: 'git_email', status: 'ok', label: 'Git identity', detail: email, fix: '' });
 
   if (!f.hasRemote) checks.push({ key: 'git_remote', status: 'warn', label: 'Git remote', detail: 'no origin — pushing a branch will fail later', fix: 'git remote add origin <url>' });
-  else checks.push({ key: 'git_remote', status: 'ok', label: 'Git remote', detail: 'origin set', fix: '' });
+  else if (f.remoteReachable === false) checks.push({ key: 'git_remote', status: 'warn', label: 'Git remote', detail: 'origin set but not reachable/authenticated — push will fail (check your SSH key, `gh auth login`, or token)', fix: 'verify creds: git ls-remote origin' });
+  else checks.push({ key: 'git_remote', status: 'ok', label: 'Git remote', detail: f.remoteReachable ? 'origin set + reachable' : 'origin set', fix: '' });
 
   // GitHub CLI — /ship opens the PR with it; missing/unauthed gh is why ship silently drops to paste-mode.
   // (Absent f.gh ⇒ skip the check, for back-compat with callers that don't probe it.)
@@ -85,6 +86,19 @@ function gather() {
   const inRepo = run('git rev-parse --is-inside-work-tree') === 'true';
   const email = run('git config user.email') || null;
   const hasRemote = !!run('git remote');
+  // Can we actually REACH + auth to the remote? `git ls-remote` verifies read connectivity (catches the
+  // common "no SSH key / wrong URL / not logged in" cases before they bite at push). Non-interactive +
+  // time-boxed so it can't hang or prompt. Read-auth ≠ write-perm, but it's the cheap deterministic check.
+  let remoteReachable; // true | false | undefined(not checked)
+  if (hasRemote) {
+    try {
+      require('child_process').execSync('git ls-remote origin', {
+        stdio: ['ignore', 'ignore', 'ignore'], timeout: 6000,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_SSH_COMMAND: 'ssh -oBatchMode=yes -oConnectTimeout=5' },
+      });
+      remoteReachable = true;
+    } catch { remoteReachable = false; }
+  }
   const branch = run('git rev-parse --abbrev-ref HEAD') || null;
 
   // GitHub CLI: installed? authenticated? (so /start can offer to set it up before the first /ship)

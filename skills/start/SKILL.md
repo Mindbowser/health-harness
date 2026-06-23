@@ -49,15 +49,16 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    - **Publish path (get commits to the remote + open the PR) — settle it here so `/ship` is one command
      later.** `/ship` **auto-detects**: it prefers a real `git push` (keeps your commit history) and falls
      back to a credential-free GitHub MCP. Make sure one is ready:
-     - **Preferred — push works.** Confirm `git push` will succeed: an **SSH** remote just works; **HTTPS**
-       needs a helper or token (`gh auth login` sets that up). Then the PR opens via `gh` or a GitHub MCP. If
-       the pre-flight flagged `gh` (missing/unauthed) and you'll publish this way, **offer to set `gh` up
-       now**: show the OS install command from the `fix` line, run it on the user's OK (confirmation-gated,
-       never silent), have them run `! gh auth login`, and re-run the pre-flight to confirm green.
-     - **Zero-setup fallback — a connected GitHub MCP.** If push creds aren't set up but a GitHub MCP is
-       connected, `/ship` can commit the changed files (`push_files` / Contents API) **and** open the PR with
-       the MCP's token — **no `gh`, no SSH key, no local creds.** Tradeoff: fresh **API commits**, not your
-       local commit history (fine if you squash-merge).
+     - **Preferred — push works.** The pre-flight's **Git remote** check now does a `git ls-remote` — green =
+       reachable + authenticated; a ⚠️ means the remote can't auth (no SSH key / `gh` not logged in / bad URL)
+       and **push will fail**, so fix it here. If the pre-flight flagged `gh` (missing/unauthed) and you'll
+       publish via `gh`, **offer to set it up now**: show the OS install command from the `fix` line, run it on
+       the user's OK (confirmation-gated, never silent), have them `! gh auth login`, and re-run the pre-flight.
+     - **Zero-setup fallback — a connected GitHub MCP.** If push creds aren't set up but a GitHub MCP is the
+       PR path, **verify it actually responds** (a trivial read — e.g. get the authenticated user/repo) — like
+       the tracker-MCP check, don't assume it's connected. Then `/ship` can commit the changed files
+       (`push_files` / Contents API) **and** open the PR with the MCP's token — **no `gh`, no SSH key, no local
+       creds.** Tradeoff: fresh **API commits**, not your local commit history (fine if you squash-merge).
      **Don't hard-block** — if neither is ready, note `/ship` will hand over the manual push/PR commands.
    - **Your role (once per person)** — if `~/.health-harness/role` is unset, ask whether they're **PM/BA** or
      **Engineer** and run `/role <answer>` to persist it. This sets `/align`'s default mode so it never has to
