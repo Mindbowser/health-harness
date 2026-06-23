@@ -36,8 +36,10 @@ rather than re-implementing it (one definition, no drift).
    Detect availability up front (publish path per the order below; tracker MCP connected?) and adapt.
    **Then ask for the decision as a STRUCTURED QUESTION** (the AskUserQuestion dialog), not a free-text "say
    the word" — so it's a click, with edit/skip as first-class options. Keep the rich preview above as text
-   (the user must read the full body/comment); the question is just the decision:
-   - **Approve all** — publish every step as previewed.
+   (the user must read the full body/comment); the question is just the decision. **List "Approve all" FIRST
+   so it's the highlighted default — approving is then a single Enter** (not 3–4 keys); the other options are
+   navigated only when wanted:
+   - **Approve all** — publish every step as previewed. *(first option = one-keypress approve)*
    - **Edit a field** — let them change the worklog value, PR title/body, comment, or status (free-text via the
      "Other" option), then **re-render the preview** and ask again.
    - **Skip a step** — e.g. PR-only (no comment / no worklog), or skip the transition.
