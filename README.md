@@ -249,6 +249,7 @@ bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coac
 bin/usage-upload.js          # ships the usage log to MBI Atlas — inline, time-boxed, chunked (+ test/)
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
 bin/preflight.js             # onboarding pre-flight (git/remote/gh-cli/gate/tracker/role/db-migration-layer) for /start (+ test/)
+bin/jira-transitions.js      # infer + persist the Jira workflow transition map so /ship transitions by id, never guesses (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)

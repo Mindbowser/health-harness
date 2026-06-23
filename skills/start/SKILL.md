@@ -37,6 +37,13 @@ ingest a handover. It also makes sure the compliance profile is set, which every
      sprint"). If not, set it up per `docs/jira.md` (or proceed in **paste-mode**). Record the Jira coords
      (`projectKey`, `cloudId`, `site`) in `.health-harness/project.json` so `/align`, `/import-issues`, and
      the `/tdd` worklog don't re-derive them. **Don't hard-block** if it can't connect — note paste-mode.
+     - **Capture the workflow transition map once (so `/ship` never guesses a status name).** Fetch a real
+       ticket's transitions with `getTransitionsForJiraIssue`, pipe them through
+       `node "${CLAUDE_PLUGIN_ROOT}/bin/jira-transitions.js" infer` → it returns `{onStart,onShip,onMerge}`
+       mapped to the project's actual names/ids. **Show the inferred mapping and confirm once** (only ask
+       per-slot if `needsConfirm` is true — ambiguous or missing). Persist with `… jira-transitions.js write`
+       → `jira.transitions` in `project.json`. It's **committed**, so teammates and every later ticket reuse
+       it with zero input; `/ship` self-heals it if the workflow ever changes.
    - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
      commits, PRs, and the harness usage metrics); set it if it's missing or personal.
    - **Publish path (get commits to the remote + open the PR) — settle it here so `/ship` is one command

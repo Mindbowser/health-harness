@@ -35,7 +35,12 @@ rather than re-implementing it (one definition, no drift).
    otherwise hand the user the exact `git push` + PR command/URL. **Surface the "Breaking change:" line near the
    top of the PR body** (none, or YES + the compat plan) so the reviewer must consciously sign off on it.
 5. **Close the PM→dev loop in Jira** — these are **three separate MCP calls**; doing one does not do the others:
-   1. **Transition** the ticket to **In Review** (= Ready for QA in our flow).
+   1. **Transition** the ticket — **deterministically, by stored id; never guess the status name.** Read
+      `jira.transitions.onShip` from `.health-harness/project.json` and call `transitionJiraIssue` with that
+      `id`. **Self-heal** if it's missing or the id is rejected (workflow changed): fetch the live list with
+      `getTransitionsForJiraIssue`, pipe it through `node <health-harness>/bin/jira-transitions.js infer`,
+      confirm the mapping once, persist it (`… jira-transitions.js write`), then transition. (Captured at
+      `/start`, so steady-state this is a config read with no input.)
    2. **Comment** the PR link + "acceptance criteria met" + the criteria→test summary. Write clean Markdown
       with `contentFormat:"markdown"` — never Jira wiki markup (`h2.`, `{{}}`).
    3. **Log the worklog — and actually call it.** Run `node <health-harness>/bin/worklog-suggest.js`, show the
