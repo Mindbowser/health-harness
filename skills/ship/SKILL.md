@@ -33,12 +33,19 @@ rather than re-implementing it (one definition, no drift).
      Worklog   <N> min  (<basis> — e.g. "real-hours; active 10:00–10:55 minus 95-min break")
                + agent runtime <M> → productivity (not billed)
    ```
-   Let the user approve all / edit any field / cherry-pick steps. Detect availability up front (publish path
-   per the order below; tracker MCP connected?) and adapt.
-   **On approval, grant the batch so the wall doesn't re-ask each step:** run
+   Detect availability up front (publish path per the order below; tracker MCP connected?) and adapt.
+   **Then ask for the decision as a STRUCTURED QUESTION** (the AskUserQuestion dialog), not a free-text "say
+   the word" — so it's a click, with edit/skip as first-class options. Keep the rich preview above as text
+   (the user must read the full body/comment); the question is just the decision:
+   - **Approve all** — publish every step as previewed.
+   - **Edit a field** — let them change the worklog value, PR title/body, comment, or status (free-text via the
+     "Other" option), then **re-render the preview** and ask again.
+   - **Skip a step** — e.g. PR-only (no comment / no worklog), or skip the transition.
+   - **Cancel** — do nothing outward.
+   **On "Approve all" (or after edits are settled), grant the batch so the wall doesn't re-ask each step:** run
    `node "${CLAUDE_PLUGIN_ROOT}/bin/ship-grant.js" set`. This suppresses only the wall's *outward ASK* for ~3
    min — **DENY still fires** (a catastrophic command or a PHI/secret in the payload is still blocked, grant or
-   not). Run `… ship-grant.js clear` once publishing finishes (or on abort).
+   not). Run `… ship-grant.js clear` once publishing finishes (or on abort/cancel).
 2. **Redaction-check first (proactive — the wall also enforces it).** A PR/ticket is third-party-visible —
    run `/phi-redaction-check` on the PR title, body, and Jira comment text. Synthetic examples only; no real
    PHI/secrets. Fix before sending. *This is the proactive pass:* the wall now also scans the outbound content
