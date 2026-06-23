@@ -1,9 +1,34 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage } = require('../hooks/outward-guard.js');
 
 const action = (d) => (d ? d.action : null);
+
+test('extractCommitMessage: pulls the -m subject across quoting styles; defers editor/-F', () => {
+  assert.strictEqual(extractCommitMessage('git commit -m "feat: x"'), 'feat: x');
+  assert.strictEqual(extractCommitMessage("git commit -am 'fix: y'"), 'fix: y');
+  assert.strictEqual(extractCommitMessage('git commit --message="docs: z"'), 'docs: z');
+  assert.strictEqual(extractCommitMessage('git commit'), null);           // editor → can't see → defer
+  assert.strictEqual(extractCommitMessage('git commit -F msg.txt'), null); // -F → defer
+  assert.strictEqual(extractCommitMessage('npm test'), null);             // not a commit
+});
+
+test('checkCommitMessage: conventional enforced by default; non-conventional flagged; ticket opt-in', () => {
+  assert.strictEqual(checkCommitMessage('feat(api): add thing', {}), null);     // valid → ok
+  assert.strictEqual(checkCommitMessage('fix!: breaking', {}), null);           // bang allowed
+  assert.ok(checkCommitMessage('added a thing', {}).reason.includes('conventional')); // no type → blocked
+  assert.strictEqual(checkCommitMessage('whatever', { conventional: false }), null);  // disabled → ok
+  assert.strictEqual(checkCommitMessage('feat: x', {}), null);                  // ticket off by default
+  assert.ok(checkCommitMessage('feat: x', { requireTicket: true }).reason.includes('ticket'));
+  assert.strictEqual(checkCommitMessage('feat: x (ABC-12)', { requireTicket: true }), null);
+});
+
+test('decideCommitMessage: DENY (agent self-corrects) on a malformed message; ok message defers', () => {
+  assert.strictEqual(action(decideCommitMessage('git commit -m "nope no type"', {})), 'deny');
+  assert.strictEqual(decideCommitMessage('git commit -m "feat: ok"', {}), null);
+  assert.strictEqual(decideCommitMessage('git commit', {}), null); // editor commit → defer, never block
+});
 
 test('DENY catastrophic / irreversible', () => {
   assert.strictEqual(action(decideBash('rm -rf /')), 'deny');

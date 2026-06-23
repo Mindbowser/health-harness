@@ -81,6 +81,55 @@ function decideCommitGuard(command, st) {
   return null;
 }
 
+// ── commit-message gate → DENY (agent self-corrects; no human needed) ─────────
+// Deterministic format enforcement so messages aren't guessed: conventional type prefix, and (opt-in) a
+// ticket key for traceability + the worklog signal. DENY (not ASK) because a malformed message is the
+// agent's to fix and retry — don't bother the human. Policy from project.json `commit`; conventional is on
+// by default (core harness discipline), requireTicket off by default (project-specific; /start sets it).
+// Only fires when a `-m` message is visible — editor/`-F` commits can't be inspected, so they defer.
+const CONV_TYPES = ['feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert'];
+const TICKET_RE = /\b[A-Z][A-Z0-9]+-\d+\b/;
+
+/** Pure: pull the -m / --message subject from a git commit command (handles -m"x", -m 'x', -am "x",
+ * --message="x"). Returns null if not a commit or no inline message (→ defer). */
+function extractCommitMessage(command) {
+  const cmd = String(command || '');
+  if (!COMMIT_RE.test(cmd)) return null;
+  const m = cmd.match(/(?:--message|-[a-zA-Z]*m)[=\s]*(['"])([\s\S]*?)\1/);
+  return m ? m[2] : null;
+}
+
+/** Pure: validate a commit message against policy. null = ok/inapplicable; else { reason }. */
+function checkCommitMessage(message, policy) {
+  if (message == null) return null; // no inspectable message → defer
+  const p = policy || {};
+  const subject = String(message).split('\n')[0].trim();
+  if (p.conventional !== false) {
+    const types = (Array.isArray(p.types) && p.types.length ? p.types : CONV_TYPES);
+    if (!new RegExp(`^(${types.join('|')})(\\([^)]+\\))?!?: .+`).test(subject)) {
+      return { reason: `commit message isn't conventional — use "type(scope): subject" (types: ${CONV_TYPES.join(', ')}). Got: "${subject.slice(0, 60)}"` };
+    }
+  }
+  if (p.requireTicket && !TICKET_RE.test(String(message))) {
+    return { reason: 'commit message must reference a ticket key (e.g. ABC-123) — derive it from the branch/ticket (or set commit.requireTicket=false).' };
+  }
+  return null;
+}
+
+/** Read project.json `commit` policy (defaults: conventional on, requireTicket off). */
+function commitPolicy(dir) {
+  try {
+    const fs = require('fs'), path = require('path');
+    const j = JSON.parse(fs.readFileSync(path.join(dir || process.cwd(), '.health-harness', 'project.json'), 'utf8'));
+    return j.commit || {};
+  } catch { return {}; }
+}
+
+function decideCommitMessage(command, policy) {
+  const bad = checkCommitMessage(extractCommitMessage(command), policy !== undefined ? policy : commitPolicy());
+  return bad ? { action: 'deny', reason: `health-harness wall — commit blocked: ${bad.reason}` } : null;
+}
+
 function decideBash(command) {
   const cmd = String(command || '');
   for (const [re, why] of DENY) if (re.test(cmd)) return { action: 'deny', reason: `health-harness wall — blocked: ${why}. If genuinely required, a human runs it outside the agent.` };
@@ -99,14 +148,16 @@ function decide(toolName, toolInput, gitState) {
   try {
     if (toolName === 'Bash') {
       const cmd = (toolInput || {}).command;
-      return decideBash(cmd) || decideCommitGuard(cmd, gitState !== undefined ? gitState : gitProbe());
+      return decideBash(cmd)
+        || decideCommitGuard(cmd, gitState !== undefined ? gitState : gitProbe())
+        || decideCommitMessage(cmd);
     }
     if (String(toolName).startsWith('mcp__')) return decideMcp(toolName);
   } catch { /* fail-safe: defer */ }
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, gitProbe, baseBranches };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, gitProbe, baseBranches };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

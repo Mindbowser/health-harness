@@ -24,6 +24,10 @@ it — their conventions, their architecture, their IP.
    (`jira.projectKey` / `cloudId` / `site`), and the **`git` convention** — observe existing branches/PRs
    to capture `baseBranch`, `branchPattern`, `prTarget` (e.g. CH branches a feature off `dev`, PRs to
    `dev`). `/tdd` uses this so it branches + opens PRs *their* way, not MB's. See CONTEXT.md for the shape.
+   **Also set the `commit` policy from THEIR convention** (the wall format-gates commit messages): scan recent
+   commit subjects — if they're conventional (`type(scope): …`) keep the default (`commit.conventional:true`);
+   if not, set `commit.conventional:false` so the wall doesn't impose MB style on their repo. Set
+   `commit.requireTicket:true` only if their commits already reference ticket keys.
 2c. **Set `.gitignore`** — add `.health-harness/sprints/` and `.health-harness/current-sprint` (scratch/volatile,
    not committed). `project.json` + `compliance.json` + `CLAUDE.md` ARE committed (durable config). The
    PRD/align notes live only locally; their durable form is the Jira ticket.

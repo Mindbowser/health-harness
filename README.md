@@ -143,11 +143,18 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   writes, **a `git commit` while you're on the base branch** (`main`/`master`/the configured `baseBranch`
   — branch first, or approve to commit on base), and **any external-system write via MCP** (Jira/Linear
   create/update/transition/comment).
-- **DEFER** (untouched): reads, local/reversible work (`git commit` on a feature branch, branch, tests,
-  the scanner).
+- **DENY → agent self-corrects** (no human): a **malformed commit message**. The wall enforces a
+  deterministic format so messages aren't guessed — a conventional `type(scope): subject` prefix (on by
+  default) and, opt-in, a ticket key for traceability + the worklog signal. A bad message is blocked with the
+  reason so the agent fixes and retries — you're never asked. Policy is `.health-harness/project.json`
+  `commit` (`conventional`, `requireTicket`, `types`); on a customer repo that uses a different convention,
+  onboarding sets `commit.conventional:false` to respect theirs.
+- **DEFER** (untouched): reads, local/reversible work (a well-formed `git commit` on a feature branch,
+  branch, tests, the scanner).
 
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
-your approval, and the catastrophic ones are blocked outright. Tested in `test/outward-guard.test.js`.
+your approval, the catastrophic ones are blocked outright, and commit messages are format-gated
+deterministically. Tested in `test/outward-guard.test.js`.
 
 ## Judgment points — the agent governs, it doesn't gatekeep
 
