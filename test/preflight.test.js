@@ -6,10 +6,24 @@ const { assess, renderPreflight } = require('../bin/preflight.js');
 test('assess: a fully-set-up repo is all-green', () => {
   const checks = assess({
     inRepo: true, email: 'dev@mindbowser.com', hasRemote: true, branch: 'feature/x',
-    gate: { hasTestScript: true, isStub: false }, compliance: true, jiraCoords: true,
-    role: 'engineer', db: { present: true, hasMigrationLayer: true },
+    gh: { installed: true, authed: true }, gate: { hasTestScript: true, isStub: false },
+    compliance: true, jiraCoords: true, role: 'engineer', db: { present: true, hasMigrationLayer: true },
   });
   assert.ok(checks.every((c) => c.status === 'ok'), 'all checks should pass');
+});
+
+test('assess: gh missing → warn (with install hint); installed-but-unauthed → warn (gh auth login); absent fact → no check', () => {
+  const base = { inRepo: true, email: 'dev@mindbowser.com', hasRemote: true, branch: 'feat/x', gate: { hasTestScript: true, isStub: false }, compliance: true, jiraCoords: true, role: 'engineer' };
+  const missing = Object.fromEntries(assess({ ...base, gh: { installed: false, installHint: 'brew install gh' } }).map((c) => [c.key, c]));
+  assert.strictEqual(missing.gh.status, 'warn');
+  assert.ok(missing.gh.fix.includes('brew install gh'));   // surfaces the OS-specific install command
+  const unauthed = Object.fromEntries(assess({ ...base, gh: { installed: true, authed: false } }).map((c) => [c.key, c]));
+  assert.strictEqual(unauthed.gh.status, 'warn');
+  assert.ok(unauthed.gh.fix.includes('gh auth login'));    // the auth step, not a reinstall
+  const ok = Object.fromEntries(assess({ ...base, gh: { installed: true, authed: true } }).map((c) => [c.key, c]));
+  assert.strictEqual(ok.gh.status, 'ok');
+  const absent = Object.fromEntries(assess(base).map((c) => [c.key, c]));
+  assert.ok(!('gh' in absent));                            // no gh fact → no check (back-compat)
 });
 
 test('assess: flags the silent-failure cases new users hit', () => {

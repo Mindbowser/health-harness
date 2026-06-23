@@ -248,7 +248,7 @@ bin/issue-switch-nudge.js    # smart-zone reminder: new ticket in a heavy sessio
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
 bin/usage-upload.js          # ships the usage log to MBI Atlas — inline, time-boxed, chunked (+ test/)
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)
-bin/preflight.js             # onboarding pre-flight (git/remote/gate/tracker/role/db-migration-layer) for /start (+ test/)
+bin/preflight.js             # onboarding pre-flight (git/remote/gh-cli/gate/tracker/role/db-migration-layer) for /start (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)

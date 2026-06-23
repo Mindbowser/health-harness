@@ -60,8 +60,20 @@ decide — **never auto-log, never argue the number up or down.**
 - **Configurable** in `.health-harness/project.json` `timeTracking`: `logWork`, `roundTo` (15m), `idleGapMins`
   (90), `leadInMins` (30), `maxPerDay` (8h).
 
-## Fallbacks (degrade gracefully, never block)
-- **No `gh`** → don't fail; stage the branch + commits and hand the user the exact push + PR-create command/URL.
+## Publish path — auto-detect, prefer in this order (never hard-block)
+1. **Working `git push` → use it (preserves your real commits).** If push works (SSH key, HTTPS helper, or
+   `gh`), push your branch — keeping your red-green-refactor commit trail (+ the commit-based worklog signal)
+   — then open the PR via `gh` or a GitHub MCP. **This is the default whenever push creds exist.** If `gh` is
+   the intended PR tool but missing/unauthed, **offer to set it up** (install via the pre-flight `fix` line,
+   confirmation-gated, + `! gh auth login`) — normally already handled at `/start`.
+2. **No push creds, but a GitHub MCP is connected → all-API (zero-setup fallback).** The MCP commits the
+   changed files (`push_files` / Contents API) **and** opens the PR with its own token — no `gh`, no SSH key,
+   no local creds. Tradeoff: the work lands as one/few **fresh API commits**, not your local commit history
+   (fine if you squash-merge; otherwise prefer path 1).
+3. **Neither → paste-mode.** Stage the branch + commits and hand over the exact push + PR-create command/URL.
+   Never fail.
+
+## Other fallbacks (degrade gracefully, never block)
 - **No tracker MCP** → skip the transition/comment/worklog; tell the user what to do in paste-mode, and still
   open the PR.
 - **No ticket key** → open the PR only; note that nothing was linked/transitioned.

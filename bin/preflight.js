@@ -24,6 +24,15 @@ function assess(f) {
   if (!f.hasRemote) checks.push({ key: 'git_remote', status: 'warn', label: 'Git remote', detail: 'no origin — pushing a branch will fail later', fix: 'git remote add origin <url>' });
   else checks.push({ key: 'git_remote', status: 'ok', label: 'Git remote', detail: 'origin set', fix: '' });
 
+  // GitHub CLI — /ship opens the PR with it; missing/unauthed gh is why ship silently drops to paste-mode.
+  // (Absent f.gh ⇒ skip the check, for back-compat with callers that don't probe it.)
+  const gh = f.gh;
+  if (gh) {
+    if (!gh.installed) checks.push({ key: 'gh', status: 'warn', label: 'GitHub CLI (gh)', detail: "not installed — one easy publish path (PR + HTTPS push-auth in one step). Or skip gh entirely with a connected GitHub MCP (commits files + opens the PR via its own token, no local creds — trades local commit history for fresh API commits); else paste-mode", fix: gh.installHint || 'install the GitHub CLI: https://cli.github.com' });
+    else if (!gh.authed) checks.push({ key: 'gh', status: 'warn', label: 'GitHub CLI (gh)', detail: 'installed but not authenticated — PR creation will fail until you log in', fix: 'gh auth login' });
+    else checks.push({ key: 'gh', status: 'ok', label: 'GitHub CLI (gh)', detail: 'installed + authenticated', fix: '' });
+  }
+
   if (f.branch && /^(main|master|develop)$/i.test(f.branch)) checks.push({ key: 'branch', status: 'warn', label: 'Branch', detail: `on base branch '${f.branch}' — branch before your first commit (the wall will stop a base-branch commit)`, fix: 'git checkout -b feature/<name>' });
   else checks.push({ key: 'branch', status: 'ok', label: 'Branch', detail: f.branch || '(none yet)', fix: '' });
 
@@ -78,6 +87,15 @@ function gather() {
   const hasRemote = !!run('git remote');
   const branch = run('git rev-parse --abbrev-ref HEAD') || null;
 
+  // GitHub CLI: installed? authenticated? (so /start can offer to set it up before the first /ship)
+  const ghInstalled = !!run('gh --version');
+  let ghAuthed = false;
+  if (ghInstalled) { try { execSync('gh auth status', { stdio: 'ignore' }); ghAuthed = true; } catch { ghAuthed = false; } }
+  const ghInstallHint = process.platform === 'darwin' ? 'brew install gh   (then: gh auth login)'
+    : process.platform === 'win32' ? 'winget install --id GitHub.cli   (then: gh auth login)'
+    : 'install gh — https://cli.github.com  (Debian/Ubuntu: sudo apt install gh) — then: gh auth login';
+  const gh = { installed: ghInstalled, authed: ghAuthed, installHint: ghInstallHint };
+
   let gate = { hasTestScript: false, isStub: false };
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
@@ -94,7 +112,7 @@ function gather() {
   let role = null;
   try { role = (fs.readFileSync(path.join(require('os').homedir(), '.health-harness', 'role'), 'utf8').split('\n')[0].trim()) || null; } catch { /* unset */ }
 
-  return { inRepo, email, hasRemote, branch, gate, compliance, jiraCoords, role, db: detectDb(fs, path) };
+  return { inRepo, email, hasRemote, branch, gh, gate, compliance, jiraCoords, role, db: detectDb(fs, path) };
 }
 
 /** Heuristic: is a DB present in this repo, and is there a migration layer? Best-effort (a warn, not a gate). */

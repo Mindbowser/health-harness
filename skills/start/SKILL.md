@@ -18,10 +18,11 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    ```
 
    Show the user the output. It deterministically checks git identity (company email), git remote, current
-   branch, the test gate, the compliance profile, and recorded tracker coords. **Clear every ❌ before
-   building** (no git email → mis-attributed commits/metrics; no/stub gate → no safe AFK build); ⚠️ items
-   are worth fixing now rather than mid-build. The pre-flight can't see the live Jira/Linear MCP — verify
-   that in step 4 by actually listing issues.
+   branch, the **GitHub CLI (`gh`)** presence + auth, the test gate, the compliance profile, and recorded
+   tracker coords. **Clear every ❌ before building** (no git email → mis-attributed commits/metrics; no/stub
+   gate → no safe AFK build); ⚠️ items are worth fixing now rather than mid-build — including `gh` (step 4),
+   so the first `/ship` opens the PR automatically instead of dropping to paste-mode. The pre-flight can't
+   see the live Jira/Linear MCP — verify that in step 4 by actually listing issues.
 
 1. **Detect the archetype** from the working directory — two cases:
    - **Empty / no source** (just `.git`, maybe a README) → **new repo (greenfield)**.
@@ -38,6 +39,19 @@ ingest a handover. It also makes sure the compliance profile is set, which every
      the `/tdd` worklog don't re-derive them. **Don't hard-block** if it can't connect — note paste-mode.
    - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
      commits, PRs, and the harness usage metrics); set it if it's missing or personal.
+   - **Publish path (get commits to the remote + open the PR) — settle it here so `/ship` is one command
+     later.** `/ship` **auto-detects**: it prefers a real `git push` (keeps your commit history) and falls
+     back to a credential-free GitHub MCP. Make sure one is ready:
+     - **Preferred — push works.** Confirm `git push` will succeed: an **SSH** remote just works; **HTTPS**
+       needs a helper or token (`gh auth login` sets that up). Then the PR opens via `gh` or a GitHub MCP. If
+       the pre-flight flagged `gh` (missing/unauthed) and you'll publish this way, **offer to set `gh` up
+       now**: show the OS install command from the `fix` line, run it on the user's OK (confirmation-gated,
+       never silent), have them run `! gh auth login`, and re-run the pre-flight to confirm green.
+     - **Zero-setup fallback — a connected GitHub MCP.** If push creds aren't set up but a GitHub MCP is
+       connected, `/ship` can commit the changed files (`push_files` / Contents API) **and** open the PR with
+       the MCP's token — **no `gh`, no SSH key, no local creds.** Tradeoff: fresh **API commits**, not your
+       local commit history (fine if you squash-merge).
+     **Don't hard-block** — if neither is ready, note `/ship` will hand over the manual push/PR commands.
    - **Your role (once per person)** — if `~/.health-harness/role` is unset, ask whether they're **PM/BA** or
      **Engineer** and run `/role <answer>` to persist it. This sets `/align`'s default mode so it never has to
      guess. (Set once; it carries across all repos.)
