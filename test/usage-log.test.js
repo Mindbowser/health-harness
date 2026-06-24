@@ -91,3 +91,45 @@ test('PreCompact → compaction event; SubagentStop → subagent event', () => {
   assert.deepStrictEqual(eventsFromHook('precompact', {}), [{ event: 'compaction', data: {} }]);
   assert.deepStrictEqual(eventsFromHook('subagentstop', {}), [{ event: 'subagent', data: {} }]);
 });
+
+// ── relation facts in the JSONL (recompute-complete: store raw inputs, not just derived verdicts) ──
+
+test('graphMetaFor: snapshots the issue graph edges (raw facts) + clusterKey cache', () => {
+  const { graphMetaFor } = require('../bin/usage-log.js');
+  const graph = {
+    'MBI-14': { parent: 'MBI-10', epic: 'MBI-1', links: ['MBI-20', 'MBI-21'] },
+    'MBI-99': {}, // known key, no edges
+  };
+  // full edges → links flattened to a scalar string of Jira keys; clusterKey = epic
+  assert.deepStrictEqual(graphMetaFor('MBI-14', graph),
+    { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20,MBI-21', clusterKey: 'MBI-1' });
+  // no edges → nulls, clusterKey falls back to the key itself
+  assert.deepStrictEqual(graphMetaFor('MBI-99', graph),
+    { key: 'MBI-99', parent: null, epic: null, links: null, clusterKey: 'MBI-99' });
+  // unknown key → still a valid self-cluster fact (parent>epic fallback chain)
+  assert.deepStrictEqual(graphMetaFor('MBI-7', { 'MBI-7': { parent: 'MBI-5' } }),
+    { key: 'MBI-7', parent: 'MBI-5', epic: null, links: null, clusterKey: 'MBI-5' });
+  // no key → nothing to ship
+  assert.strictEqual(graphMetaFor('', graph), null);
+});
+
+test('issue_meta event is allowlisted to its raw-fact + cache fields only', () => {
+  // raw facts (key/parent/epic/links) + rebuildable cache (clusterKey) kept; anything else dropped
+  assert.deepStrictEqual(
+    sanitize('issue_meta', { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20', clusterKey: 'MBI-1', summary: 'PHI?' }),
+    { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20', clusterKey: 'MBI-1' });
+});
+
+test('session_start carries issueKey; commit gets issueKey from the branch', () => {
+  // session_start now allows issueKey (per-ticket attribution); empty payload still valid
+  assert.deepStrictEqual(sanitize('session_start', { issueKey: 'MBI-14', junk: 1 }), { issueKey: 'MBI-14' });
+  assert.deepStrictEqual(sanitize('commit', { sizeBucket: 's', branchKind: 'feature', issueKey: 'MBI-14' }),
+    { sizeBucket: 's', branchKind: 'feature', issueKey: 'MBI-14' });
+});
+
+test('issue_switch stores RAW inputs (newKey/relatedTo/thresholdK) alongside the derived verdict', () => {
+  // so a future relatedness rule or size threshold can be replayed over history
+  assert.deepStrictEqual(
+    sanitize('issue_switch', { contextBucket: '40-60k', tier: 'unrelated', nudged: true, newKey: 'MBI-30', relatedTo: 'MBI-14', thresholdK: 40, extra: 'x' }),
+    { contextBucket: '40-60k', tier: 'unrelated', nudged: true, newKey: 'MBI-30', relatedTo: 'MBI-14', thresholdK: 40 });
+});

@@ -123,7 +123,12 @@ if (require.main === module) {
 
     // Usage: record the session, and emit a coaching note AT MOST once/day (+ a weekly note Mondays). USER-facing.
     try {
-      require('./usage-log.js').appendEvent('session_start', {});
+      const ul = require('./usage-log.js');
+      // Branch-derived ticket → the session is attributable to its ticket (per-ticket / per-cluster rollups).
+      let ik = '';
+      try { ik = ul.issueKey(require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim()); } catch { /* not a repo */ }
+      ul.appendEvent('session_start', ik ? { issueKey: ik } : {});
+      ul.emitIssueMeta(ik); // ship the issue's graph edges as a point-in-time fact (no-op if no key/graph)
       const coach = require('./usage-coach.js').runCoach(new Date());
       if (coach) userMsgs.push(coach);
     } catch { /* coaching is best-effort — never block the session */ }

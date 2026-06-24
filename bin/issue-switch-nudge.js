@@ -112,8 +112,11 @@ function evaluate(opts) {
     // anything worked this session? If so the carried context HELPS — stay silent, no transcript read.
     const { relate, isRelated, loadGraph } = require('./issue-graph.js');
     const rel = relate(key, [state.anchor, ...(state.switched || [])], (opts && opts.graph) || loadGraph());
+    // Ship the switched-to ticket's graph edges as a point-in-time fact too (no-op if no graph).
+    try { require('./usage-log.js').emitIssueMeta(key); } catch { /* best-effort */ }
     if (isRelated(rel.tier)) {
-      try { appendEvent('issue_switch', { tier: rel.tier, nudged: false }); } catch { /* ignore */ }
+      // RAW inputs (newKey/relatedTo) stored with the DERIVED verdict so a future relatedness rule is recomputable.
+      try { appendEvent('issue_switch', { tier: rel.tier, nudged: false, newKey: key, relatedTo: rel.relatedTo || undefined }); } catch { /* ignore */ }
       remember();
       return null; // related work — keep the context
     }
@@ -122,7 +125,8 @@ function evaluate(opts) {
     const tokens = opts && opts.tokens != null ? opts.tokens : readContextTokens(opts && opts.transcriptPath);
     const threshold = Number(opts && opts.threshold) || parseInt(process.env.HARNESS_ISSUE_NUDGE_TOKENS, 10) || DEFAULT_THRESHOLD_TOKENS;
     const nudged = tokens >= threshold;
-    try { appendEvent('issue_switch', { contextBucket: tokenBucket(tokens), tier: rel.tier, nudged }); } catch { /* ignore */ }
+    // thresholdK = the bar (in thousands) the decision was made against → a different threshold is replayable.
+    try { appendEvent('issue_switch', { contextBucket: tokenBucket(tokens), tier: rel.tier, nudged, newKey: key, relatedTo: rel.relatedTo || undefined, thresholdK: Math.round(threshold / 1000) }); } catch { /* ignore */ }
     remember();
     return nudged ? nudgeMessage(state.anchor, key, tokens, rel) : null;
   } catch { return null; }

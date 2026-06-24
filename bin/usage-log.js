@@ -14,7 +14,7 @@
 
 // Per-event field allowlist. Anything not listed is dropped — the privacy guarantee, enforced in code.
 const ALLOW = {
-  session_start: [],
+  session_start: ['issueKey'],   // the ticket the session opened on (branch-derived) → per-ticket attribution
   tool: ['tool', 'ok'],
   edit: ['ext'],
   gate_run: ['result', 'issueKey'],
@@ -27,7 +27,7 @@ const ALLOW = {
   user_reject: [], interrupt: [], revert: [], correction: [],
   prompt: ['lenBucket', 'hasContext', 'issueKey'],
   prompt_quality: ['score', 'flags'],
-  commit: ['sizeBucket', 'branchKind'],
+  commit: ['sizeBucket', 'branchKind', 'issueKey'],   // branch-derived ticket → commits attributable per ticket
   redaction: ['hits'],
   // best-practice / hygiene signals (emitted by skills via the `emit` CLI; metadata only)
   breaking_change: ['kind', 'confirmed', 'issueKey'],
@@ -39,8 +39,14 @@ const ALLOW = {
   compaction: [], subagent: [],
   // issue-switch nudge (bin/issue-switch-nudge.js): the user referenced a DIFFERENT issue key than the one
   // this session started on. The signal we care about = did they pile new work onto a heavy session?
-  // contextBucket = size of carried context when it happened; nudged = whether we showed the reminder.
-  issue_switch: ['contextBucket', 'nudged', 'tier'],
+  // RAW inputs (newKey/relatedTo/thresholdK/contextBucket) are stored alongside the DERIVED verdict
+  // (tier/nudged) so the relatedness rule or the size threshold can be re-decided over history later.
+  issue_switch: ['contextBucket', 'nudged', 'tier', 'newKey', 'relatedTo', 'thresholdK'],
+  // issue_meta: a point-in-time snapshot of an issue's graph edges (as they were when the work happened),
+  // shipped once per new key per session. This is the ONLY place the parent/epic/links relation reaches the
+  // backend — issue-graph.json is local + mutable, so without this the relation is unrecoverable later.
+  // clusterKey (epic ?? parent ?? key) is a rebuildable cache; parent/epic/links are the immutable facts.
+  issue_meta: ['key', 'parent', 'epic', 'links', 'clusterKey'],
 };
 
 // keep only allowlisted, scalar fields (no nested objects/content)
@@ -129,15 +135,53 @@ function enrichCommit(data) {
     const run = (c) => execSync(c, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
     const branch = run('git rev-parse --abbrev-ref HEAD');
     const out = { ...data };
-    if (branch) out.branchKind = /^(main|master|develop|release.*)$/i.test(branch) ? 'base' : 'feature';
+    if (branch) {
+      out.branchKind = /^(main|master|develop|release.*)$/i.test(branch) ? 'base' : 'feature';
+      const ik = issueKey(branch);
+      if (ik) out.issueKey = ik; // attribute the commit to its ticket
+    }
     const n = parseInt(run('git show --stat --format="" HEAD | tail -1 | grep -oE "[0-9]+ insertion" | grep -oE "[0-9]+"') || '0', 10) || 0;
     out.sizeBucket = n < 25 ? 's' : n < 150 ? 'm' : 'l';
     return out;
   } catch { return data; }
 }
 
+/** Pure-ish: the point-in-time graph snapshot for a key from the local issue-graph cache, shaped for an
+ * `issue_meta` event. parent/epic/links are the immutable facts; clusterKey (epic ?? parent ?? key) is a
+ * rebuildable cache so the backend can group without re-implementing relatedness. Returns null if no key. */
+function graphMetaFor(key, graph) {
+  if (!key) return null;
+  let g = graph;
+  if (!g) { try { g = require('./issue-graph.js').loadGraph() || {}; } catch { g = {}; } }
+  const n = g[key] || {};
+  const parent = n.parent || null, epic = n.epic || null;
+  const links = Array.isArray(n.links) && n.links.length ? n.links.join(',') : null; // scalar string of Jira keys
+  return { key, parent, epic, links, clusterKey: epic || parent || key };
+}
+
+/** Impure: emit one issue_meta for `key`, de-duped per (session-day, key) via a tiny marker file so a long
+ * session doesn't re-ship the same snapshot every turn. Best-effort — never throws into the hook path. */
+function emitIssueMeta(key) {
+  if (!key) return;
+  try {
+    const fs = require('fs'), path = require('path');
+    const seenPath = path.join(usageDir(), '.issue-meta-seen.json');
+    let seen = {};
+    try { seen = JSON.parse(fs.readFileSync(seenPath, 'utf8')); } catch { /* none */ }
+    const day = new Date().toISOString().slice(0, 10);
+    if (seen.day !== day) seen = { day, keys: [] }; // reset daily so a re-parent re-snapshots next day
+    if (seen.keys.includes(key)) return; // already shipped this key today
+    const meta = graphMetaFor(key);
+    if (!meta) return;
+    appendEvent('issue_meta', meta);
+    seen.keys.push(key);
+    fs.writeFileSync(seenPath, JSON.stringify(seen));
+  } catch { /* best-effort */ }
+}
+
 module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir,
-  commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey, parseKv };
+  commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey, parseKv,
+  graphMetaFor, emitIssueMeta };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {

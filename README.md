@@ -330,6 +330,16 @@ Records also carry the git company email (`userId`) and harness version (`hv`); 
 `harness-telemetry/<email>/<date>.jsonl`. Identified employee telemetry should be backed by a written
 monitoring policy (+ EU DPIA) — see `docs/usage-coaching-prd.md`.
 
+**Per-ticket attribution (recompute-complete).** Work events (`session_start`, `commit`, `gate_run`,
+`prompt`, …) carry the branch-derived `issueKey`, so metrics roll up by **ticket**, not by session (sessions
+are churned for context hygiene and are the wrong denominator). The issue's **relation** (parent / epic /
+links) ships once per ticket per session as an immutable, point-in-time `issue_meta` fact — the only place
+the hierarchy reaches the backend (the local `issue-graph.json` is mutable and never uploaded), so a later
+re-parenting can't corrupt the past. The switch nudge logs its **raw inputs** (`newKey`, `relatedTo`,
+`thresholdK`, `contextBucket`) next to the **derived** verdict (`tier`, `nudged`) — so the relatedness rule
+or the size threshold can be re-decided over history with no backfill. Atlas reuses these facts (it never
+re-implements relatedness), keeping the dashboard consistent with the warning the engineer actually saw.
+
 **Smart-zone reminder.** When you bring an *unrelated* new ticket into a session already carrying a lot of
 context, the harness shows a one-time nudge to start a clean session (better quality + cheaper turns — the
 [smart zone](#non-negotiable-principles)). It's folded into the existing prompt hook (no per-turn cost) and
