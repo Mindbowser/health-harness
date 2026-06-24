@@ -333,9 +333,11 @@ monitoring policy (+ EU DPIA) — see `docs/usage-coaching-prd.md`.
 **Per-ticket attribution (recompute-complete).** Work events (`session_start`, `commit`, `gate_run`,
 `prompt`, …) carry the branch-derived `issueKey`, so metrics roll up by **ticket**, not by session (sessions
 are churned for context hygiene and are the wrong denominator). The issue's **relation** (parent / epic /
-links) ships once per ticket per session as an immutable, point-in-time `issue_meta` fact — the only place
-the hierarchy reaches the backend (the local `issue-graph.json` is mutable and never uploaded), so a later
-re-parenting can't corrupt the past. The switch nudge logs its **raw inputs** (`newKey`, `relatedTo`,
+links) — plus its **type and priority** — ships once per ticket per session as an immutable, point-in-time
+`issue_meta` fact, captured at `/align` (the engineer's own Jira). This is the only place these reach the
+backend: the local `issue-graph.json` is mutable and never uploaded, and the analytics backend **can't query
+Jira** (every team uses a different one) — so the producer must carry the facts. A later re-parenting can't
+corrupt the past. The switch nudge logs its **raw inputs** (`newKey`, `relatedTo`,
 `thresholdK`, `contextBucket`) next to the **derived** verdict (`tier`, `nudged`) — so the relatedness rule
 or the size threshold can be re-decided over history with no backfill. Atlas reuses these facts (it never
 re-implements relatedness), keeping the dashboard consistent with the warning the engineer actually saw.

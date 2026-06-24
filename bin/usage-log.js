@@ -46,7 +46,8 @@ const ALLOW = {
   // shipped once per new key per session. This is the ONLY place the parent/epic/links relation reaches the
   // backend — issue-graph.json is local + mutable, so without this the relation is unrecoverable later.
   // clusterKey (epic ?? parent ?? key) is a rebuildable cache; parent/epic/links are the immutable facts.
-  issue_meta: ['key', 'parent', 'epic', 'links', 'clusterKey'],
+  // type/priority are captured at /align (the engineer's own Jira — Atlas can't reach it) for the dashboard filter.
+  issue_meta: ['key', 'parent', 'epic', 'links', 'clusterKey', 'type', 'priority'],
 };
 
 // keep only allowlisted, scalar fields (no nested objects/content)
@@ -156,7 +157,12 @@ function graphMetaFor(key, graph) {
   const n = g[key] || {};
   const parent = n.parent || null, epic = n.epic || null;
   const links = Array.isArray(n.links) && n.links.length ? n.links.join(',') : null; // scalar string of Jira keys
-  return { key, parent, epic, links, clusterKey: epic || parent || key };
+  const out = { key, parent, epic, links, clusterKey: epic || parent || key };
+  // type/priority are captured at /align (Atlas can't reach Jira) — include them when known so the dashboard
+  // can slice by Bug/Story/Task/Epic + priority without any Jira call of its own.
+  if (n.type) out.type = String(n.type);
+  if (n.priority) out.priority = String(n.priority);
+  return out;
 }
 
 /** Impure: emit one issue_meta for `key`, de-duped per (session-day, key) via a tiny marker file so a long

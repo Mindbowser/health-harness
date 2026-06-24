@@ -94,16 +94,16 @@ test('PreCompact → compaction event; SubagentStop → subagent event', () => {
 
 // ── relation facts in the JSONL (recompute-complete: store raw inputs, not just derived verdicts) ──
 
-test('graphMetaFor: snapshots the issue graph edges (raw facts) + clusterKey cache', () => {
+test('graphMetaFor: snapshots the issue graph edges (raw facts) + clusterKey cache + type/priority', () => {
   const { graphMetaFor } = require('../bin/usage-log.js');
   const graph = {
-    'MBI-14': { parent: 'MBI-10', epic: 'MBI-1', links: ['MBI-20', 'MBI-21'] },
+    'MBI-14': { parent: 'MBI-10', epic: 'MBI-1', links: ['MBI-20', 'MBI-21'], type: 'Story', priority: 'P2' },
     'MBI-99': {}, // known key, no edges
   };
-  // full edges → links flattened to a scalar string of Jira keys; clusterKey = epic
+  // full edges → links flattened to a scalar string of Jira keys; clusterKey = epic; type/priority carried
   assert.deepStrictEqual(graphMetaFor('MBI-14', graph),
-    { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20,MBI-21', clusterKey: 'MBI-1' });
-  // no edges → nulls, clusterKey falls back to the key itself
+    { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20,MBI-21', clusterKey: 'MBI-1', type: 'Story', priority: 'P2' });
+  // no edges → nulls, clusterKey falls back to the key itself; type/priority omitted when unknown
   assert.deepStrictEqual(graphMetaFor('MBI-99', graph),
     { key: 'MBI-99', parent: null, epic: null, links: null, clusterKey: 'MBI-99' });
   // unknown key → still a valid self-cluster fact (parent>epic fallback chain)
@@ -113,11 +113,11 @@ test('graphMetaFor: snapshots the issue graph edges (raw facts) + clusterKey cac
   assert.strictEqual(graphMetaFor('', graph), null);
 });
 
-test('issue_meta event is allowlisted to its raw-fact + cache fields only', () => {
-  // raw facts (key/parent/epic/links) + rebuildable cache (clusterKey) kept; anything else dropped
+test('issue_meta event is allowlisted to its raw-fact + cache + type/priority fields only', () => {
+  // raw facts (key/parent/epic/links) + cache (clusterKey) + filter fields (type/priority) kept; rest dropped
   assert.deepStrictEqual(
-    sanitize('issue_meta', { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20', clusterKey: 'MBI-1', summary: 'PHI?' }),
-    { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20', clusterKey: 'MBI-1' });
+    sanitize('issue_meta', { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20', clusterKey: 'MBI-1', type: 'Bug', priority: 'P1', summary: 'PHI?' }),
+    { key: 'MBI-14', parent: 'MBI-10', epic: 'MBI-1', links: 'MBI-20', clusterKey: 'MBI-1', type: 'Bug', priority: 'P1' });
 });
 
 test('session_start carries issueKey; commit gets issueKey from the branch', () => {

@@ -49,3 +49,25 @@ test('relate: strongest relation wins (sibling beats same-project)', () => {
   // ABC-3 shares a parent with ABC-1 (sibling) AND same project as ABC-2 → sibling must win
   assert.strictEqual(relate('ABC-3', ['ABC-2', 'ABC-1'], g).tier, 'sibling');
 });
+
+test('set CLI: captures type/priority and MERGES (a later set without them preserves them)', () => {
+  const { execFileSync } = require('node:child_process');
+  const os = require('node:os'), fs = require('node:fs'), path = require('node:path');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-graph-'));
+  const run = (args) => execFileSync('node', [path.join(__dirname, '..', 'bin', 'issue-graph.js'), 'set', ...args],
+    { env: { ...process.env, HOME: home }, encoding: 'utf8' });
+  // /align records full facts incl. type/priority
+  run(['key=MBI-14', 'parent=MBI-10', 'epic=MBI-1', 'type=Story', 'priority=P2']);
+  // a later /tdd records only hierarchy — must NOT wipe type/priority
+  run(['key=MBI-14', 'parent=MBI-10', 'epic=MBI-1']);
+  const g = JSON.parse(fs.readFileSync(path.join(home, '.health-harness', 'issue-graph.json'), 'utf8'));
+  assert.strictEqual(g['MBI-14'].type, 'Story', 'type preserved across a set that omitted it');
+  assert.strictEqual(g['MBI-14'].priority, 'P2', 'priority preserved across a set that omitted it');
+  assert.strictEqual(g['MBI-14'].epic, 'MBI-1');
+  // explicitly clearing a field (passing empty) sets it null
+  run(['key=MBI-14', 'priority=']);
+  const g2 = JSON.parse(fs.readFileSync(path.join(home, '.health-harness', 'issue-graph.json'), 'utf8'));
+  assert.strictEqual(g2['MBI-14'].priority, null, 'an explicit empty value clears the field');
+  assert.strictEqual(g2['MBI-14'].type, 'Story', 'unrelated fields still preserved');
+  fs.rmSync(home, { recursive: true, force: true });
+});

@@ -42,8 +42,12 @@ function loadGraph() { try { return JSON.parse(require('fs').readFileSync(graphP
 module.exports = { projectOf, relate, isRelated, KEEP_TIERS, graphPath, loadGraph };
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
-// /align, /tdd, /ship call this after they read the ticket — records its hierarchy (no extra fetch).
-//   node issue-graph.js set key=ABC-259 parent=ABC-258 epic=ABC-200 links=ABC-300,ABC-301
+// /align, /tdd, /ship call this after they read the ticket — records its hierarchy + type/priority (no extra
+// fetch). type/priority can ONLY be captured here: Atlas can't reach Jira (every team uses a different Jira),
+// so the engineer's own /align is the single place the ticket type/priority is reachable.
+//   node issue-graph.js set key=ABC-259 parent=ABC-258 epic=ABC-200 links=ABC-300,ABC-301 type=Story priority=P2
+// MERGE semantics: only the fields you pass are overwritten; the rest are preserved (so a later /tdd set that
+// omits type/priority doesn't wipe what /align captured).
 if (require.main === module) {
   if (process.argv[2] === 'set') {
     const kv = require('./usage-log.js').parseKv(process.argv.slice(3));
@@ -51,15 +55,18 @@ if (require.main === module) {
     if (!key) { process.stdout.write('need key=ABC-123\n'); process.exit(0); }
     const fs = require('fs'), path = require('path');
     const g = loadGraph();
+    const prev = g[String(key)] || {};
     g[String(key)] = {
-      parent: kv.parent ? String(kv.parent) : null,
-      epic: kv.epic ? String(kv.epic) : null,
-      links: kv.links ? String(kv.links).split(',').map((s) => s.trim()).filter(Boolean) : [],
+      parent:   'parent'   in kv ? (kv.parent ? String(kv.parent) : null) : (prev.parent || null),
+      epic:     'epic'     in kv ? (kv.epic   ? String(kv.epic)   : null) : (prev.epic   || null),
+      links:    'links'    in kv ? String(kv.links).split(',').map((s) => s.trim()).filter(Boolean) : (prev.links || []),
+      type:     'type'     in kv ? (kv.type     ? String(kv.type)     : null) : (prev.type     || null),
+      priority: 'priority' in kv ? (kv.priority ? String(kv.priority) : null) : (prev.priority || null),
     };
     try { fs.mkdirSync(path.dirname(graphPath()), { recursive: true }); fs.writeFileSync(graphPath(), JSON.stringify(g)); } catch { /* ignore */ }
     process.stdout.write(JSON.stringify({ ok: true, key: String(key), entry: g[String(key)] }));
   } else {
-    process.stdout.write('usage: issue-graph.js set key=ABC-259 parent=ABC-258 epic=ABC-200 links=ABC-300,ABC-301\n');
+    process.stdout.write('usage: issue-graph.js set key=ABC-259 parent=ABC-258 epic=ABC-200 links=ABC-300,ABC-301 type=Story priority=P2\n');
   }
   process.exit(0);
 }
