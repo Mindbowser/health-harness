@@ -17,7 +17,11 @@ const ALLOW = {
   session_start: [],
   tool: ['tool', 'ok'],
   edit: ['ext'],
-  gate_run: ['result'],
+  gate_run: ['result', 'issueKey'],
+  // per-slice quality signals (emitted on push, attributed to the ticket) — the data that matters most with
+  // agents: did the slice actually add tests, and did it ship with a verified gate?
+  test_change: ['hasTests', 'hasSource', 'issueKey'],     // hasSource && !hasTests = behavior change, no tests
+  gate_evidence: ['state', 'issueKey'],                   // verified | unverified | no-gate at push
   command: ['name', 'issueKey'],
   wall: ['action', 'why'],
   user_reject: [], interrupt: [], revert: [], correction: [],
@@ -204,11 +208,26 @@ if (require.main === module) {
   const go = () => {
     try {
       const input = raw ? JSON.parse(raw) : {};
+      let _branch; // memoize the branch lookup (one git call) → ticket attribution for the signals below
+      const ikBranch = () => { if (_branch === undefined) { try { _branch = require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim(); } catch { _branch = ''; } } return issueKey(_branch); };
       for (const e of eventsFromHook(hookType, input)) {
-        appendEvent(e.event, e.event === 'commit' ? enrichCommit(e.data) : e.data);
+        let data = e.data;
+        if (e.event === 'commit') data = enrichCommit(e.data);
+        else if (e.event === 'gate_run') { const ik = ikBranch(); if (ik) data = { ...e.data, issueKey: ik }; } // per-ticket pass/fail
+        appendEvent(e.event, data);
         // Record DETERMINISTIC gate evidence keyed to the current commit — the wall/ship read this so a
         // hallucinated "tests pass" can't get past publish (only a real passing run leaves the fingerprint).
         if (e.event === 'gate_run') { try { const ge = require('./gate-evidence.js'); ge.record(process.cwd(), ge.headSha(), e.data.result); } catch { /* best-effort */ } }
+      }
+      // On `git push`, emit the per-slice quality signals (deterministic, hook-driven — NOT agent narration),
+      // attributed to the ticket: did this slice add tests, and did it ship gate-verified?
+      if (hookType === 'posttooluse' && /\bgit\s+push\b/.test(String((input.tool_input || {}).command || ''))) {
+        try {
+          const slice = require('./slice-tests.js'), ge = require('./gate-evidence.js'), ik = ikBranch();
+          const cls = slice.classifyDiff(slice.diffPaths(slice.baseBranch()));
+          appendEvent('test_change', { hasTests: cls.hasTests, hasSource: cls.hasSource, ...(ik ? { issueKey: ik } : {}) });
+          appendEvent('gate_evidence', { state: ge.currentState().state, ...(ik ? { issueKey: ik } : {}) });
+        } catch { /* best-effort */ }
       }
       // Issue-switch nudge — folded into THIS already-running hook (no extra process per turn). evaluate()
       // short-circuits unless the prompt names a NEW ticket different from the session's anchor, so the

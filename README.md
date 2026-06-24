@@ -279,6 +279,7 @@ bin/preflight.js             # onboarding pre-flight (git/remote-reachable/gh-cl
 bin/jira-transitions.js      # infer + persist the Jira workflow transition map so /ship transitions by id, never guesses (+ test/)
 bin/ship-grant.js            # short-TTL "user approved this publish batch" marker so the wall doesn't re-ask each step (+ test/)
 bin/gate-evidence.js         # records real gate pass/fail per commit sha; wall blocks a hallucinated "it's green" at push (+ test/)
+bin/slice-tests.js           # deterministic "did this slice add tests?" + per-ticket test/gate telemetry (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
