@@ -13,11 +13,13 @@
  *   - a NEW different key                   → read the transcript tail for context size, log + maybe nudge
  * So the only non-trivial work (a ~64KB tail read) happens at most once per distinct new ticket per session.
  *
- * Opt out: HARNESS_ISSUE_NUDGE=off. Tune: HARNESS_ISSUE_NUDGE_TOKENS (default 60000).
+ * Opt out: HARNESS_ISSUE_NUDGE=off. Tune: HARNESS_ISSUE_NUDGE_TOKENS (default 40000, cost-tuned).
  */
 'use strict';
 
-const DEFAULT_THRESHOLD_TOKENS = 60000;
+// 40k by default — cost-tuned for $20-plan engineers (a heavy session re-bills its whole context every
+// turn, so suggesting a fresh session earlier saves real budget). Org overrides via HARNESS_ISSUE_NUDGE_TOKENS.
+const DEFAULT_THRESHOLD_TOKENS = 40000;
 
 /** Pure: live context size from a transcript `message.usage` object = what you pay PER turn. Cache reads
  * count — they're still context the model processes. Output tokens don't (they're not re-sent). */

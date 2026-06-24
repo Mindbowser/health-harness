@@ -327,7 +327,8 @@ monitoring policy (+ EU DPIA) — see `docs/usage-coaching-prd.md`.
 context, the harness shows a one-time nudge to start a clean session (better quality + cheaper turns — the
 [smart zone](#non-negotiable-principles)). It's folded into the existing prompt hook (no per-turn cost) and
 only triggers on a genuinely new ticket key past a context-size threshold. Tune with
-`HARNESS_ISSUE_NUDGE_TOKENS` (default 60000) or disable with `HARNESS_ISSUE_NUDGE=off`.
+`HARNESS_ISSUE_NUDGE_TOKENS` (default 40000 — cost-tuned for $20 plans; org can raise/lower via managed
+settings) or disable with `HARNESS_ISSUE_NUDGE=off`.
 
 ## Contributing a skill
 
