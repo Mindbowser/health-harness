@@ -40,6 +40,11 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/play-sound.js\" done",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/usage-upload.js\" flush",
+            "timeout": 5
           }
         ]
       }

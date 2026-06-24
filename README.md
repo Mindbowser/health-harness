@@ -320,8 +320,9 @@ settings), and **opt out** with `HARNESS_TELEMETRY_ENABLED=false`:
 } }
 ```
 
-`bin/usage-upload.js` runs on SessionStart **inline but strictly time-boxed** (≤2.5s budget; throttled to
-~once/6h), backfilling any un-sent days and shipping only the new bytes of the current day in ≤32KB
+`bin/usage-upload.js` runs on **SessionStart and turn-end (Stop)** — **inline but strictly time-boxed**
+(≤2.5s budget; throttled to ~once/2h so the dashboard is never more than ~2h stale, even inside one long
+session that's never restarted), backfilling any un-sent days and shipping only the new bytes of the current day in ≤32KB
 **chunks** — so a large day ships in pieces (the byte-offset cursor advances per chunk) and no single POST
 can outlive the timeout. Delivery is **at-least-once with no data loss**: the offset advances only after the
 server 200s a chunk, and every record carries a stable `id` so a retried duplicate is dropped server-side.

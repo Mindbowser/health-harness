@@ -6,7 +6,7 @@
  * PRD's disclosure/DPIA gate). Config is read from env (set via Claude Code settings `env`, and later
  * deployed org-wide via FleetDM managed settings).
  *
- * What it does when enabled: on each run (SessionStart, throttled) it backfills every un-sent day-file and
+ * What it does when enabled: on each run (SessionStart + Stop, throttled to ~2h) it backfills every un-sent day-file and
  * ships only the *new bytes* of the current day, tracking a per-day byte offset in `.upload-state.json`.
  * This gives "at least once a day" delivery (whenever the dev opens a session) plus catch-up for any days
  * the machine was offline. The payload is the same metadata-only JSONL the logger wrote — no code, prompts,
@@ -16,7 +16,7 @@
  */
 'use strict';
 
-const DEFAULT_INTERVAL_MS = 6 * 3600 * 1000; // at most ~4×/day; backfill covers offline gaps
+const DEFAULT_INTERVAL_MS = 2 * 3600 * 1000; // at most ~12×/day; keeps the dashboard ≤2h stale; backfill covers offline gaps
 const DEFAULT_POST_TIMEOUT_MS = 2500; // per-slice network deadline — short, so an inline (hook) run stays snappy
 const DEFAULT_CHUNK_BYTES = 32 * 1024; // ship a big day in <=32KB pieces so no single POST can outlast the timeout
 
@@ -169,5 +169,11 @@ async function runUpload(opts = {}) {
 }
 
 if (require.main === module) {
-  runUpload().catch(() => {}).finally(() => process.exit(0)); // CLI/manual run: unbounded, drains everything
+  // `flush` = a hook-driven run (Stop): inline but strictly time-boxed so it can never delay the turn end.
+  // Bare run = CLI/manual: unbounded, drains everything. Both still self-throttle via dueForRun (2h).
+  const flush = process.argv[2] === 'flush';
+  const opts = flush ? { deadlineMs: 2500, postTimeoutMs: 2000 } : {};
+  const guard = flush ? setTimeout(() => process.exit(0), 2800) : null;
+  if (guard && guard.unref) guard.unref();
+  runUpload(opts).catch(() => {}).finally(() => process.exit(0));
 }
