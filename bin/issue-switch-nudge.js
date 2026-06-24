@@ -45,13 +45,18 @@ function tokensFromTranscriptText(text) {
   return 0;
 }
 
-/** Pure: the user-facing reminder. Shown locally only (never uploaded), so naming the tickets is fine. */
-function nudgeMessage(anchor, key, tokens) {
+/** Pure: the user-facing reminder — WITH the rationale (why we think it's unrelated + the size). Shown
+ * locally only (never uploaded), so naming the tickets is fine. `rel` is the relatedness result. */
+function nudgeMessage(anchor, key, tokens, rel) {
   const k = Math.round(tokens / 1000);
-  return `💡 New ticket in a heavy session — you're bringing up *${key}* but this session has been on `
-    + `*${anchor}* and is carrying ~${k}k tokens of context. For unrelated work, a fresh session (start a `
-    + `new one, or /clear) gives cleaner context and cheaper turns. Stay here only if ${key} is closely `
-    + `related to ${anchor}.`;
+  const why = (rel && rel.tier === 'same-project')
+    ? `*${key}* is in the same project as *${anchor}* but shares no parent story, epic, or issue link`
+    : `*${key}* looks unrelated to *${anchor}* (different project, no shared epic or link)`;
+  return `💡 New ticket in a heavy session — ${why}, and this session is carrying ~${k}k tokens of `
+    + `*${anchor}*'s context. For unrelated work a fresh session (start a new one, or /clear) gives cleaner `
+    + `context and cheaper turns. **Why you're seeing this:** the carried context is dead weight for `
+    + `unrelated work — it both costs tokens every turn and can pull the model toward stale assumptions. `
+    + `(If they ARE related — e.g. a sibling subtask I didn't have linked — ignore this and carry on.)`;
 }
 
 /** Impure: read the last ~64KB of the transcript for the current context size. Bounded + best-effort, so a
@@ -98,13 +103,26 @@ function evaluate(opts) {
     if (key === state.anchor) return null;                 // continuing — cheap exit, NO transcript read
     if ((state.switched || []).includes(key)) return null; // already handled this switch — stay silent
 
-    // a genuinely new, different ticket → the ONE place we read the transcript
-    const tokens = readContextTokens(opts.transcriptPath);
-    const threshold = Number(opts.threshold) || parseInt(process.env.HARNESS_ISSUE_NUDGE_TOKENS, 10) || DEFAULT_THRESHOLD_TOKENS;
+    // Record the switch once (so we evaluate a given new key only once this session).
+    const remember = (extra) => { try { fs.writeFileSync(file, JSON.stringify({ ...state, switched: [...(state.switched || []), key], ...extra })); } catch { /* ignore */ } };
+
+    // DETERMINISTIC relatedness: is the new ticket a sibling subtask / same-epic story / linked bug of
+    // anything worked this session? If so the carried context HELPS — stay silent, no transcript read.
+    const { relate, isRelated, loadGraph } = require('./issue-graph.js');
+    const rel = relate(key, [state.anchor, ...(state.switched || [])], (opts && opts.graph) || loadGraph());
+    if (isRelated(rel.tier)) {
+      try { appendEvent('issue_switch', { tier: rel.tier, nudged: false }); } catch { /* ignore */ }
+      remember();
+      return null; // related work — keep the context
+    }
+
+    // Unrelated (or same-project-only) → the ONE place we read the transcript; nudge only if context is heavy.
+    const tokens = opts && opts.tokens != null ? opts.tokens : readContextTokens(opts && opts.transcriptPath);
+    const threshold = Number(opts && opts.threshold) || parseInt(process.env.HARNESS_ISSUE_NUDGE_TOKENS, 10) || DEFAULT_THRESHOLD_TOKENS;
     const nudged = tokens >= threshold;
-    try { appendEvent('issue_switch', { contextBucket: tokenBucket(tokens), nudged }); } catch { /* ignore */ }
-    try { fs.writeFileSync(file, JSON.stringify({ ...state, switched: [...(state.switched || []), key] })); } catch { /* ignore */ }
-    return nudged ? nudgeMessage(state.anchor, key, tokens) : null;
+    try { appendEvent('issue_switch', { contextBucket: tokenBucket(tokens), tier: rel.tier, nudged }); } catch { /* ignore */ }
+    remember();
+    return nudged ? nudgeMessage(state.anchor, key, tokens, rel) : null;
   } catch { return null; }
 }
 

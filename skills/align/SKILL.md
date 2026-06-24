@@ -68,6 +68,10 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    usually *is* the spec — you can see images). If you can't retrieve it, **ask the human to paste or
    describe it** — never guess the spec from the ticket title alone. In an existing repo, also **ground
    it in the actual code** so the criteria are real.
+   **While you have the ticket, record its hierarchy for the switch-nudge** (so it keeps context for related
+   work instead of suggesting a fresh session mid-story): `node "${CLAUDE_PLUGIN_ROOT}/bin/issue-graph.js" set
+   key=<KEY> parent=<parentKey|''> epic=<epicKey|''> links=<comma-keys|''>` — read parent/epic/links from the
+   issue you just fetched. Cached + reused; no extra fetch.
 2. **Size it** (the rule above): clear → confirm + criteria + at most one fork; fuzzy → grill the open
    branches one question at a time, each with a recommended answer.
 3. **Surface only genuine forks** — real decisions with a trade-off the user must own. Route a

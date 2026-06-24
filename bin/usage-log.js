@@ -36,7 +36,7 @@ const ALLOW = {
   // issue-switch nudge (bin/issue-switch-nudge.js): the user referenced a DIFFERENT issue key than the one
   // this session started on. The signal we care about = did they pile new work onto a heavy session?
   // contextBucket = size of carried context when it happened; nudged = whether we showed the reminder.
-  issue_switch: ['contextBucket', 'nudged'],
+  issue_switch: ['contextBucket', 'nudged', 'tier'],
 };
 
 // keep only allowlisted, scalar fields (no nested objects/content)

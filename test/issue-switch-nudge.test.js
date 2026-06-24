@@ -74,6 +74,31 @@ test('evaluate: silent on no-key / same-anchor; nudges only on a NEW key over th
   }
 });
 
+test('evaluate: a RELATED switch (sibling subtask) stays silent even on a heavy session; UNRELATED nudges with rationale', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-nudge-rel-'));
+  const prevHome = process.env.HOME;
+  process.env.HOME = home;
+  try {
+    const graph = { 'ABC-258': { parent: null }, 'ABC-259': { parent: 'ABC-258' }, 'ABC-260': { parent: 'ABC-258' } };
+    const sid = 'rel-1';
+    // anchor on ABC-259 (a subtask)
+    assert.strictEqual(N.evaluate({ prompt: 'start ABC-259', sessionId: sid, graph, tokens: 200000 }), null);
+    // → its sibling ABC-260 on a HEAVY session → context HELPS → stay silent (the false-positive we fixed)
+    assert.strictEqual(N.evaluate({ prompt: 'now ABC-260', sessionId: sid, graph, tokens: 200000 }), null);
+    // → an UNRELATED ticket on the same heavy session → nudge, and it explains WHY
+    const msg = N.evaluate({ prompt: 'switching to XYZ-9', sessionId: sid, graph, tokens: 200000 });
+    assert.ok(msg && /unrelated/i.test(msg) && msg.includes('XYZ-9') && /Why you're seeing this/.test(msg));
+
+    // telemetry recorded the tier for each (related sibling = not nudged; unrelated = nudged)
+    const usageDir = path.join(home, '.health-harness', 'usage');
+    const lines = fs.readdirSync(usageDir).flatMap((f) => fs.readFileSync(path.join(usageDir, f), 'utf8').trim().split('\n'));
+    const sw = lines.map((l) => JSON.parse(l)).filter((r) => r.event === 'issue_switch');
+    assert.deepStrictEqual(sw.map((s) => [s.tier, s.nudged]), [['sibling', false], ['unrelated', true]]);
+  } finally {
+    process.env.HOME = prevHome;
+  }
+});
+
 test('evaluate: HARNESS_ISSUE_NUDGE=off disables entirely', () => {
   const prev = process.env.HARNESS_ISSUE_NUDGE;
   process.env.HARNESS_ISSUE_NUDGE = 'off';
