@@ -130,6 +130,21 @@ function decideCommitMessage(command, policy) {
   return bad ? { action: 'deny', reason: `health-harness wall — commit blocked: ${bad.reason}` } : null;
 }
 
+// ── gate-evidence gate → ASK if shipping without a real passing gate ──────────
+// Deterministic anti-hallucination: at push time, require a REAL captured passing gate run for HEAD. A
+// claimed-but-unproven "it's green" has no fingerprint → ASK (conscious approve to ship unverified). NOT
+// suppressed by the ship grant — it's a distinct safety question, not the routine outward approval.
+const PUBLISH_RE = /\bgit\s+push\b/i;
+
+function decideGateEvidence(command, cwd, stateOverride) {
+  if (!PUBLISH_RE.test(String(command || ''))) return null;
+  let st = stateOverride;
+  if (!st) { try { st = require('../bin/gate-evidence.js').currentState(cwd || process.cwd()); } catch { return null; } }
+  if (!st || st.state === 'verified') return null; // real passing gate for this commit → no extra prompt
+  if (st.state === 'no-gate') return { action: 'ask', reason: 'health-harness wall: no automated gate in this repo — this push is UNVERIFIED. Establish a gate (characterization tests) or approve to ship unverified.' };
+  return { action: 'ask', reason: `health-harness wall: no captured PASSING gate run for this commit (${String(st.sha).slice(0, 12)}) — run the gate green first, or approve to ship unverified. (Blocks a hallucinated "it's green".)` };
+}
+
 function decideBash(command) {
   const cmd = String(command || '');
   for (const [re, why] of DENY) if (re.test(cmd)) return { action: 'deny', reason: `health-harness wall — blocked: ${why}. If genuinely required, a human runs it outside the agent.` };
@@ -205,7 +220,11 @@ function decide(toolName, toolInput, gitState, shipGrant) {
       const cmd = (toolInput || {}).command;
       const red = decideRedactionBash(cmd, cwd); // PHI → DENY/ASK, NEVER suppressed by a grant
       if (red) return red;
-      return dropAsk(decideBash(cmd))            // catastrophic DENY stands; outward ASK suppressed under grant
+      const bash = decideBash(cmd);
+      if (bash && bash.action === 'deny') return bash; // catastrophic DENY (force-push, rm -rf …) beats all below
+      const gate = decideGateEvidence(cmd, cwd);       // ship-without-passing-gate → ASK, NOT grant-suppressed
+      if (gate) return gate;
+      return dropAsk(bash)                             // outward ASK suppressed under a grant
         || decideCommitGuard(cmd, gitState !== undefined ? gitState : gitProbe()) // commit guards: not part of the batch
         || decideCommitMessage(cmd);
     }
@@ -218,7 +237,7 @@ function decide(toolName, toolInput, gitState, shipGrant) {
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, gitProbe, baseBranches };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, gitProbe, baseBranches };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

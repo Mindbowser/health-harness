@@ -151,6 +151,10 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   convention** (sets `commit.conventional:false` if they consistently use a different style) but **elevates the
   absence of one** — inconsistent/low-quality history keeps the gate on and is flagged as an improvement, not
   mirrored.
+- **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
+  **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
+  has no fingerprint, so you run the gate green or *consciously* approve an UNVERIFIED ship. No gate at all →
+  ASK + flagged unverified (never a silent skip). NOT suppressed by the ship grant. (`bin/gate-evidence.js`.)
 - **DENY → redaction egress gate** (no human): the **outbound content** of a text egress (a `gh pr`/`issue`
   body, a Jira/Linear MCP write) is scanned with the deterministic profile-driven scanner *before* it leaves.
   A **PHI/PII/secret literal** → hard-blocked with the offending **classes** (never the value) so the agent
@@ -274,6 +278,7 @@ bin/harness-stats.js         # /usage-style personal dashboard behind the /harne
 bin/preflight.js             # onboarding pre-flight (git/remote-reachable/gh-cli/gate/tracker/role/db-migration-layer) for /start (+ test/)
 bin/jira-transitions.js      # infer + persist the Jira workflow transition map so /ship transitions by id, never guesses (+ test/)
 bin/ship-grant.js            # short-TTL "user approved this publish batch" marker so the wall doesn't re-ask each step (+ test/)
+bin/gate-evidence.js         # records real gate pass/fail per commit sha; wall blocks a hallucinated "it's green" at push (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)

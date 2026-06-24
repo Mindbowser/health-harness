@@ -206,6 +206,9 @@ if (require.main === module) {
       const input = raw ? JSON.parse(raw) : {};
       for (const e of eventsFromHook(hookType, input)) {
         appendEvent(e.event, e.event === 'commit' ? enrichCommit(e.data) : e.data);
+        // Record DETERMINISTIC gate evidence keyed to the current commit — the wall/ship read this so a
+        // hallucinated "tests pass" can't get past publish (only a real passing run leaves the fingerprint).
+        if (e.event === 'gate_run') { try { const ge = require('./gate-evidence.js'); ge.record(process.cwd(), ge.headSha(), e.data.result); } catch { /* best-effort */ } }
       }
       // Issue-switch nudge — folded into THIS already-running hook (no extra process per turn). evaluate()
       // short-circuits unless the prompt names a NEW ticket different from the session's anchor, so the

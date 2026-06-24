@@ -28,11 +28,17 @@ rather than re-implementing it (one definition, no drift).
    About to publish <TICKET>:
      PR        "<title>"  → base: <base>
                body: <the verification summary, shown in full>
+     Gate      <verified ✓ · <sha> | ⚠ UNVERIFIED — no passing gate for this commit>
      Status    <from-status> → <to-status>        (transition id <onShip.id>)
      Comment   "<the exact Jira comment text>"     (rendered markdown)
      Worklog   <N> min  (<basis> — e.g. "real-hours; active 10:00–10:55 minus 95-min break")
                + agent runtime <M> → productivity (not billed)
    ```
+   **The Gate line is DETERMINISTIC, not your claim.** Read it from `node "${CLAUDE_PLUGIN_ROOT}/bin/gate-evidence.js"
+   state` (verified / unverified / no-gate, keyed to the commit sha). Post that captured result + the **sha**
+   (+ a CI link if CI runs the gate) into the PR body and the Jira comment — never a self-asserted "it's
+   green." If it's not `verified`, the wall will ASK before the push (you run the gate green, or consciously
+   approve an UNVERIFIED ship). **Never narrate a pass the evidence doesn't show.**
    Detect availability up front (publish path per the order below; tracker MCP connected?) and adapt.
    **Then ask for the decision as a STRUCTURED QUESTION** (the AskUserQuestion dialog), not a free-text "say
    the word" — so it's a click, with edit/skip as first-class options. Keep the rich preview above as text
