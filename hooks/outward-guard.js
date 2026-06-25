@@ -99,19 +99,25 @@ function extractCommitMessage(command) {
   return m ? m[2] : null;
 }
 
-/** Pure: validate a commit message against policy. null = ok/inapplicable; else { reason }. */
-function checkCommitMessage(message, policy) {
+/** Pure: validate a commit message against policy. null = ok/inapplicable; else { reason, kind }.
+ * kind='format' (malformed → DENY, agent self-corrects) vs kind='ticket' (no linked ticket → ASK, the
+ * human overrides per commit — the agent can't invent a ticket). requireTicket is ON by default
+ * (commit.requireTicket=false opts out); it's satisfied by a key in the MESSAGE or on the BRANCH. */
+function checkCommitMessage(message, policy, branch) {
   if (message == null) return null; // no inspectable message → defer
   const p = policy || {};
   const subject = String(message).split('\n')[0].trim();
   if (p.conventional !== false) {
     const types = (Array.isArray(p.types) && p.types.length ? p.types : CONV_TYPES);
     if (!new RegExp(`^(${types.join('|')})(\\([^)]+\\))?!?: .+`).test(subject)) {
-      return { reason: `commit message isn't conventional — use "type(scope): subject" (types: ${CONV_TYPES.join(', ')}). Got: "${subject.slice(0, 60)}"` };
+      return { kind: 'format', reason: `commit message isn't conventional — use "type(scope): subject" (types: ${CONV_TYPES.join(', ')}). Got: "${subject.slice(0, 60)}"` };
     }
   }
-  if (p.requireTicket && !TICKET_RE.test(String(message))) {
-    return { reason: 'commit message must reference a ticket key (e.g. ABC-123) — derive it from the branch/ticket (or set commit.requireTicket=false).' };
+  if (p.requireTicket !== false) { // ON by default
+    const hasTicket = TICKET_RE.test(String(message)) || (branch && TICKET_RE.test(String(branch)));
+    if (!hasTicket) {
+      return { kind: 'ticket', reason: 'no Jira ticket linked to this work — name the branch (e.g. feature/ABC-123-…) or add the key to the message, or commit anyway to override (set commit.requireTicket=false to disable).' };
+    }
   }
   return null;
 }
@@ -125,9 +131,13 @@ function commitPolicy(dir) {
   } catch { return {}; }
 }
 
-function decideCommitMessage(command, policy) {
-  const bad = checkCommitMessage(extractCommitMessage(command), policy !== undefined ? policy : commitPolicy());
-  return bad ? { action: 'deny', reason: `health-harness wall — commit blocked: ${bad.reason}` } : null;
+function decideCommitMessage(command, policy, branch) {
+  const bad = checkCommitMessage(extractCommitMessage(command), policy !== undefined ? policy : commitPolicy(), branch);
+  if (!bad) return null;
+  // A missing ticket is the human's call (the agent can't conjure one) → ASK, overridable per commit, tagged
+  // so the existing `wall` event records why. A malformed message is the agent's to fix → DENY + self-correct.
+  if (bad.kind === 'ticket') return { action: 'ask', why: 'no_ticket', reason: `health-harness wall — ${bad.reason}` };
+  return { action: 'deny', reason: `health-harness wall — commit blocked: ${bad.reason}` };
 }
 
 // ── gate-evidence gate → ASK if shipping without a real passing gate ──────────
@@ -224,9 +234,10 @@ function decide(toolName, toolInput, gitState, shipGrant) {
       if (bash && bash.action === 'deny') return bash; // catastrophic DENY (force-push, rm -rf …) beats all below
       const gate = decideGateEvidence(cmd, cwd);       // ship-without-passing-gate → ASK, NOT grant-suppressed
       if (gate) return gate;
+      const gs = gitState !== undefined ? gitState : gitProbe();
       return dropAsk(bash)                             // outward ASK suppressed under a grant
-        || decideCommitGuard(cmd, gitState !== undefined ? gitState : gitProbe()) // commit guards: not part of the batch
-        || decideCommitMessage(cmd);
+        || decideCommitGuard(cmd, gs)                  // commit guards: not part of the batch
+        || decideCommitMessage(cmd, undefined, gs && gs.branch); // no-ticket ASK uses the branch to resolve a key
     }
     if (String(toolName).startsWith('mcp__')) {
       const red = decideRedactionMcp(toolName, toolInput, cwd); // PHI → DENY, NEVER suppressed
@@ -251,7 +262,7 @@ if (require.main === module) {
     } catch { /* defer */ }
     if (d) {
       try { // metadata-only usage log of the governance decision (best-effort)
-        const why = String(d.reason || '').replace(/^health-harness wall[^:—]*[:—]\s*/i, '').replace(/^blocked:\s*/i, '').slice(0, 40);
+        const why = d.why || String(d.reason || '').replace(/^health-harness wall[^:—]*[:—]\s*/i, '').replace(/^blocked:\s*/i, '').slice(0, 40);
         require('../bin/usage-log.js').appendEvent('wall', { action: d.action, why });
       } catch { /* never block on logging */ }
       process.stdout.write(JSON.stringify({

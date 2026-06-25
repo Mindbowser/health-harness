@@ -144,13 +144,19 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   — branch first, or approve to commit on base), and **any external-system write via MCP** (Jira/Linear
   create/update/transition/comment).
 - **DENY → agent self-corrects** (no human): a **malformed commit message**. The wall enforces a
-  deterministic format so messages aren't guessed — a conventional `type(scope): subject` prefix (on by
-  default) and, opt-in, a ticket key for traceability + the worklog signal. A bad message is blocked with the
+  deterministic conventional `type(scope): subject` prefix (on by default); a bad message is blocked with the
   reason so the agent fixes and retries — you're never asked. Policy is `.health-harness/project.json`
   `commit` (`conventional`, `requireTicket`, `types`). On a customer repo, onboarding **respects a deliberate
   convention** (sets `commit.conventional:false` if they consistently use a different style) but **elevates the
   absence of one** — inconsistent/low-quality history keeps the gate on and is flagged as an improvement, not
   mirrored.
+- **ASK → a commit with no linked Jira ticket** (overridable per commit): `commit.requireTicket` is **ON by
+  default** — a commit whose ticket isn't resolvable from the **branch or the message** ASKs ("commit
+  anyway?") rather than DENYing (the agent can't invent a ticket). Approving proceeds for that commit; set
+  `commit.requireTicket:false` to opt a repo out. A soft, passive one-line **nudge also fires on the first
+  code edit** of a session with no linked ticket (once/session, non-blocking) so work lands on-board before
+  the commit. "Off-board work" needs no new telemetry — it's the **absence of `issueKey`** on the existing
+  commit/gate events. (`bin/ticketless-nudge.js`.)
 - **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
   **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
   has no fingerprint, so you run the gate green or *consciously* approve an UNVERIFIED ship. No gate at all →
@@ -271,6 +277,7 @@ bin/gen-sounds.js            # generates the cross-platform fallback chime .wav 
 bin/session-context.js       # SessionStart hook — injects status + runs the daily coach (+ test/)
 bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/; `emit` CLI for hygiene signals (+ test/)
 bin/issue-switch-nudge.js    # smart-zone reminder: UNRELATED new ticket in a heavy session → suggest a clean one (+ test/)
+bin/ticketless-nudge.js      # soft once/session reminder when work starts with no linked Jira ticket (+ test/)
 bin/issue-graph.js           # deterministic Jira relatedness (parent/epic/links) so related work keeps context (+ test/)
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
 bin/usage-upload.js          # ships the usage log to MBI Atlas — inline, time-boxed, chunked (+ test/)

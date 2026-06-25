@@ -282,6 +282,15 @@ if (require.main === module) {
           appendEvent('gate_evidence', { state: ge.currentState().state, ...(sha ? { sha } : {}), ...(ik ? { issueKey: ik } : {}) });
         } catch { /* best-effort */ }
       }
+      // Ticketless-work nudge — on the FIRST code mutation in a session with no linked ticket, surface a
+      // soft one-line reminder (once per session, passive, non-blocking). Q&A-only turns never reach here
+      // (no Edit/Write). maybeNudge short-circuits cheaply when a ticket is resolvable or already warned.
+      if (hookType === 'posttooluse' && /^(Edit|Write|MultiEdit)$/.test(String(input.tool_name || ''))) {
+        try {
+          const msg = require('./ticketless-nudge.js').maybeNudge({ sessionId: input.session_id, cwd: process.cwd() });
+          if (msg) process.stdout.write(JSON.stringify({ systemMessage: msg }));
+        } catch { /* best-effort — never block a turn */ }
+      }
       // Issue-switch nudge — folded into THIS already-running hook (no extra process per turn). evaluate()
       // short-circuits unless the prompt names a NEW ticket different from the session's anchor, so the
       // common turn costs only a regex. A returned string is surfaced to the user as a systemMessage.
