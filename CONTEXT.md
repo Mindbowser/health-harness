@@ -68,6 +68,26 @@ needs a term not defined here, add it here rather than redefining it locally.
   raised at the front. Done right, AFK build trends toward *silence punctuated by one or two real calls*,
   with judgment clustered at the two human phases (**Align** and **QA**).
 
+## Structured-decision convention — how the survivors get asked
+
+A two-level gate: **ask only when it matters, and when you do, make it a clean click.** This is the
+shared shape every skill uses for a decision or an outward/irreversible action (the reference
+implementations are `ship` and `align`).
+
+1. **Should it even be asked?** Obvious / inferable / reversible steps → **just do them and say so in one
+  line** (no prompt). A prompt is justified only by a **genuine decision the user owns** *or* an
+  **outward/irreversible action** (a Jira write, a push, a publish). Converting a confirmation to a popup
+  must **never increase** the number of prompts — drop the ones that shouldn't exist first.
+2. **If it survives → an `AskUserQuestion` popup, not free-text "type yes".** Approving is one keypress:
+  list the **approve/proceed option FIRST** (the highlighted default), then **Edit** (free-text via the
+  *Other* option → revise → re-render the preview → re-ask) and **Skip/Cancel**. Keep any **rich preview
+  as readable text *above* the popup** — never cram multi-line content (criteria, PR bodies) into option
+  labels. A genuine *judgment-point* fork is the same popup with the **axis as the header chip** (above);
+  a routine outward-write confirm just needs Approve-first + Edit + Skip.
+
+Reading content back for a yes (e.g. align's reflect-back of the criteria) is conversational text, **not**
+a popup — the popup is for the *decision*, not the *content*.
+
 ## Engineering terms
 
 - **Gate** — the repo's single one-command quality check (e.g. `pnpm verify` = typecheck + build +

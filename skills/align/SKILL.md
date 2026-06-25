@@ -103,24 +103,34 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
      migration layer**, flag it (`... emit migration_gap reason=no-migration-layer`) and tell the user to add
      one before schema work.
    - **No contract/schema impact → skip** (most slices). Don't invent breaking-change theater.
-5. **Reflect back** the understanding + the acceptance criteria (Given/When/Then) and get a yes.
-6. **Write the criteria where they belong — don't make the human run a second command:**
+5. **Reflect back** the understanding + the acceptance criteria (Given/When/Then) as **readable
+   multi-line text** (never crammed into popup option labels) and get a yes. This reflect-back is
+   conversational — *don't* turn it into an `AskUserQuestion`; the structured popup (step 6) is only for
+   the **decisions** (the outward write, the `/tdd` offer), not for reading back content.
+6. **Write the criteria where they belong — don't make the human run a second command.**
+   **Confirm the outward write as a structured popup, not free text** — apply the *structured-decision
+   convention* (CONTEXT.md): an `AskUserQuestion` with **"Approve & write" FIRST** (so approving is one
+   keypress), **"Edit"** (free-text via the *Other* option → revise → re-show → re-ask), and **"Skip"** —
+   while the criteria preview stays **readable text above** the popup. Don't ask the obvious: if a step is
+   inferable or reversible, just do it and say so in one line — a popup is for a genuine decision or an
+   outward/irreversible action only, and the change must never *increase* the number of prompts.
    - **AUTHOR mode (PM refining a ticket):** **update the Jira ticket** with the agreed Given/When/Then
-     via the tracker MCP — show them, confirm once (it's an outward write), `/phi-redaction-check` the
-     text first (no PHI/secrets in a ticket), then push. Write **clean Markdown with
+     via the tracker MCP — show them, **confirm via the popup** (it's an outward write),
+     `/phi-redaction-check` the text first (no PHI/secrets in a ticket), then push. Write **clean Markdown with
      `contentFormat:"markdown"`, never Jira wiki markup** (`h2.`/`{{}}`); keep it ticket-sized — bold
      labels + bullets, not big `#` headings (see `docs/jira.md` → *Formatting*). *This is the refinement
      output — the PM is done; no separate `/to-issues` needed.*
    - **BUILD-PREP mode (engineer):** the criteria **still belong in Jira — the kept spec** (per the completion
      criterion: *visible in Jira, not a local file*). Don't leave them only in `align.md`:
      - **Ticket has no criteria yet** (title-only, or no PM ever AUTHORed it — the solo-engineer case) → **push
-       the agreed Given/When/Then to the ticket now:** show them, **confirm once** (it's an outward write),
-       `/phi-redaction-check` first, clean markdown (`contentFormat:"markdown"`). This is the same write
-       AUTHOR mode does — being the engineer doesn't exempt you from recording the spec.
+       the agreed Given/When/Then to the ticket now:** show them, **confirm via the popup** (it's an
+       outward write), `/phi-redaction-check` first, clean markdown (`contentFormat:"markdown"`). This is
+       the same write AUTHOR mode does — being the engineer doesn't exempt you from recording the spec.
      - **A PM already AUTHORed business criteria** → append/confirm your **technical** criteria on the same ticket.
-     Save `align.md` as the working note; `/to-issues` if multi-part. **Record the criteria in Jira FIRST (the
-     confirmation above), and only THEN offer `/tdd`** — never present building as an equal alternative to
-     recording the spec. No criteria in the ticket ⇒ not ready to build.
+     Save `align.md` as the working note; `/to-issues` if multi-part. **Record the criteria in Jira FIRST
+     (the popup above), and only THEN offer `/tdd` — as its own `AskUserQuestion`** ("Run /tdd" first /
+     "Not yet"), never shown before the write is confirmed and never as an equal alternative to recording
+     the spec. No criteria in the ticket ⇒ not ready to build.
 
 ## Two modes — state which one (it decides whether you do feasibility)
 
