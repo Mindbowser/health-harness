@@ -1,15 +1,17 @@
 # Brief for the Atlas agent — fill Faster / Better / Done-right + account attribution
 
-> **⚠ Updated (MBI-23 shipped, 2026-06-25).** The harness now emits **deterministic, client-side** outcome
-> signals that **supersede the git-churn heuristic** described below — prefer them when present:
-> - **Faster** → the **`ticket_transition`** telemetry stream (real cycle-time from Jira status changes,
->   with dev-cycle vs QA-wait already segmented) instead of clone-and-diff PR cycle time.
-> - **Better** → the **commit symbol fingerprint** (`commit.fp`, post-merge rework of the *same logical
->   unit*) + **reopen** transitions, instead of line-churn.
-> - **Test strength** → **`test_strength` (`kind=mutation`)** from `npm run mutation:emit`.
+> **⚠ Updated (MBI-23 producer shipped, 2026-06-25).** The harness is **designed to emit** deterministic,
+> client-side outcome signals that will **supersede the git-churn heuristic** below — prefer them **once they
+> actually flow** (check status before relying on a signal — see `docs/what-the-harness-measures.md`):
+> - **Faster** → the **`ticket_transition`** stream (real cycle-time, dev-cycle vs QA-wait segmented).
+>   **⚠ NOT emitting yet** — the parser/CLI exist but emission isn't wired (a pending follow-up). Until then
+>   **use the git-PR fallback below** for Faster.
+> - **Better** → the **commit symbol fingerprint** (`commit.fp`, post-merge rework) **emits today** + **reopen**
+>   transitions (which depend on the unwired `ticket_transition`). Prefer `fp` over line-churn when present.
+> - **Test strength** → **`test_strength` (`kind=mutation`)** from `npm run mutation:emit` (on-demand).
 >
-> The git/PR approach below stays as a **fallback** for repos/windows with no telemetry. Producer details +
-> the "what matters most" framing: `docs/what-the-harness-measures.md`. Consumer dashboard = **MBI-24**.
+> The git/PR approach below stays as the **fallback** wherever a signal isn't flowing yet. Consumer dashboard
+> = **MBI-24** (the FASTER/BETTER cards aren't built yet).
 
 Paste the block below to the **mbi-atlas** agent. It completes the v2 scorecard: today `faster` and `better`
 are `null` placeholders, `doneRight` is `partial: true`, and the account correlation has no adoption data.

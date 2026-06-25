@@ -327,13 +327,15 @@ The harness logs **metadata-only** usage (event counts, no code/prompts/file-con
 write-time field allowlist) to `~/.health-harness/usage/` to power the daily coach, and ships that log to
 **MBI Atlas** for org-level adoption analysis.
 
-> **What it measures + what matters most → [`docs/what-the-harness-measures.md`](docs/what-the-harness-measures.md).**
-> The thesis: *measure what **survives***. Four outcome signals (all client-side, no CI/webhooks) feed the
-> Atlas **FASTER / BETTER** scorecard: **`ticket_transition`** (real cycle-time, with QA-wait segmented out so
-> a stuck QA env never inflates dev speed), the **commit symbol fingerprint** (`commit.fp` — durable-quality
-> rework: the *same logical unit* returning, not a file re-touched) + reopens, the **`gate_run:fail`** fix
-> (failing gates are actually captured now, not silently all-`pass`), and **`test_strength`** via the
-> pluggable **`npm run mutation:emit`** runner. Attributed **by ticket**, reported as trends — never a
+> **What it measures + what matters most → [`docs/what-the-harness-measures.md`](docs/what-the-harness-measures.md)**
+> (includes an honest **per-signal status** table — what actually flows today vs. what's pending).
+> The thesis: *measure what **survives***. Four outcome signals (all client-side, no CI/webhooks) are designed
+> to feed the Atlas **FASTER / BETTER** scorecard: **`ticket_transition`** (real cycle-time, QA-wait segmented
+> out), the **commit symbol fingerprint** (`commit.fp` — rework = the *same logical unit* returning) + reopens,
+> the **`gate_run:fail`** fix (failing gates captured, not silently all-`pass`), and **`test_strength`** via
+> **`npm run mutation:emit`**. **Status (MBI-23 done):** `gate_run:fail` + `commit.fp` **emit today**;
+> **`ticket_transition` (FASTER) is parser-built but NOT yet wired to emit** (a follow-up), and the **Atlas
+> FASTER/BETTER cards are MBI-24 — not built yet**. Attributed **by ticket**, reported as trends — never a
 > per-person score.
 
 **It is ON by default** — the Atlas endpoint + ingest token are baked into `bin/usage-upload.js`, so devs
