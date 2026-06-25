@@ -74,9 +74,11 @@ Skills read these instead of re-deriving — don't re-query.
 - **Stack:** Node.js (CommonJS), `node:test`. No build step. It's a Claude Code plugin/marketplace.
 - **Gate (one command):** `npm test` — `node --test`, ~132 tests across `test/*.test.js`, currently green.
   Every `bin/` tool has a sibling test; add the test in the same change (TDD).
-- **Compliance profile:** `none` — tooling source, ships no PHI/ePHI/PII. `secrets` class always enforced.
-  Baseline `redaction-scan` (2026-06-25): 6 hits, all synthetic fixtures in `test/redaction-scan.test.js`
-  (the scanner testing itself) — expected, not real secrets.
+- **Compliance profile:** `hipaa` — the wall (`hooks/outward-guard.js`) reads this to scan outbound
+  payloads, so it's kept hot even though the repo ships no PHI itself (maintainers handle MBI/customer
+  data; the test suite encodes hipaa-level wall behavior). `none` disables PHI egress scanning + fails
+  the gate — don't. Baseline `redaction-scan` flags only synthetic MRN/DOB fixtures under `test/`
+  (source files, never outbound) plus the scanner's own secret fixtures — all expected, not real.
 - **Seams:** each feature = one `bin/<tool>.js` (pure logic, unit-tested) wired in via `hooks/hooks.json`
   (+ `hooks/outward-guard.js`, the wall) or a `skills/<name>/SKILL.md`. Change behavior in `bin/` with a
   failing test first; surface it through hooks/skills. `CONTEXT.md` is the vocabulary source of truth.

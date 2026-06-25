@@ -1,6 +1,5 @@
 {
-  "profile": "none",
-  "classes": ["secrets"],
+  "profile": "hipaa",
   "defaulted": false,
-  "notes": "Harness tooling source repo. Ships skills/hooks/bin scripts + synthetic test fixtures only; handles no PHI/ePHI/PII. Explicitly downgraded from the hipaa default by the maintainer on 2026-06-25. 'secrets' redaction class always enforced regardless of profile."
+  "notes": "Harness tooling source repo ships no PHI itself, BUT the wall (hooks/outward-guard.js) reads this profile to scan outbound payloads — kept at hipaa so the repo's own PHI-egress protection stays hot (maintainers handle MBI/customer data) and the test suite (which encodes hipaa-level wall behavior) stays green. Confirmed by maintainer 2026-06-25 after 'none' disabled PHI scanning + broke the gate. 'secrets' class always enforced. Baseline redaction-scan flags only synthetic MRN/DOB fixtures in test/ (source files, never outbound)."
 }
