@@ -28,6 +28,10 @@ const ALLOW = {
   prompt: ['lenBucket', 'hasContext', 'issueKey'],
   prompt_quality: ['score', 'flags'],
   commit: ['sizeBucket', 'branchKind', 'issueKey'],   // branch-derived ticket → commits attributable per ticket
+  // ticket_transition (MBI-44): one raw Jira status change. status LABELS + coarse category per side + when.
+  // Dashboard segments dev-time vs QA-wait from the stream. Labels are workflow names (not sensitive); never
+  // summary/description/assignee/comment. →done = ship boundary; done→indeterminate = reopen.
+  ticket_transition: ['issueKey', 'fromStatus', 'toStatus', 'fromCat', 'toCat', 'at'],
   redaction: ['hits'],
   // best-practice / hygiene signals (emitted by skills via the `emit` CLI; metadata only)
   breaking_change: ['kind', 'confirmed', 'issueKey'],
@@ -185,9 +189,89 @@ function emitIssueMeta(key) {
   } catch { /* best-effort */ }
 }
 
+/** Pure: walk a Jira changelog → one raw `ticket_transition` per status change. Each carries the workflow
+ * status LABELS (fromStatus/toStatus — workflow names, not sensitive) AND Jira's coarse category for each
+ * side (via the supplied id→category map), plus the timestamp. The dashboard segments dev-time vs QA-wait
+ * downstream — the producer stays raw. Custom-status-safe: an unmapped id → category 'unknown' but the
+ * status NAME is still captured, so a custom status is never lost. Never throws. */
+function ticketTransitions(issueKey, changelog, statusCatById) {
+  if (!issueKey) return [];
+  const map = statusCatById || {};
+  const histories = (changelog && (changelog.histories || changelog.values)) || (Array.isArray(changelog) ? changelog : []);
+  const out = [];
+  for (const h of histories) {
+    for (const it of (h && h.items) || []) {
+      if (!it || it.field !== 'status') continue;
+      out.push({
+        issueKey,
+        fromStatus: it.fromString || null,
+        toStatus: it.toString || null,
+        fromCat: map[it.from] || 'unknown',
+        toCat: map[it.to] || 'unknown',
+        at: (h && h.created) || null,
+      });
+    }
+  }
+  return out;
+}
+
+/** Pure: drop transitions already seen on a prior read. Identity = `issueKey|at` (a status change is the
+ * one event at that instant). Returns the fresh events + the updated key set to persist (issue_meta marker
+ * pattern), so re-reading the same changelog never double-counts. */
+function dedupeTransitions(events, seenKeys) {
+  const seen = new Set(seenKeys || []);
+  const fresh = [];
+  for (const e of events || []) {
+    const k = `${e.issueKey}|${e.at}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    fresh.push(e);
+  }
+  return { fresh, keys: [...seen] };
+}
+
+/** Pure: propose a status→stage-role map from each status's Jira category + name. `new`→todo,
+ * `done`→ship; an `indeterminate` status is classified by name (review / qa / active). When a custom
+ * indeterminate status matches no heuristic it gets the safe `active` default AND sets `needsConfirm` —
+ * the signal for the agent to confirm the mapping ONCE (custom workflows) and persist it to project.json.
+ * Stage roles let the dashboard segment dev-time vs QA-wait; the coarse category alone can't. */
+function inferStageRoles(statuses) {
+  const roles = {};
+  let needsConfirm = false;
+  for (const s of statuses || []) {
+    const name = String((s && s.name) || ''); const cat = String((s && s.category) || '');
+    if (cat === 'new') { roles[name] = 'todo'; continue; }
+    if (cat === 'done') { roles[name] = 'ship'; continue; }
+    // indeterminate (or unknown) → classify by name
+    if (/review/i.test(name)) roles[name] = 'review';
+    else if (/\b(qa|uat|test|verif)/i.test(name)) roles[name] = 'qa';
+    else if (/progress|develop|doing|wip|build|implement/i.test(name)) roles[name] = 'active';
+    else { roles[name] = 'active'; needsConfirm = true; } // custom/ambiguous → default + flag to confirm
+  }
+  return { roles, needsConfirm };
+}
+
+/** Impure: derive + record the ticket_transition stream for one issue, de-duped across reads via a marker
+ * file (issue_meta pattern) so re-reading the same changelog never double-counts. Best-effort; returns the
+ * number of fresh events appended. */
+function emitTicketTransitions(issueKey, changelog, statusCatById) {
+  try {
+    const fs = require('fs'), path = require('path');
+    const all = ticketTransitions(issueKey, changelog, statusCatById);
+    if (!all.length) return 0;
+    const seenPath = path.join(usageDir(), '.ticket-transition-seen.json');
+    let prior = [];
+    try { prior = (JSON.parse(fs.readFileSync(seenPath, 'utf8')).keys) || []; } catch { /* none */ }
+    const { fresh, keys } = dedupeTransitions(all, prior);
+    for (const e of fresh) appendEvent('ticket_transition', e);
+    try { fs.mkdirSync(usageDir(), { recursive: true }); fs.writeFileSync(seenPath, JSON.stringify({ keys: keys.slice(-2000) })); } catch { /* ignore */ }
+    return fresh.length;
+  } catch { return 0; }
+}
+
 module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir,
   commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey, parseKv,
-  graphMetaFor, emitIssueMeta };
+  graphMetaFor, emitIssueMeta, ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -251,6 +335,18 @@ if (require.main === module) {
   // (allowlist still applies via appendEvent→sanitize, so non-allowed fields are dropped.)
   if (hookType === 'emit') {
     try { appendEvent(process.argv[3] || '', parseKv(process.argv.slice(4))); } catch { /* ignore */ }
+    process.exit(0);
+  }
+  // `ticket-transitions` (MBI-44) — the agent feeds RAW Jira JSON so the DETERMINISTIC parser (not the LLM)
+  // derives + dedups the status-transition stream: usage-log.js ticket-transitions <KEY> <changelog.json> <statusCatMap.json>
+  if (hookType === 'ticket-transitions') {
+    try {
+      const fs = require('fs');
+      const changelog = JSON.parse(fs.readFileSync(process.argv[4], 'utf8'));
+      const statusMap = JSON.parse(fs.readFileSync(process.argv[5], 'utf8'));
+      const n = emitTicketTransitions(process.argv[3] || '', changelog, statusMap);
+      process.stdout.write(JSON.stringify({ ok: true, fresh: n }));
+    } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
     process.exit(0);
   }
   let raw = '';
