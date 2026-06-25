@@ -298,6 +298,9 @@ bin/slice-tests.js           # deterministic "did this slice add tests?" (behavi
                              #   buckets to resolve a disputed flag; project.json `tests.pattern` registers a
                              #   non-standard test layout so it isn't false-flagged (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
+bin/mutation-emit.js         # `npm run mutation:emit` — parse a mutation score from any tool's report/output
+                             #   (file arg or stdin) → records test_strength (kind=mutation); pluggable, no
+                             #   bundled mutation dep, runnable locally or by CI (+ test/)
 bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
 hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart · usage log (PostToolUse, PostToolUseFailure, UserPromptSubmit, PreCompact, SubagentStop)
