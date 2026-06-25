@@ -1,5 +1,16 @@
 # Brief for the Atlas agent — fill Faster / Better / Done-right + account attribution
 
+> **⚠ Updated (MBI-23 shipped, 2026-06-25).** The harness now emits **deterministic, client-side** outcome
+> signals that **supersede the git-churn heuristic** described below — prefer them when present:
+> - **Faster** → the **`ticket_transition`** telemetry stream (real cycle-time from Jira status changes,
+>   with dev-cycle vs QA-wait already segmented) instead of clone-and-diff PR cycle time.
+> - **Better** → the **commit symbol fingerprint** (`commit.fp`, post-merge rework of the *same logical
+>   unit*) + **reopen** transitions, instead of line-churn.
+> - **Test strength** → **`test_strength` (`kind=mutation`)** from `npm run mutation:emit`.
+>
+> The git/PR approach below stays as a **fallback** for repos/windows with no telemetry. Producer details +
+> the "what matters most" framing: `docs/what-the-harness-measures.md`. Consumer dashboard = **MBI-24**.
+
 Paste the block below to the **mbi-atlas** agent. It completes the v2 scorecard: today `faster` and `better`
 are `null` placeholders, `doneRight` is `partial: true`, and the account correlation has no adoption data.
 

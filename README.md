@@ -327,6 +327,15 @@ The harness logs **metadata-only** usage (event counts, no code/prompts/file-con
 write-time field allowlist) to `~/.health-harness/usage/` to power the daily coach, and ships that log to
 **MBI Atlas** for org-level adoption analysis.
 
+> **What it measures + what matters most → [`docs/what-the-harness-measures.md`](docs/what-the-harness-measures.md).**
+> The thesis: *measure what **survives***. Four outcome signals (all client-side, no CI/webhooks) feed the
+> Atlas **FASTER / BETTER** scorecard: **`ticket_transition`** (real cycle-time, with QA-wait segmented out so
+> a stuck QA env never inflates dev speed), the **commit symbol fingerprint** (`commit.fp` — durable-quality
+> rework: the *same logical unit* returning, not a file re-touched) + reopens, the **`gate_run:fail`** fix
+> (failing gates are actually captured now, not silently all-`pass`), and **`test_strength`** via the
+> pluggable **`npm run mutation:emit`** runner. Attributed **by ticket**, reported as trends — never a
+> per-person score.
+
 **It is ON by default** — the Atlas endpoint + ingest token are baked into `bin/usage-upload.js`, so devs
 need **zero config**. Override or rotate via Claude Code settings `env` (FleetDM can push these as managed
 settings), and **opt out** with `HARNESS_TELEMETRY_ENABLED=false`:
