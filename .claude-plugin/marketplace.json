@@ -11,7 +11,7 @@
       "name": "health-harness",
       "source": "./",
       "description": "Mindbowser Health Harness — an agent-agnostic discipline for building healthcare products with AI: the Build Loop + healthcare-compliance guardrails. Packaged as Claude Code skills.",
-      "version": "0.2.14"
+      "version": "0.2.15"
     }
   ]
 }
