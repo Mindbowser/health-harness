@@ -133,3 +133,15 @@ test('issue_switch stores RAW inputs (newKey/relatedTo/thresholdK) alongside the
     sanitize('issue_switch', { contextBucket: '40-60k', tier: 'unrelated', nudged: true, newKey: 'MBI-30', relatedTo: 'MBI-14', thresholdK: 40, extra: 'x' }),
     { contextBucket: '40-60k', tier: 'unrelated', nudged: true, newKey: 'MBI-30', relatedTo: 'MBI-14', thresholdK: 40 });
 });
+
+// MBI-43 — the pure fn maps a failed gate to gate_run:fail, but in production NOTHING invoked it:
+// hooks.json wired only PostToolUse (success-only), so every real gate run was recorded 'pass'. Claude
+// Code routes tool failures to the separate PostToolUseFailure event — this pins that it's actually wired.
+test('hooks.json wires PostToolUseFailure → usage-log posttoolfail so failing gates are captured (regression: all-pass bug)', () => {
+  const groups = require('../hooks/hooks.json').hooks.PostToolUseFailure;
+  assert.ok(Array.isArray(groups) && groups.length > 0, 'PostToolUseFailure must be registered');
+  const entries = groups.flatMap((g) => (g.hooks || []).map((h) => ({ matcher: g.matcher, command: h.command })));
+  const wired = entries.find((e) => /usage-log\.js"?\s+posttoolfail\b/.test(e.command));
+  assert.ok(wired, 'a PostToolUseFailure hook must run usage-log.js posttoolfail');
+  assert.ok(/\bBash\b/.test(wired.matcher || ''), 'the failure hook must match Bash (gate commands run via Bash)');
+});
