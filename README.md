@@ -300,7 +300,7 @@ bin/slice-tests.js           # deterministic "did this slice add tests?" (behavi
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/boilerplate-registry.js  # resolve a tech stack → MB boilerplate repo (central registry) for /scaffold (+ test/)
 sounds/                      # generated chimes; sounds/voice/ = bundled spoken-voice clips (opt-in)
-hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart · usage log (PostToolUse, UserPromptSubmit, PreCompact, SubagentStop)
+hooks/                       # outward-guard.js (the wall) · sound cues · SessionStart · usage log (PostToolUse, PostToolUseFailure, UserPromptSubmit, PreCompact, SubagentStop)
 skills/                      # one folder per skill (FLAT — Claude Code discovers skills/<name>/SKILL.md)
   start/                       # router: detect new vs existing → route to a front door
   scaffold-from-boilerplate/   # front door — new repo
