@@ -47,20 +47,39 @@ test('extractCommitMessage: pulls the -m subject across quoting styles; defers e
   assert.strictEqual(extractCommitMessage('npm test'), null);             // not a commit
 });
 
-test('checkCommitMessage: conventional enforced by default; non-conventional flagged; ticket opt-in', () => {
-  assert.strictEqual(checkCommitMessage('feat(api): add thing', {}), null);     // valid → ok
-  assert.strictEqual(checkCommitMessage('fix!: breaking', {}), null);           // bang allowed
-  assert.ok(checkCommitMessage('added a thing', {}).reason.includes('conventional')); // no type → blocked
-  assert.strictEqual(checkCommitMessage('whatever', { conventional: false }), null);  // disabled → ok
-  assert.strictEqual(checkCommitMessage('feat: x', {}), null);                  // ticket off by default
-  assert.ok(checkCommitMessage('feat: x', { requireTicket: true }).reason.includes('ticket'));
-  assert.strictEqual(checkCommitMessage('feat: x (ABC-12)', { requireTicket: true }), null);
+test('checkCommitMessage: conventional format enforced by default (ticket isolated via requireTicket:false)', () => {
+  const fmt = { requireTicket: false }; // isolate the conventional-format check from the ticket check
+  assert.strictEqual(checkCommitMessage('feat(api): add thing', fmt), null);     // valid → ok
+  assert.strictEqual(checkCommitMessage('fix!: breaking', fmt), null);           // bang allowed
+  assert.ok(checkCommitMessage('added a thing', fmt).reason.includes('conventional')); // no type → blocked
+  assert.strictEqual(checkCommitMessage('whatever', { conventional: false, requireTicket: false }), null); // both off → ok
 });
 
 test('decideCommitMessage: DENY (agent self-corrects) on a malformed message; ok message defers', () => {
   assert.strictEqual(action(decideCommitMessage('git commit -m "nope no type"', {})), 'deny');
-  assert.strictEqual(decideCommitMessage('git commit -m "feat: ok"', {}), null);
+  assert.strictEqual(decideCommitMessage('git commit -m "feat: ok ABC-1"', {}), null); // conventional + ticket → ok
   assert.strictEqual(decideCommitMessage('git commit', {}), null); // editor commit → defer, never block
+});
+
+test('checkCommitMessage: requireTicket is ON by default; satisfied by branch OR message; kind discriminates', () => {
+  // default ON now: a conventional message with NO ticket anywhere → kind 'ticket'
+  assert.strictEqual(checkCommitMessage('feat: x', {}, '').kind, 'ticket');
+  // ticket in the MESSAGE satisfies it
+  assert.strictEqual(checkCommitMessage('feat: x ABC-12', {}, ''), null);
+  // ticket on the BRANCH satisfies it even if absent from the message
+  assert.strictEqual(checkCommitMessage('feat: x', {}, 'feature/ABC-12-foo'), null);
+  // explicit opt-out
+  assert.strictEqual(checkCommitMessage('feat: x', { requireTicket: false }, ''), null);
+  // a format violation is kind 'format' and takes precedence (the agent self-corrects it)
+  assert.strictEqual(checkCommitMessage('no type here', {}, '').kind, 'format');
+});
+
+test('decideCommitMessage: format → DENY (self-correct); missing ticket → ASK with why=no_ticket (overridable per commit)', () => {
+  assert.strictEqual(decideCommitMessage('git commit -m "nope no type"', {}, '').action, 'deny');
+  const noTicket = decideCommitMessage('git commit -m "feat: x"', {}, ''); // default ON, no branch key
+  assert.strictEqual(noTicket.action, 'ask');                              // ASK not DENY — agent can't invent a ticket
+  assert.strictEqual(noTicket.why, 'no_ticket');                          // tags the existing wall event
+  assert.strictEqual(decideCommitMessage('git commit -m "feat: x"', {}, 'feature/ABC-12-foo'), null); // branch key → silent
 });
 
 test('DENY catastrophic / irreversible', () => {
