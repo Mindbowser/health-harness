@@ -65,6 +65,11 @@ work is covered, so the agent can't stop early ("premature completion").
 
 - Define shared terms in `CONTEXT.md`, not in the skill — reference them.
 - Reuse **leading words** (the trigger verb/phrase) consistently across the description and steps.
+- **Decisions & outward actions follow the *structured-decision convention* (CONTEXT.md)** — don't
+  hand-roll a confirmation flow. Drop prompts that shouldn't exist (obvious/inferable/reversible → just do
+  it + one line); for the survivors use an `AskUserQuestion` with the **approve option first**, plus Edit
+  (via *Other*) and Skip, and keep rich previews as text above the popup. Never a free-text "type yes" for
+  a real decision or an outward/irreversible write. `ship` and `align` are the reference implementations.
 - Healthcare governance is not optional: if a skill emits anything customer-facing, it must respect the
   repo's `compliance-profile` and route through the redaction check.
 - **Docs-sync gate — keep the harness repo's `README.md` in step with the feature.** *(Scope: developing

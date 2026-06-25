@@ -11,7 +11,7 @@
 const { execSync } = require('child_process');
 const run = (c) => execSync(c, { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
 const root = require('path').join(__dirname, '..');
-const load = (p) => require(require('path').join(root, p));
+const { versions, agree } = require('./version-check.js');
 
 function fail(msg) { console.error(`✗ release: ${msg}`); process.exit(1); }
 
@@ -19,11 +19,9 @@ const branch = run('git rev-parse --abbrev-ref HEAD');
 if (branch !== 'main') fail(`not on main (on '${branch}')`);
 if (run('git status --porcelain')) fail('working tree is dirty — commit first');
 
-const v = load('.claude-plugin/plugin.json').version;
-const mkt = load('.claude-plugin/marketplace.json');
-const vm = mkt.plugins && mkt.plugins[0] && mkt.plugins[0].version; // marketplace version is nested
-const vp = load('package.json').version;
-if (v !== vm || v !== vp) fail(`version mismatch — plugin=${v} marketplace=${vm} package=${vp}; bump all three`);
+const vv = versions(root);
+const v = vv.plugin;
+if (!agree(vv)) fail(`version mismatch — plugin=${vv.plugin} marketplace=${vv.marketplace} package=${vv.package}; bump all three`);
 
 const tag = `health-harness--v${v}`;
 if (run('git tag -l ' + tag)) fail(`tag ${tag} already exists — bump the version before releasing`);

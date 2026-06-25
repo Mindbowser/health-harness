@@ -197,6 +197,13 @@ one per question), the cost of each side, and a recommendation. That opener appe
 permission prompts stay terse and defaulted — so its scarcity is the signal to *stop and govern*. Full
 contract in `CONTEXT.md` ("Judgment points").
 
+Every decision and outward action that *does* survive is a **clean click, not a "type yes"**: the
+*structured-decision convention* (`CONTEXT.md`) makes confirmations — an outward Jira write, the `/tdd`
+hand-off, the `/ship` publish — an `AskUserQuestion` with the **approve option first** (one keypress),
+plus **Edit** (via *Other*) and **Skip**, while the rich preview stays readable text above the popup. The
+rule cuts both ways: obvious/inferable/reversible steps just happen with a one-line note, so the change
+never *adds* prompts — it removes the noisy ones and makes the rest a click.
+
 ## Sound cues (optional)
 
 **Spoken voice** cues for lifecycle events — **Claude waiting** ("Your turn.", People), the **safety gate**
