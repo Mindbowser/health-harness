@@ -4,3 +4,7 @@ node_modules/
 .env
 .env.*
 tmp/
+
+# health-harness scratch (volatile — durable form lives in Jira)
+.health-harness/sprints/
+.health-harness/current-sprint

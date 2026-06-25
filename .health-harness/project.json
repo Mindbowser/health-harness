@@ -1,0 +1,18 @@
+{
+  "name": "Mindbowser Health Harness",
+  "jira": {
+    "projectKey": "MBI",
+    "cloudId": "75778fde-f905-4ba3-abb2-325f02ad7767",
+    "site": "https://connecthealth.atlassian.net"
+  },
+  "repos": [
+    { "name": "health-harness", "path": ".", "role": "plugin" }
+  ],
+  "stack": "Node.js (CommonJS, node:test) — Claude Code plugin/marketplace",
+  "git": { "baseBranch": "main", "branchPattern": "feature/<KEY>-<slug>", "prTarget": "main" },
+  "defaultBranch": "main",
+  "gate": "npm test",
+  "commit": { "conventional": true, "requireTicket": true },
+  "productDoc": "CONTEXT.md",
+  "notes": "This IS the harness plugin/marketplace source. main is the release channel — every push to main cuts a release (npm run release; tag health-harness--v<version>). Version must agree across plugin.json, marketplace.json, package.json."
+}

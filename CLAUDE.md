@@ -65,3 +65,20 @@ module, archetype, compliance profile, …). One word, one meaning.
   (lightweight-style annotated tags; no GitHub Releases). If you ever `git push origin main` by hand, you
   MUST follow it with the matching tag. A pushed `main` commit with no new tag is an incomplete release.
   (This applies ONLY to the harness repo — never auto-release a customer's repo.)
+
+## Repo facts (onboarded 2026-06-25)
+
+Durable facts live in `.health-harness/project.json` + `.health-harness/compliance.json` (both committed).
+Skills read these instead of re-deriving — don't re-query.
+
+- **Stack:** Node.js (CommonJS), `node:test`. No build step. It's a Claude Code plugin/marketplace.
+- **Gate (one command):** `npm test` — `node --test`, ~132 tests across `test/*.test.js`, currently green.
+  Every `bin/` tool has a sibling test; add the test in the same change (TDD).
+- **Compliance profile:** `none` — tooling source, ships no PHI/ePHI/PII. `secrets` class always enforced.
+  Baseline `redaction-scan` (2026-06-25): 6 hits, all synthetic fixtures in `test/redaction-scan.test.js`
+  (the scanner testing itself) — expected, not real secrets.
+- **Seams:** each feature = one `bin/<tool>.js` (pure logic, unit-tested) wired in via `hooks/hooks.json`
+  (+ `hooks/outward-guard.js`, the wall) or a `skills/<name>/SKILL.md`. Change behavior in `bin/` with a
+  failing test first; surface it through hooks/skills. `CONTEXT.md` is the vocabulary source of truth.
+- **Git/commit convention:** branch `feature/<KEY>-<slug>`, PR to `main`; commits are conventional AND
+  ticket-keyed (`feat(scope): … (MBI-NN, vX.Y.Z)`). Keep both — the wall format-gates commit messages.

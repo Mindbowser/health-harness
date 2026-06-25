@@ -1,0 +1,6 @@
+{
+  "profile": "none",
+  "classes": ["secrets"],
+  "defaulted": false,
+  "notes": "Harness tooling source repo. Ships skills/hooks/bin scripts + synthetic test fixtures only; handles no PHI/ePHI/PII. Explicitly downgraded from the hipaa default by the maintainer on 2026-06-25. 'secrets' redaction class always enforced regardless of profile."
+}
