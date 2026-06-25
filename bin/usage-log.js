@@ -27,7 +27,7 @@ const ALLOW = {
   user_reject: [], interrupt: [], revert: [], correction: [],
   prompt: ['lenBucket', 'hasContext', 'issueKey'],
   prompt_quality: ['score', 'flags'],
-  commit: ['sizeBucket', 'branchKind', 'issueKey'],   // branch-derived ticket → commits attributable per ticket
+  commit: ['sizeBucket', 'branchKind', 'issueKey', 'fp', 'fpConf'],   // branch-derived ticket → commits attributable per ticket; fp = hashed dominant-unit fingerprint (rework signal)
   redaction: ['hits'],
   // best-practice / hygiene signals (emitted by skills via the `emit` CLI; metadata only)
   breaking_change: ['kind', 'confirmed', 'issueKey'],
@@ -143,8 +143,59 @@ function enrichCommit(data) {
     }
     const n = parseInt(run('git show --stat --format="" HEAD | tail -1 | grep -oE "[0-9]+ insertion" | grep -oE "[0-9]+"') || '0', 10) || 0;
     out.sizeBucket = n < 25 ? 's' : n < 150 ? 'm' : 'l';
+    // fingerprint the dominant changed unit (symbol/function) so rework = "the same logical unit came
+    // back", not "someone touched that file again". Best-effort in its OWN try so a fp failure never
+    // costs us branchKind/sizeBucket. Only the HASH is stored — see commitFingerprint.
+    try {
+      const f = commitFingerprint(run('git show --format= --unified=0 HEAD'));
+      if (f) { out.fp = f.fp; out.fpConf = f.fpConf; }
+    } catch { /* fp is best-effort */ }
     return out;
   } catch { return data; }
+}
+
+/** Pure: short one-way hash (path/symbol never stored in the clear). */
+function hash16(s) {
+  return require('crypto').createHash('sha256').update(String(s)).digest('hex').slice(0, 16);
+}
+
+/** Pure: parse a unified diff (git show patch) into changed units — one per hunk. git already names the
+ * enclosing function/section in the hunk header (`@@ -a,b +c,d @@ <section>`) via its own funcname
+ * heuristics, so there's NO language parser here. confidence='symbol' when git named a section, else
+ * 'range' (line position). `changed` counts +/- lines so the caller can pick the dominant unit. */
+function fingerprintUnits(patch) {
+  const units = [];
+  let path = null;
+  for (const line of String(patch || '').split('\n')) {
+    let m;
+    if ((m = /^\+\+\+ (?:b\/)?(.+)$/.exec(line))) { const p = m[1].trim(); if (p && p !== '/dev/null') path = p; continue; }
+    if ((m = /^diff --git a\/.+ b\/(.+)$/.exec(line))) { path = m[1].trim(); continue; }
+    if ((m = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$/.exec(line))) {
+      const symbol = (m[2] || '').trim();
+      units.push({ path: path || null, symbol: symbol || null, startLine: parseInt(m[1], 10) || 0, changed: 0,
+        confidence: symbol ? 'symbol' : 'range' });
+      continue;
+    }
+    if (units.length && (line[0] === '+' || line[0] === '-')) units[units.length - 1].changed++;
+  }
+  return units;
+}
+
+/** Pure: one fingerprint per commit = the hashed identity of its DOMINANT changed unit (most changed
+ * lines). Prefers a named symbol; falls back to the hunk's line-range, then to file-level when git names
+ * no hunk at all. Only the hash + a confidence enum (`symbol|range|file`) are returned — raw path/symbol
+ * never leave. Returns null when the patch names no file at all. */
+function commitFingerprint(patch) {
+  const units = fingerprintUnits(patch).filter((u) => u.path);
+  if (units.length) {
+    const u = units.reduce((a, b) => (b.changed > a.changed ? b : a), units[0]);
+    const key = u.confidence === 'symbol' ? `${u.path}#${u.symbol}` : `${u.path}@${u.startLine}`;
+    return { fp: hash16(key), fpConf: u.confidence };
+  }
+  // no hunk parsed — file-level fallback if the patch still names a file
+  const fm = /^\+\+\+ (?:b\/)?(.+)$/m.exec(String(patch || '')) || /^diff --git a\/.+ b\/(.+)$/m.exec(String(patch || ''));
+  const file = fm && fm[1].trim() && fm[1].trim() !== '/dev/null' ? fm[1].trim() : null;
+  return file ? { fp: hash16(file), fpConf: 'file' } : null;
 }
 
 /** Pure-ish: the point-in-time graph snapshot for a key from the local issue-graph cache, shaped for an
@@ -187,7 +238,7 @@ function emitIssueMeta(key) {
 
 module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir,
   commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey, parseKv,
-  graphMetaFor, emitIssueMeta };
+  graphMetaFor, emitIssueMeta, fingerprintUnits, commitFingerprint, hash16 };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {

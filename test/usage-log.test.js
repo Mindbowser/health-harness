@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { eventsFromHook, sanitize } = require('../bin/usage-log.js');
+const { eventsFromHook, sanitize, fingerprintUnits, commitFingerprint } = require('../bin/usage-log.js');
 
 test('sanitize keeps only allowlisted scalar fields (metadata-only guarantee)', () => {
   // 'tool' allows tool, ok — drop everything else, incl. any content/object
@@ -144,4 +144,64 @@ test('hooks.json wires PostToolUseFailure → usage-log posttoolfail so failing 
   const wired = entries.find((e) => /usage-log\.js"?\s+posttoolfail\b/.test(e.command));
   assert.ok(wired, 'a PostToolUseFailure hook must run usage-log.js posttoolfail');
   assert.ok(/\bBash\b/.test(wired.matcher || ''), 'the failure hook must match Bash (gate commands run via Bash)');
+});
+
+// MBI-42 — commit symbol fingerprint. git already names the enclosing symbol in its hunk headers
+// (`@@ -a,b +c,d @@ <section>`), so we parse that — no parser dependency. The fp is a one-way hash of
+// path+symbol so the raw path/symbol never land on disk.
+const PATCH_FOO = [
+  'diff --git a/big.js b/big.js',
+  'index 1111111..2222222 100644',
+  '--- a/big.js',
+  '+++ b/big.js',
+  '@@ -10,7 +10,8 @@ function foo() {',
+  '   const x = 1;',
+  '-  return x;',
+  '+  return x + 1;',
+  '+  // bump',
+  ' }',
+].join('\n');
+
+test('MBI-42: commitFingerprint hashes path+enclosing symbol → fpConf symbol, stable hex hash, no raw leak', () => {
+  const r = commitFingerprint(PATCH_FOO);
+  assert.strictEqual(r.fpConf, 'symbol');
+  assert.match(r.fp, /^[0-9a-f]{16}$/);
+  assert.strictEqual(commitFingerprint(PATCH_FOO).fp, r.fp);           // deterministic / stable
+  assert.ok(!r.fp.includes('big') && !r.fp.includes('foo'), 'hash must not leak raw path/symbol');
+});
+
+test('MBI-42: two different functions in the SAME file → different fp (same-file ≠ same logical unit)', () => {
+  const patchBar = PATCH_FOO.replace('function foo()', 'function bar()');
+  assert.notStrictEqual(commitFingerprint(patchBar).fp, commitFingerprint(PATCH_FOO).fp);
+});
+
+test('MBI-42: a headingless hunk → fpConf range (line-range fallback when git names no symbol)', () => {
+  const patch = [
+    'diff --git a/data.txt b/data.txt',
+    '--- a/data.txt',
+    '+++ b/data.txt',
+    '@@ -1,2 +1,3 @@',
+    ' a',
+    '+b',
+    ' c',
+  ].join('\n');
+  const r = commitFingerprint(patch);
+  assert.strictEqual(r.fpConf, 'range');
+  assert.match(r.fp, /^[0-9a-f]{16}$/);
+});
+
+test('MBI-42: file-level fallback when a file is named but no hunk; null + never throws on empty/garbage', () => {
+  const fileOnly = ['diff --git a/x.js b/x.js', '--- a/x.js', '+++ b/x.js'].join('\n');
+  assert.strictEqual(commitFingerprint(fileOnly).fpConf, 'file');
+  // no file named at all → null; empty / non-string inputs return null without throwing (fire-and-forget)
+  assert.strictEqual(commitFingerprint('just noise, not a diff'), null);
+  assert.strictEqual(commitFingerprint(''), null);
+  assert.strictEqual(commitFingerprint(null), null);
+  assert.strictEqual(commitFingerprint(undefined), null);
+});
+
+test('MBI-42: privacy — commit allowlist stores only hashed fp + fpConf, never raw diff/path', () => {
+  assert.deepStrictEqual(
+    sanitize('commit', { sizeBucket: 's', branchKind: 'feature', issueKey: 'MBI-42', fp: 'a1b2c3d4e5f60718', fpConf: 'symbol', diff: 'secret source', path: '/abs/big.js' }),
+    { sizeBucket: 's', branchKind: 'feature', issueKey: 'MBI-42', fp: 'a1b2c3d4e5f60718', fpConf: 'symbol' });
 });
