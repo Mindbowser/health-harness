@@ -20,8 +20,8 @@ const ALLOW = {
   gate_run: ['result', 'issueKey'],
   // per-slice quality signals (emitted on push, attributed to the ticket) — the data that matters most with
   // agents: did the slice actually add tests, and did it ship with a verified gate?
-  test_change: ['hasTests', 'hasSource', 'issueKey'],     // hasSource && !hasTests = behavior change, no tests
-  gate_evidence: ['state', 'issueKey'],                   // verified | unverified | no-gate at push
+  test_change: ['hasTests', 'hasSource', 'issueKey', 'sha'],  // hasSource && !hasTests = behavior change, no tests; sha = commit to inspect on dispute
+  gate_evidence: ['state', 'issueKey', 'sha'],               // verified | unverified | no-gate at push
   command: ['name', 'issueKey'],
   wall: ['action', 'why'],
   user_reject: [], interrupt: [], revert: [], correction: [],
@@ -274,9 +274,12 @@ if (require.main === module) {
       if (hookType === 'posttooluse' && /\bgit\s+push\b/.test(String((input.tool_input || {}).command || ''))) {
         try {
           const slice = require('./slice-tests.js'), ge = require('./gate-evidence.js'), ik = ikBranch();
-          const cls = slice.classifyDiff(slice.diffPaths(slice.baseBranch()));
-          appendEvent('test_change', { hasTests: cls.hasTests, hasSource: cls.hasSource, ...(ik ? { issueKey: ik } : {}) });
-          appendEvent('gate_evidence', { state: ge.currentState().state, ...(ik ? { issueKey: ik } : {}) });
+          const cls = slice.classifyDiff(slice.diffPaths(slice.baseBranch()), { extraTestRe: slice.projectTestRe() });
+          // short HEAD sha → the dashboard can name the exact commit to inspect; the dev reproduces the flag
+          // locally with `node slice-tests.js --explain` at that sha (deterministic, no server detail needed).
+          let sha = ''; try { sha = ge.headSha() ? String(ge.headSha()).slice(0, 7) : ''; } catch { /* none */ }
+          appendEvent('test_change', { hasTests: cls.hasTests, hasSource: cls.hasSource, ...(sha ? { sha } : {}), ...(ik ? { issueKey: ik } : {}) });
+          appendEvent('gate_evidence', { state: ge.currentState().state, ...(sha ? { sha } : {}), ...(ik ? { issueKey: ik } : {}) });
         } catch { /* best-effort */ }
       }
       // Issue-switch nudge — folded into THIS already-running hook (no extra process per turn). evaluate()
