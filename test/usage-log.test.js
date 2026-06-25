@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { eventsFromHook, sanitize, fingerprintUnits, commitFingerprint } = require('../bin/usage-log.js');
+const { eventsFromHook, sanitize, fingerprintUnits, commitFingerprint, ticketTransitions, inferStageRoles, dedupeTransitions } = require('../bin/usage-log.js');
 
 test('sanitize keeps only allowlisted scalar fields (metadata-only guarantee)', () => {
   // 'tool' allows tool, ok — drop everything else, incl. any content/object
@@ -144,6 +144,85 @@ test('hooks.json wires PostToolUseFailure → usage-log posttoolfail so failing 
   const wired = entries.find((e) => /usage-log\.js"?\s+posttoolfail\b/.test(e.command));
   assert.ok(wired, 'a PostToolUseFailure hook must run usage-log.js posttoolfail');
   assert.ok(/\bBash\b/.test(wired.matcher || ''), 'the failure hook must match Bash (gate commands run via Bash)');
+});
+
+// MBI-44 — ticket_transition changelog stream. The producer walks Jira's changelog and emits one raw
+// transition per status change (status label + Jira category + timestamp). The dashboard segments
+// dev-time vs QA-wait downstream. Status labels are workflow names (not sensitive); categories come from
+// a supplied id→category map so custom statuses still map.
+const CHANGELOG = {
+  histories: [
+    { created: '2026-06-25T10:00:00.000+0530', items: [
+      { field: 'assignee', fromString: 'A', toString: 'B' },
+      { field: 'status', from: '1', fromString: 'In Progress', to: '2', toString: 'In Review' },
+    ] },
+    { created: '2026-06-26T12:00:00.000+0530', items: [
+      { field: 'status', from: '2', fromString: 'In Review', to: '3', toString: 'Done' },
+    ] },
+  ],
+};
+const STATUS_CAT = { 1: 'indeterminate', 2: 'indeterminate', 3: 'done' };
+
+test('MBI-44: changelog → one ticket_transition per status change (status label + category + at); non-status items ignored', () => {
+  const evs = ticketTransitions('MBI-43', CHANGELOG, STATUS_CAT);
+  assert.strictEqual(evs.length, 2);
+  assert.deepStrictEqual(evs[0], { issueKey: 'MBI-43', fromStatus: 'In Progress', toStatus: 'In Review', fromCat: 'indeterminate', toCat: 'indeterminate', at: '2026-06-25T10:00:00.000+0530' });
+  assert.deepStrictEqual(evs[1], { issueKey: 'MBI-43', fromStatus: 'In Review', toStatus: 'Done', fromCat: 'indeterminate', toCat: 'done', at: '2026-06-26T12:00:00.000+0530' });
+});
+
+test('MBI-44: custom-status-safe — an unmapped status id → category unknown, but the status NAME is kept', () => {
+  const cl = { histories: [ { created: '2026-06-25T10:00:00.000+0530', items: [
+    { field: 'status', from: '9', fromString: 'Pending Signoff', to: '3', toString: 'Done' } ] } ] };
+  const evs = ticketTransitions('MBI-50', cl, { 3: 'done' }); // '9' (custom) not in the map
+  assert.strictEqual(evs[0].fromCat, 'unknown');
+  assert.strictEqual(evs[0].fromStatus, 'Pending Signoff'); // never lost
+  assert.strictEqual(evs[0].toCat, 'done');
+});
+
+test('MBI-44: dedupe by issueKey+at — a transition seen on a prior read is not re-emitted', () => {
+  const all = ticketTransitions('MBI-43', CHANGELOG, STATUS_CAT);
+  const first = dedupeTransitions(all, []);
+  assert.strictEqual(first.fresh.length, 2);
+  const second = dedupeTransitions(all, first.keys); // re-read with prior keys → nothing fresh
+  assert.strictEqual(second.fresh.length, 0);
+});
+
+test('MBI-44: empty / garbage / no-issueKey changelog → [] and never throws', () => {
+  assert.deepStrictEqual(ticketTransitions('MBI-1', { histories: [] }, {}), []);
+  assert.deepStrictEqual(ticketTransitions('MBI-1', null, null), []);
+  assert.deepStrictEqual(ticketTransitions('MBI-1', 'not a changelog', {}), []);
+  assert.deepStrictEqual(ticketTransitions('', CHANGELOG, STATUS_CAT), []); // no key → nothing
+});
+
+test('MBI-44: privacy — ticket_transition allowlist keeps only the 6 metadata fields', () => {
+  assert.deepStrictEqual(
+    sanitize('ticket_transition', { issueKey: 'MBI-43', fromStatus: 'In Review', toStatus: 'Done', fromCat: 'indeterminate', toCat: 'done', at: '2026-06-26T12:00:00.000+0530', summary: 'PHI?', assignee: 'Jane Doe', comment: 'note' }),
+    { issueKey: 'MBI-43', fromStatus: 'In Review', toStatus: 'Done', fromCat: 'indeterminate', toCat: 'done', at: '2026-06-26T12:00:00.000+0530' });
+});
+
+test('MBI-44: inferStageRoles maps by category + name; flags needsConfirm for a custom/ambiguous status', () => {
+  // standard workflow → every indeterminate status classified, no confirmation needed
+  const std = inferStageRoles([
+    { name: 'To Do', category: 'new' },
+    { name: 'In Progress', category: 'indeterminate' },
+    { name: 'In Review', category: 'indeterminate' },
+    { name: 'QA', category: 'indeterminate' },
+    { name: 'Done', category: 'done' },
+  ]);
+  assert.strictEqual(std.roles['To Do'], 'todo');
+  assert.strictEqual(std.roles['In Progress'], 'active');
+  assert.strictEqual(std.roles['In Review'], 'review');
+  assert.strictEqual(std.roles['QA'], 'qa');
+  assert.strictEqual(std.roles['Done'], 'ship');
+  assert.strictEqual(std.needsConfirm, false);
+  // a custom in-progress status that matches no heuristic → safe default + needsConfirm (confirm once)
+  const custom = inferStageRoles([
+    { name: 'In Progress', category: 'indeterminate' },
+    { name: 'Pending Signoff', category: 'indeterminate' },
+    { name: 'Done', category: 'done' },
+  ]);
+  assert.strictEqual(custom.needsConfirm, true);
+  assert.strictEqual(custom.roles['Pending Signoff'], 'active'); // defaulted, but flagged to confirm
 });
 
 // MBI-42 — commit symbol fingerprint. git already names the enclosing symbol in its hunk headers
