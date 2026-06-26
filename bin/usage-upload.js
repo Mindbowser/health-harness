@@ -38,10 +38,13 @@ function telemetryConfig(env) {
   return { enabled, endpoint, token, intervalMs };
 }
 
-/** Pure: throttle — run if we've never run, or the interval has elapsed. */
-function dueForRun(state, nowMs, intervalMs) {
+/** Pure: throttle — run if we've never run, the interval has elapsed, OR the running harness version
+ * changed since the last upload (flush-on-update, so a dev's update reflects on the dashboard within a
+ * rollup cycle instead of lagging up to the throttle interval). currentHv is optional (back-compat). */
+function dueForRun(state, nowMs, intervalMs, currentHv) {
   const last = state && state.lastRun;
   if (!last) return true; // never run before → always go
+  if (state && state.lastHv && currentHv && state.lastHv !== currentHv) return true; // version changed → flush now
   return nowMs - last >= intervalMs;
 }
 
@@ -124,7 +127,8 @@ async function runUpload(opts = {}) {
   const dir = usageDir();
   let state = {};
   try { state = JSON.parse(fs.readFileSync(statePath(dir, path), 'utf8')); } catch { /* none */ }
-  if (!dueForRun(state, Date.now(), cfg.intervalMs)) return { sent: 0, completedAll: true };
+  const hv = harnessVersion(); // current installed version — drives flush-on-version-change + stamped on the upload
+  if (!dueForRun(state, Date.now(), cfg.intervalMs, hv)) return { sent: 0, completedAll: true };
 
   let files = [];
   try {
@@ -136,7 +140,7 @@ async function runUpload(opts = {}) {
   } catch { return { sent: 0, completedAll: false }; }
 
   const offsets = { ...(state.offsets || {}) };
-  const userId = gitEmail(), hv = harnessVersion();
+  const userId = gitEmail();
   const chunkBytes = parseInt(process.env.HARNESS_TELEMETRY_CHUNK_BYTES, 10) || DEFAULT_CHUNK_BYTES;
   let sent = 0, completedAll = true;
   outer:
@@ -164,7 +168,7 @@ async function runUpload(opts = {}) {
   }
 
   const lastRun = planLastRun(state.lastRun, completedAll, Date.now());
-  try { fs.writeFileSync(statePath(dir, path), JSON.stringify({ ...state, offsets, lastRun })); } catch { /* ignore */ }
+  try { fs.writeFileSync(statePath(dir, path), JSON.stringify({ ...state, offsets, lastRun, lastHv: hv })); } catch { /* ignore */ }
   return { sent, completedAll };
 }
 
