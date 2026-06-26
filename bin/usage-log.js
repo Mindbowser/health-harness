@@ -266,6 +266,33 @@ function ticketTransitions(issueKey, changelog, statusCatById) {
   return out;
 }
 
+/** Pure: harvest a `{statusId: categoryKey}` map from the Jira data the agent already fetches. The changelog
+ * itself carries NO category — only the current status (`getJiraIssue`) and transition targets
+ * (`getTransitions`) do — so we learn categories from those and accumulate them across reads. Never throws. */
+function statusCatFromJira(issueResp, transitionsResp) {
+  const map = {};
+  const cur = issueResp && issueResp.fields && issueResp.fields.status;
+  if (cur && cur.id && cur.statusCategory && cur.statusCategory.key) map[String(cur.id)] = cur.statusCategory.key;
+  for (const t of (transitionsResp && transitionsResp.transitions) || []) {
+    const to = t && t.to;
+    if (to && to.id && to.statusCategory && to.statusCategory.key) map[String(to.id)] = to.statusCategory.key;
+  }
+  return map;
+}
+
+/** Pure: merge category maps across reads — fresh wins, so the map fills as more statuses are seen. */
+function mergeStatusCategories(existing, fresh) {
+  return { ...(existing || {}), ...(fresh || {}) };
+}
+
+/** Pure: derive ticket_transition events straight from a `getJiraIssue(expand=changelog)` response + an
+ * id→category map. Pulls issueKey + changelog from the response so the agent just hands over the raw API
+ * payload. Never throws. */
+function transitionsFromIssue(issueResp, statusCatById) {
+  if (!issueResp) return [];
+  return ticketTransitions(issueResp.key, issueResp.changelog, statusCatById || {});
+}
+
 /** Pure: drop transitions already seen on a prior read. Identity = `issueKey|at` (a status change is the
  * one event at that instant). Returns the fresh events + the updated key set to persist (issue_meta marker
  * pattern), so re-reading the same changelog never double-counts. */
@@ -320,10 +347,32 @@ function emitTicketTransitions(issueKey, changelog, statusCatById) {
   } catch { return 0; }
 }
 
+/** Impure: the learned id→category map — a LOCAL accumulating cache (not committed project config, so it
+ * never churns git). Lives next to the dedup marker. */
+function loadStatusCats() {
+  try { return JSON.parse(require('fs').readFileSync(require('path').join(usageDir(), '.status-cats.json'), 'utf8')) || {}; } catch { return {}; }
+}
+function saveStatusCats(map) {
+  try { const fs = require('fs'), path = require('path'); fs.mkdirSync(usageDir(), { recursive: true }); fs.writeFileSync(path.join(usageDir(), '.status-cats.json'), JSON.stringify(map)); } catch { /* best-effort */ }
+}
+
+/** Impure: the wiring entry point — given the RAW Jira responses the agent already fetches (a
+ * getJiraIssue(expand=changelog) response + an optional getTransitions response), learn any new
+ * id→category mappings, persist the accumulated map locally, then emit the deduped ticket_transition
+ * stream. Returns the number of fresh events. Never throws. */
+function emitTransitionsFromJira(issueResp, transitionsResp) {
+  try {
+    const merged = mergeStatusCategories(loadStatusCats(), statusCatFromJira(issueResp, transitionsResp));
+    saveStatusCats(merged);
+    return emitTicketTransitions(issueResp && issueResp.key, issueResp && issueResp.changelog, merged);
+  } catch { return 0; }
+}
+
 module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir,
   commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey, parseKv,
   graphMetaFor, emitIssueMeta, fingerprintUnits, commitFingerprint, hash16,
-  ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions };
+  ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions,
+  statusCatFromJira, mergeStatusCategories, transitionsFromIssue, emitTransitionsFromJira };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -397,6 +446,19 @@ if (require.main === module) {
       const changelog = JSON.parse(fs.readFileSync(process.argv[4], 'utf8'));
       const statusMap = JSON.parse(fs.readFileSync(process.argv[5], 'utf8'));
       const n = emitTicketTransitions(process.argv[3] || '', changelog, statusMap);
+      process.stdout.write(JSON.stringify({ ok: true, fresh: n }));
+    } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
+    process.exit(0);
+  }
+  // `emit-transitions` (MBI-46) — the wiring entry: the agent dumps the RAW getJiraIssue(expand=changelog)
+  // response (+ optional getTransitions response) and the code derives the category map, accumulates it, and
+  // emits the deduped stream: usage-log.js emit-transitions <issue.json> [transitions.json]
+  if (hookType === 'emit-transitions') {
+    try {
+      const fs = require('fs');
+      const issueResp = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+      const transitionsResp = process.argv[4] ? JSON.parse(fs.readFileSync(process.argv[4], 'utf8')) : null;
+      const n = emitTransitionsFromJira(issueResp, transitionsResp);
       process.stdout.write(JSON.stringify({ ok: true, fresh: n }));
     } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
     process.exit(0);

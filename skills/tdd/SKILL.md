@@ -123,6 +123,10 @@ Don't make the human do the git plumbing. At the **start** of the slice:
   warn**: *"ACME-123 is in `<status>` — start work on it anyway?"* Proceed only on explicit confirmation.
   (A genuine reopen/bugfix is fine once confirmed — then transition back to *In Progress*.)
 - **Move the ticket to _In Progress_** (tracker MCP) — this also anchors the worklog clock.
+- **Capture the status-transition stream (FASTER telemetry — MBI-46):** after the move, fetch the issue with
+  `expand=changelog` + its transitions, write the raw responses to temp JSON files, and run
+  `node "${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js" emit-transitions <issue.json> <transitions.json>` (transitions
+  optional). Deterministic, metadata-only, dedup-safe — records the In Progress transition for cycle-time.
 - **Create the working branch yourself** — off the repo's **base branch**, using its **naming convention**
   (read `.health-harness/project.json` `git` block / existing branches — e.g. CH branches off `dev`; don't
   impose MB's `fix/<KEY>` if the repo differs). Respect the existing flow.
