@@ -330,7 +330,8 @@ write-time field allowlist) to `~/.health-harness/usage/` to power the daily coa
 > **What it measures + what matters most → [`docs/what-the-harness-measures.md`](docs/what-the-harness-measures.md)**
 > (includes an honest **per-signal status** table — what actually flows today vs. what's pending). **How each
 > metric is computed (the correctness SoT) → [`docs/metric-definitions.md`](docs/metric-definitions.md)** —
-> definition · window · the trap · golden-test, per card; Atlas implements its math against it.
+> definition · window · the trap · golden-test, per card; Atlas implements its math against it. **The
+> CTO/VP exec view (the 5 trends that matter, vs the operational drill-down) → [`docs/exec-view.md`](docs/exec-view.md).**
 > The thesis: *measure what **survives***. Four outcome signals (all client-side, no CI/webhooks) are designed
 > to feed the Atlas **FASTER / BETTER** scorecard: **`ticket_transition`** (real cycle-time, QA-wait segmented
 > out), the **commit symbol fingerprint** (`commit.fp` — rework = the *same logical unit* returning) + reopens,
