@@ -77,9 +77,14 @@ test('MBI-58: dueForRun bypasses the throttle when the running version changed (
   assert.strictEqual(dueForRun({ lastRun: 1_000_000, lastHv: '0.2.18' }, 1_000_001, interval, '0.2.18'), false);
   // within interval, version CHANGED → bypass (ship now so "on latest" reflects the update)
   assert.strictEqual(dueForRun({ lastRun: 1_000_000, lastHv: '0.2.18' }, 1_000_001, interval, '0.2.19'), true);
-  // within interval, no recorded lastHv → do NOT force (no spam the first run after this ships)
-  assert.strictEqual(dueForRun({ lastRun: 1_000_000 }, 1_000_001, interval, '0.2.19'), false);
-  // backward-compat: 3-arg callers (no hv) behave exactly as before
+  // within interval, NO recorded lastHv → FORCE (bootstrap: the first run after a dev updates to a
+  // fix-bearing version — the old uploader never wrote lastHv, so undefined means "ship now + record it").
+  // This is the case that was lagging real updates: lastHv undefined must NOT block the flush.
+  assert.strictEqual(dueForRun({ lastRun: 1_000_000 }, 1_000_001, interval, '0.2.20'), true);
+  // ...and once lastHv is recorded, same-version stays throttled (one bootstrap force, then normal).
+  assert.strictEqual(dueForRun({ lastRun: 1_000_000, lastHv: '0.2.20' }, 1_000_001, interval, '0.2.20'), false);
+  // backward-compat: 3-arg callers (no currentHv) behave exactly as before — no force, pure throttle.
+  assert.strictEqual(dueForRun({ lastRun: 1_000_000 }, 1_000_001, interval), false);
   assert.strictEqual(dueForRun({ lastRun: 1_000_000 }, 1_000_000 + interval, interval), true);
 });
 
