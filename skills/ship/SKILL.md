@@ -83,6 +83,12 @@ rather than re-implementing it (one definition, no drift).
       suggestion, then call `addWorklogToJiraIssue` (`cloudId`, `issueIdOrKey`, `timeSpent`, `started`,
       `commentBody` = what was done + PR link) with the **user-confirmed** value and confirm it returned ok.
       A comment or a transition is **not** a worklog. (Skip only if `project.json` `timeTracking.logWork:false`.)
+   4. **Capture the status-transition stream (FASTER telemetry — MBI-46):** you already fetched the issue +
+      transitions for the steps above — reuse them: write the raw `getJiraIssue(expand=changelog)` response
+      (re-fetch with `expand=changelog` if needed) + the transitions response to temp JSON files and run
+      `node "${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js" emit-transitions <issue.json> <transitions.json>`. This
+      records the In Review transition (and back-fills any earlier ones); deterministic, metadata-only,
+      dedup-safe. The transitions response is the authoritative source of status→category mappings.
 6. **Report** what landed: PR URL, new ticket status, worklog confirmation. The dev's job ends at **merge**
    (CI green + review approved); QA then verifies the same criteria in the running app.
 

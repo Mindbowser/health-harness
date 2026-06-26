@@ -284,3 +284,45 @@ test('MBI-42: privacy — commit allowlist stores only hashed fp + fpConf, never
     sanitize('commit', { sizeBucket: 's', branchKind: 'feature', issueKey: 'MBI-42', fp: 'a1b2c3d4e5f60718', fpConf: 'symbol', diff: 'secret source', path: '/abs/big.js' }),
     { sizeBucket: 's', branchKind: 'feature', issueKey: 'MBI-42', fp: 'a1b2c3d4e5f60718', fpConf: 'symbol' });
 });
+
+// MBI-46 — wire ticket_transition EMISSION. The changelog carries status ids/names but NOT categories;
+// only the current status + transition targets do. So we harvest id→category from the Jira responses the
+// agent already fetches, accumulate them across reads (project.json), and map the changelog by id.
+const { statusCatFromJira, mergeStatusCategories, transitionsFromIssue } = require('../bin/usage-log.js');
+
+test('MBI-46: statusCatFromJira harvests id→category from current status + transition targets', () => {
+  const issue = { fields: { status: { id: '10228', statusCategory: { key: 'done' } } } };
+  const transitions = { transitions: [
+    { to: { id: '10227', statusCategory: { key: 'indeterminate' } } },
+    { to: { id: '10225', statusCategory: { key: 'new' } } },
+  ] };
+  assert.deepStrictEqual(statusCatFromJira(issue, transitions),
+    { '10228': 'done', '10227': 'indeterminate', '10225': 'new' });
+  // garbage → {} (never throws)
+  assert.deepStrictEqual(statusCatFromJira(null, null), {});
+});
+
+test('MBI-46: mergeStatusCategories accumulates across reads (fresh wins)', () => {
+  assert.deepStrictEqual(
+    mergeStatusCategories({ '10225': 'new' }, { '10227': 'indeterminate', '10225': 'new' }),
+    { '10225': 'new', '10227': 'indeterminate' });
+  assert.deepStrictEqual(mergeStatusCategories(null, null), {});
+});
+
+test('MBI-46: transitionsFromIssue maps a real getJiraIssue(expand=changelog) shape via the category map', () => {
+  const issueResp = { key: 'MBI-43', changelog: { histories: [
+    { created: 't1', items: [{ field: 'status', from: '10225', fromString: 'Idea', to: '10227', toString: 'In Progress' }] },
+    { created: 't2', items: [{ field: 'status', from: '10227', fromString: 'In Progress', to: '10261', toString: 'IN REVIEW' }] },
+    { created: 't3', items: [
+      { field: 'resolution', from: null, to: '10000' },
+      { field: 'status', from: '10261', fromString: 'IN REVIEW', to: '10228', toString: 'Done' }] },
+  ] } };
+  const map = { '10225': 'new', '10227': 'indeterminate', '10261': 'indeterminate', '10228': 'done' };
+  const evs = transitionsFromIssue(issueResp, map);
+  assert.strictEqual(evs.length, 3); // resolution item ignored
+  assert.deepStrictEqual(evs[0], { issueKey: 'MBI-43', fromStatus: 'Idea', toStatus: 'In Progress', fromCat: 'new', toCat: 'indeterminate', at: 't1' });
+  assert.deepStrictEqual(evs[2], { issueKey: 'MBI-43', fromStatus: 'IN REVIEW', toStatus: 'Done', fromCat: 'indeterminate', toCat: 'done', at: 't3' });
+  // a status not yet in the map → 'unknown' (custom-status-safe), and no issue/changelog → [] (never throws)
+  assert.strictEqual(transitionsFromIssue(issueResp, {})[0].fromCat, 'unknown');
+  assert.deepStrictEqual(transitionsFromIssue(null, map), []);
+});

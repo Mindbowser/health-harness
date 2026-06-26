@@ -333,10 +333,10 @@ write-time field allowlist) to `~/.health-harness/usage/` to power the daily coa
 > to feed the Atlas **FASTER / BETTER** scorecard: **`ticket_transition`** (real cycle-time, QA-wait segmented
 > out), the **commit symbol fingerprint** (`commit.fp` — rework = the *same logical unit* returning) + reopens,
 > the **`gate_run:fail`** fix (failing gates captured, not silently all-`pass`), and **`test_strength`** via
-> **`npm run mutation:emit`**. **Status (MBI-23 done):** `gate_run:fail` + `commit.fp` **emit today**;
-> **`ticket_transition` (FASTER) is parser-built but NOT yet wired to emit** (a follow-up), and the **Atlas
-> FASTER/BETTER cards are MBI-24 — not built yet**. Attributed **by ticket**, reported as trends — never a
-> per-person score.
+> **`npm run mutation:emit`**. **Status:** all four now **emit** — `gate_run:fail` + `commit.fp` (MBI-23) and
+> `ticket_transition` (FASTER), whose emission is wired into `/align` `/tdd` `/ship` (MBI-46). Two things
+> still gate the dashboard: **rollout** (devs must run the updated plugin) and the **Atlas FASTER/BETTER
+> cards (MBI-24) — not built yet**. Attributed **by ticket**, reported as trends — never a per-person score.
 
 **It is ON by default** — the Atlas endpoint + ingest token are baked into `bin/usage-upload.js`, so devs
 need **zero config**. Override or rotate via Claude Code settings `env` (FleetDM can push these as managed

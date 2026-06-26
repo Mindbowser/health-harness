@@ -13,22 +13,20 @@ contract) and the upload path in `bin/usage-upload.js`.
 ## Status today (2026-06-26) — read this first
 
 A signal has **three layers**: (1) **parser built** → (2) **wired to emit** in real sessions → (3)
-**consumed by an Atlas card**. MBI-23 delivered the parsers (layer 1) and wired *most* of layer 2 — but
-**FASTER's emission is still unwired**, so it produces **no data today**, and the **Atlas FASTER/BETTER cards
-(layer 3) are MBI-24 — not built yet**. Read the sections below as the **design + producer**, not as live
-metrics. Honest status:
+**consumed by an Atlas card**. MBI-23 delivered the parsers (layer 1) and MBI-46 wired FASTER's emission
+(layer 2) into `/align`, `/tdd`, `/ship` — so all four signals now emit (once devs run the updated plugin).
+The **Atlas FASTER/BETTER cards (layer 3) are MBI-24 — still not built**. Honest status:
 
 | Signal | Parser built | Emitting in sessions | On the dashboard |
 |---|---|---|---|
-| **FASTER** — `ticket_transition` | ✅ | ❌ **not wired** (no hook/skill calls the CLI) → no data | ❌ card empty ("needs Jira integration") |
-| **BETTER** — commit `fp` + reopens | ✅ | `fp` ✅ emits · reopens need the (unwired) transition | ⚠️ a *tested×verified* proxy shows; rework/mutation enrichment pending |
+| **FASTER** — `ticket_transition` | ✅ | ✅ **wired** (MBI-46) — `/align` `/tdd` `/ship` feed the CLI on each Jira read | ❌ card empty — **MBI-24** |
+| **BETTER** — commit `fp` + reopens | ✅ | `fp` ✅ emits · reopens ✅ via the now-wired transition stream | ⚠️ *tested×verified* proxy only; rework/mutation enrichment is **MBI-24** |
 | **Honest gate** — `gate_run:fail` | ✅ | ✅ (`PostToolUseFailure` hook) | ✅ feeds gate-pass / DONE-RIGHT |
-| **Test strength** — mutation | ✅ | ⚠️ on-demand only (`npm run mutation:emit`) | ❌ not consumed yet |
+| **Test strength** — mutation | ✅ | ⚠️ on-demand (`npm run mutation:emit`) | ❌ not consumed — **MBI-24** |
 
-**To make FASTER real, two pieces remain:** (a) **wire the emission** — the deferred MBI-44 follow-up: a
-hook/skill that, on each Jira read, feeds the changelog into the `ticket-transitions` CLI (until this lands,
-*nothing* is recorded); then (b) **MBI-24** computes the cycle-time card from the stream. BETTER's
-rework/mutation enrichment is the same shape — the `fp` data already flows; MBI-24 must consume it.
+**Two caveats before the cards light up:** (a) **rollout** — devs must run an installed plugin ≥ the release
+that carries this (many are still on older versions), or no new signal reaches their telemetry; (b) **MBI-24**
+— Atlas must compute the FASTER/BETTER cards from the stream (the producer is done; the consumer is not).
 
 ## The four outcomes (design + signals)
 
@@ -37,8 +35,8 @@ rework/mutation enrichment is the same shape — the `fp` data already flows; MB
 
 - **Signal:** the **`ticket_transition`** stream — every Jira status change `{issueKey, fromStatus,
   toStatus, fromCat, toCat, at}`, derived deterministically from the Jira changelog (no CI/webhook).
-  **Status: parser built, emission NOT yet wired — no transitions are recorded today, so FASTER has no data**
-  (see the table above).
+  **Status: parser built (MBI-44) + emission wired (MBI-46) into `/align` `/tdd` `/ship`** — it records on
+  each Jira read once the updated plugin is installed. The Atlas card still needs **MBI-24**.
 - **Segmented, on purpose:** `In Progress → dev-handoff (In Review)` = **dev cycle time**; `→ Done` = **lead
   time**; the gap in review/QA is **QA-wait**, measured *separately*. So a QA environment stuck for a week
   never inflates a dev's speed number — and the QA-wait itself becomes a visible **process** bottleneck.

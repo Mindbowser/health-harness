@@ -75,6 +75,11 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    links=<comma-keys|''> type=<issueType|''> priority=<priority|''>` — read parent/epic/links **and the issue
    type (Bug/Story/Task/Epic/Sub-task) and priority (e.g. P1/High)** from the issue you just fetched. Cached +
    reused; no extra fetch. (Merge semantics: pass only what you know; omitted fields are preserved.)
+   **Also capture the status-transition stream (FASTER telemetry, deterministic — MBI-46):** fetch the issue
+   with `expand=changelog` (you already have it open) + its transitions, write each raw response to a temp
+   JSON file, and run `node "${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js" emit-transitions <issue.json> <transitions.json>`
+   (transitions file optional). The CLI derives the category map, accumulates it, de-dupes, and records
+   `ticket_transition` events — metadata only. Safe to call on every read; no-op when nothing is new.
 2. **Size it** (the rule above): clear → confirm + criteria + at most one fork; fuzzy → grill the open
    branches one question at a time, each with a recommended answer.
 3. **Surface only genuine forks** — real decisions with a trade-off the user must own. Route a
