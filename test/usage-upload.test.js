@@ -68,3 +68,24 @@ test('planLastRun: advances the throttle only when fully caught up; else stays "
   // never run + incomplete → 0 (falsy) keeps dueForRun true next time, no progress lost
   assert.strictEqual(planLastRun(undefined, false, 9999), 0);
 });
+
+// MBI-58 — version updates were lagging the dashboard ~2h because the 2h throttle no-ops the flush. Fix:
+// bypass the throttle when the running version changed, so a dev's update ships on their next turn.
+test('MBI-58: dueForRun bypasses the throttle when the running version changed (flush-on-update)', () => {
+  const interval = 7_200_000;
+  // within interval, SAME version → still throttled (normal behavior preserved)
+  assert.strictEqual(dueForRun({ lastRun: 1_000_000, lastHv: '0.2.18' }, 1_000_001, interval, '0.2.18'), false);
+  // within interval, version CHANGED → bypass (ship now so "on latest" reflects the update)
+  assert.strictEqual(dueForRun({ lastRun: 1_000_000, lastHv: '0.2.18' }, 1_000_001, interval, '0.2.19'), true);
+  // within interval, no recorded lastHv → do NOT force (no spam the first run after this ships)
+  assert.strictEqual(dueForRun({ lastRun: 1_000_000 }, 1_000_001, interval, '0.2.19'), false);
+  // backward-compat: 3-arg callers (no hv) behave exactly as before
+  assert.strictEqual(dueForRun({ lastRun: 1_000_000 }, 1_000_000 + interval, interval), true);
+});
+
+test('MBI-58: hooks.json flushes telemetry on SessionEnd (so /exit does not strand events)', () => {
+  const groups = require('../hooks/hooks.json').hooks.SessionEnd;
+  assert.ok(Array.isArray(groups) && groups.length > 0, 'SessionEnd must be registered');
+  const cmds = groups.flatMap((g) => (g.hooks || []).map((h) => h.command));
+  assert.ok(cmds.some((c) => /usage-upload\.js"?\s+flush\b/.test(c)), 'SessionEnd must run usage-upload.js flush');
+});
