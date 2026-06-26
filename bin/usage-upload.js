@@ -44,7 +44,11 @@ function telemetryConfig(env) {
 function dueForRun(state, nowMs, intervalMs, currentHv) {
   const last = state && state.lastRun;
   if (!last) return true; // never run before → always go
-  if (state && state.lastHv && currentHv && state.lastHv !== currentHv) return true; // version changed → flush now
+  // Flush-on-update: ship now when the running version differs from the last upload — INCLUDING when lastHv
+  // is unknown (the bootstrap case: a dev's first run after updating to a fix-bearing version, where the old
+  // uploader never recorded lastHv). Without forcing on undefined, the very update that matters would still
+  // lag the throttle. One bootstrap force, then runUpload records lastHv and same-version runs throttle again.
+  if (currentHv && state.lastHv !== currentHv) return true;
   return nowMs - last >= intervalMs;
 }
 
