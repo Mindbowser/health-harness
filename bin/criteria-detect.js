@@ -55,7 +55,11 @@ function currentFacts(cwd) {
   let profile = 'hipaa';
   try { profile = require('./redaction-scan.js').loadConfig(dir).profile || 'hipaa'; } catch { /* default */ }
   const diff = branchDiff(dir);
-  return { profile, kinds: manifestKinds(dir), phi: detectPhiSignals(diff), logging: detectLoggingIntroduced(diff) };
+  return {
+    profile, kinds: manifestKinds(dir),
+    phi: detectPhiSignals(diff), logging: detectLoggingIntroduced(diff),
+    datetime: detectDateTimeApi(diff), tzMarker: hasTzMarker(diff),
+  };
 }
 
 // Logger wiring or raw console.* on an added line → the slice "introduces logging".
@@ -66,4 +70,19 @@ function detectLoggingIntroduced(diff) {
   return addedLines(diff).some((l) => LOG_RE.test(l));
 }
 
-module.exports = { addedLines, detectPhiSignals, detectLoggingIntroduced, branchDiff, manifestKinds, currentFacts };
+// Date/time APIs (JS + a few common others) on an added line → the slice does time-specific work.
+const DATETIME_RE = /(new\s+Date\b|Date\.now\b|\bmoment\s*\(|\bdayjs\s*\(|Intl\.DateTimeFormat|toLocale(?:Date|Time)?String|\bLocalDate\b|\bInstant\b|time\.Now\s*\()/;
+// Explicit timezone-handling acknowledgement: `// tz-safe: <reason>` or `@tz-safe`.
+const TZ_MARKER_RE = /tz-safe/i;
+
+/** Pure: did the slice use a date/time API on an added line? */
+function detectDateTimeApi(diff) {
+  return addedLines(diff).some((l) => DATETIME_RE.test(l));
+}
+
+/** Pure: does an added line carry an explicit tz-safe marker (the deterministic acknowledgement)? */
+function hasTzMarker(diff) {
+  return addedLines(diff).some((l) => TZ_MARKER_RE.test(l));
+}
+
+module.exports = { addedLines, detectPhiSignals, detectLoggingIntroduced, detectDateTimeApi, hasTzMarker, branchDiff, manifestKinds, currentFacts };

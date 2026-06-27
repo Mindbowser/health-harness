@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { detectPhiSignals, detectLoggingIntroduced } = require('../bin/criteria-detect.js');
+const { detectPhiSignals, detectLoggingIntroduced, detectDateTimeApi, hasTzMarker } = require('../bin/criteria-detect.js');
 
 test('detectPhiSignals: flags PHI access tokens on ADDED diff lines; ignores removed lines + headers', () => {
   const diff = [
@@ -31,4 +31,21 @@ test('detectLoggingIntroduced: true when an added line wires a logger or raw con
   assert.strictEqual(detectLoggingIntroduced('-console.log("gone");'), false);
   assert.strictEqual(detectLoggingIntroduced('+const total = sum(a, b);'), false);
   assert.strictEqual(detectLoggingIntroduced(''), false);
+});
+
+test('detectDateTimeApi: true when an added line uses a date/time API; removed lines ignored', () => {
+  assert.strictEqual(detectDateTimeApi('+const t = new Date();'), true);
+  assert.strictEqual(detectDateTimeApi('+const n = Date.now();'), true);
+  assert.strictEqual(detectDateTimeApi('+import dayjs from "dayjs";'), true);
+  assert.strictEqual(detectDateTimeApi('+  return moment(x).utc();'), true);
+  assert.strictEqual(detectDateTimeApi('-const t = new Date();'), false);
+  assert.strictEqual(detectDateTimeApi('+const total = a + b;'), false);
+  assert.strictEqual(detectDateTimeApi(''), false);
+});
+
+test('hasTzMarker: true when an added line carries an explicit // tz-safe / @tz-safe acknowledgement', () => {
+  assert.strictEqual(hasTzMarker('+const t = new Date(); // tz-safe: stored UTC'), true);
+  assert.strictEqual(hasTzMarker('+// @tz-safe handled by caller'), true);
+  assert.strictEqual(hasTzMarker('+const t = new Date();'), false);
+  assert.strictEqual(hasTzMarker(''), false);
 });

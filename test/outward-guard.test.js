@@ -44,6 +44,17 @@ test('decideCriteriaDetect (app-logging): logger introduced + no app-logging cri
   assert.strictEqual(decideCriteriaDetect(push, '.', { logging: false, kinds: [] }), null);
 });
 
+test('decideCriteriaDetect (timezone): date/time API used with no marker/criterion → DENY; marker or criterion → defer', () => {
+  const push = 'git push origin HEAD';
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { datetime: true, tzMarker: false, kinds: [] })), 'deny');
+  // an explicit // tz-safe marker → no block
+  assert.strictEqual(decideCriteriaDetect(push, '.', { datetime: true, tzMarker: true, kinds: [] }), null);
+  // a kind:timezone criterion authored → no block
+  assert.strictEqual(decideCriteriaDetect(push, '.', { datetime: true, tzMarker: false, kinds: ['timezone'] }), null);
+  // no date/time API used → nothing to gate
+  assert.strictEqual(decideCriteriaDetect(push, '.', { datetime: false, tzMarker: false, kinds: [] }), null);
+});
+
 test('criterion-coverage is NOT suppressed by a ship grant (decided before dropAsk, like gate-evidence)', () => {
   // gateOverride 'verified' so gate-evidence (which also precedes dropAsk) doesn't mask the cov decision
   const verified = { state: 'verified' };
