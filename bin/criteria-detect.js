@@ -55,8 +55,10 @@ function currentFacts(cwd) {
   let profile = 'hipaa';
   try { profile = require('./redaction-scan.js').loadConfig(dir).profile || 'hipaa'; } catch { /* default */ }
   const diff = branchDiff(dir);
+  let conventions = {};
+  try { conventions = require('./conventions.js').read(dir); } catch { /* none */ }
   return {
-    profile, kinds: manifestKinds(dir),
+    profile, kinds: manifestKinds(dir), conventions,
     phi: detectPhiSignals(diff), logging: detectLoggingIntroduced(diff),
     datetime: detectDateTimeApi(diff), tzMarker: hasTzMarker(diff),
   };

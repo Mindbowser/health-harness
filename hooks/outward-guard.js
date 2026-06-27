@@ -187,17 +187,23 @@ function decideCriteriaDetect(command, cwd, facts) {
   if (!f) { try { f = require('../bin/criteria-detect.js').currentFacts(cwd || process.cwd()); } catch { return null; } }
   if (!f) return null;
   const kinds = new Set(f.kinds || []);
+  const conv = f.conventions || {};
+  // A recorded convention means the project HAS a standard, so a miss is a deterministic DENY; with no
+  // convention recorded the detector is heuristic → ASK (the human adds the criterion or approves).
+  const sev = (recorded) => (recorded ? 'deny' : 'ask');
   // timezone: a date/time API is used with no explicit marker and no kind:timezone criterion → DENY
   if (f.datetime && !f.tzMarker && !kinds.has('timezone')) {
     return { action: 'deny', reason: 'health-harness wall — push blocked: this slice uses a date/time API but carries no timezone handling marker. Add a kind:timezone criterion or a `// tz-safe:<reason>` annotation. (criteria-detect)' };
   }
-  // audit: PHI access added on a hipaa repo with no kind:audit criterion authored → ASK
+  // audit: PHI access added on a hipaa repo with no kind:audit criterion authored. DENY when the audit
+  // helper convention is recorded (Slice 5), else ASK (heuristic).
   if (f.profile === 'hipaa' && Array.isArray(f.phi) && f.phi.length && !kinds.has('audit')) {
-    return { action: 'ask', reason: `health-harness wall: this slice adds a PHI access path (${f.phi.join(', ')}) but no audit criterion is authored — add a kind:audit acceptance criterion, or approve to proceed. (criteria-detect)` };
+    return { action: sev(conv.audit && conv.audit.helper), reason: `health-harness wall: this slice adds a PHI access path (${f.phi.join(', ')}) but no audit criterion is authored — add a kind:audit acceptance criterion${conv.audit && conv.audit.helper ? ` (log via ${conv.audit.helper})` : ''}, or approve to proceed. (criteria-detect)` };
   }
-  // logging: a logger is introduced with no kind:app-logging criterion authored → ASK
+  // logging: a logger is introduced with no kind:app-logging criterion authored. DENY when the centralised
+  // logger convention is recorded (Slice 5), else ASK.
   if (f.logging && !kinds.has('app-logging')) {
-    return { action: 'ask', reason: 'health-harness wall: this slice introduces logging but no app-logging criterion is authored — add a kind:app-logging criterion (centralised + rotating), or approve to proceed. (criteria-detect)' };
+    return { action: sev(conv.logging && conv.logging.module), reason: `health-harness wall: this slice introduces logging but no app-logging criterion is authored — use the centralised logger${conv.logging && conv.logging.module ? ` (${conv.logging.module})` : ''} + a rotating handler, or approve to proceed. (criteria-detect)` };
   }
   return null;
 }

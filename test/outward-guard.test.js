@@ -44,6 +44,16 @@ test('decideCriteriaDetect (app-logging): logger introduced + no app-logging cri
   assert.strictEqual(decideCriteriaDetect(push, '.', { logging: false, kinds: [] }), null);
 });
 
+test('decideCriteriaDetect: a recorded convention upgrades the audit/logging backstop from ASK to DENY', () => {
+  const push = 'git push origin HEAD';
+  // audit helper recorded in conventions → the project HAS a standard, so a missing audit criterion is DENY
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { profile: 'hipaa', phi: ['patient'], kinds: [], conventions: { audit: { helper: 'src/lib/audit.record' } } })), 'deny');
+  // logger module recorded → raw logging without the app-logging criterion is DENY
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { logging: true, kinds: [], conventions: { logging: { module: 'src/lib/logger' } } })), 'deny');
+  // no convention recorded → stays a heuristic ASK
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { logging: true, kinds: [] })), 'ask');
+});
+
 test('decideCriteriaDetect (timezone): date/time API used with no marker/criterion → DENY; marker or criterion → defer', () => {
   const push = 'git push origin HEAD';
   assert.strictEqual(action(decideCriteriaDetect(push, '.', { datetime: true, tzMarker: false, kinds: [] })), 'deny');
