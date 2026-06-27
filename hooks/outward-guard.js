@@ -266,7 +266,7 @@ function decideRedactionMcp(tool, toolInput, cwd) {
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
 }
 
-function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOverride) {
+function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOverride, gateOverride) {
   try {
     const cwd = process.cwd();
     // A live ship grant means the user already approved this publish batch on /ship's verbatim preview — so
@@ -279,7 +279,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       if (red) return red;
       const bash = decideBash(cmd);
       if (bash && bash.action === 'deny') return bash; // catastrophic DENY (force-push, rm -rf …) beats all below
-      const gate = decideGateEvidence(cmd, cwd);       // ship-without-passing-gate → ASK, NOT grant-suppressed
+      const gate = decideGateEvidence(cmd, cwd, gateOverride); // ship-without-passing-gate → ASK, NOT grant-suppressed
       if (gate) return gate;
       const cov = decideCriteriaCoverage(cmd, cwd, covOverride); // uncovered criterion → DENY / defer → ASK, NOT grant-suppressed
       if (cov) return cov;

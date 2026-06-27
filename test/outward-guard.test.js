@@ -45,12 +45,14 @@ test('decideCriteriaDetect (app-logging): logger introduced + no app-logging cri
 });
 
 test('criterion-coverage is NOT suppressed by a ship grant (decided before dropAsk, like gate-evidence)', () => {
+  // gateOverride 'verified' so gate-evidence (which also precedes dropAsk) doesn't mask the cov decision
+  const verified = { state: 'verified' };
   // granted (shipGrant=true) still DENIES an uncovered criterion
   const uncovered = { hasManifest: true, cov: { covered: ['AC-1'], uncovered: ['AC-2'], deferred: [], ok: false } };
-  assert.strictEqual(action(decide('Bash', { command: 'git push' }, undefined, true, uncovered)), 'deny');
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, undefined, true, uncovered, undefined, verified)), 'deny');
   // and a deferred criterion still ASKS under a grant
   const deferred = { hasManifest: true, cov: { covered: ['AC-1'], uncovered: [], deferred: ['AC-2'], ok: true } };
-  assert.strictEqual(action(decide('Bash', { command: 'git push' }, undefined, true, deferred)), 'ask');
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, undefined, true, deferred, undefined, verified)), 'ask');
 });
 
 test('redaction egress gate: PHI in an outbound payload → DENY; clean → defer; reads not scanned', () => {
