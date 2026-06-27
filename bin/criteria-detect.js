@@ -71,7 +71,7 @@ function detectLoggingIntroduced(diff) {
 }
 
 // Date/time APIs (JS + a few common others) on an added line → the slice does time-specific work.
-const DATETIME_RE = /(new\s+Date\b|Date\.now\b|\bmoment\s*\(|\bdayjs\s*\(|Intl\.DateTimeFormat|toLocale(?:Date|Time)?String|\bLocalDate\b|\bInstant\b|time\.Now\s*\()/;
+const DATETIME_RE = /(new\s+Date\b|Date\.now\b|\bmoment\b|\bdayjs\b|Intl\.DateTimeFormat|toLocale(?:Date|Time)?String|\bLocalDate\b|\bInstant\b|time\.Now\s*\()/;
 // Explicit timezone-handling acknowledgement: `// tz-safe: <reason>` or `@tz-safe`.
 const TZ_MARKER_RE = /tz-safe/i;
 
