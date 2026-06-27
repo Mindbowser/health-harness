@@ -176,6 +176,32 @@ function decideCriteriaCoverage(command, cwd, override) {
   return null;
 }
 
+// ── compliance detectors (backstop) → ASK/DENY when a slice adds a concern with no criterion authored ───
+// criteria-detect scans the diff's ADDED lines. These are heuristic backstops to the deterministic
+// criterion path: if /align didn't auto-author the right criterion, the slice still can't silently ship the
+// concern. Audit (hipaa + PHI access, no kind:audit) → ASK. (Logging + timezone branches grow per slice.)
+// `facts` is injectable for tests; otherwise read from disk. NOT grant-suppressed (a compliance question).
+function decideCriteriaDetect(command, cwd, facts) {
+  if (!PUBLISH_RE.test(String(command || ''))) return null;
+  let f = facts;
+  if (!f) { try { f = require('../bin/criteria-detect.js').currentFacts(cwd || process.cwd()); } catch { return null; } }
+  if (!f) return null;
+  const kinds = new Set(f.kinds || []);
+  // timezone: a date/time API is used with no explicit marker and no kind:timezone criterion → DENY
+  if (f.datetime && !f.tzMarker && !kinds.has('timezone')) {
+    return { action: 'deny', reason: 'health-harness wall — push blocked: this slice uses a date/time API but carries no timezone handling marker. Add a kind:timezone criterion or a `// tz-safe:<reason>` annotation. (criteria-detect)' };
+  }
+  // audit: PHI access added on a hipaa repo with no kind:audit criterion authored → ASK
+  if (f.profile === 'hipaa' && Array.isArray(f.phi) && f.phi.length && !kinds.has('audit')) {
+    return { action: 'ask', reason: `health-harness wall: this slice adds a PHI access path (${f.phi.join(', ')}) but no audit criterion is authored — add a kind:audit acceptance criterion, or approve to proceed. (criteria-detect)` };
+  }
+  // logging: a logger is introduced with no kind:app-logging criterion authored → ASK
+  if (f.logging && !kinds.has('app-logging')) {
+    return { action: 'ask', reason: 'health-harness wall: this slice introduces logging but no app-logging criterion is authored — add a kind:app-logging criterion (centralised + rotating), or approve to proceed. (criteria-detect)' };
+  }
+  return null;
+}
+
 function decideBash(command) {
   const cmd = String(command || '');
   for (const [re, why] of DENY) if (re.test(cmd)) return { action: 'deny', reason: `health-harness wall — blocked: ${why}. If genuinely required, a human runs it outside the agent.` };
@@ -240,7 +266,7 @@ function decideRedactionMcp(tool, toolInput, cwd) {
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
 }
 
-function decide(toolName, toolInput, gitState, shipGrant, covOverride) {
+function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOverride) {
   try {
     const cwd = process.cwd();
     // A live ship grant means the user already approved this publish batch on /ship's verbatim preview — so
@@ -257,6 +283,8 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride) {
       if (gate) return gate;
       const cov = decideCriteriaCoverage(cmd, cwd, covOverride); // uncovered criterion → DENY / defer → ASK, NOT grant-suppressed
       if (cov) return cov;
+      const det = decideCriteriaDetect(cmd, cwd, detectOverride); // compliance backstops (audit/logging/tz), NOT grant-suppressed
+      if (det) return det;
       const gs = gitState !== undefined ? gitState : gitProbe();
       return dropAsk(bash)                             // outward ASK suppressed under a grant
         || decideCommitGuard(cmd, gs)                  // commit guards: not part of the batch
@@ -271,7 +299,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride) {
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, gitProbe, baseBranches };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, gitProbe, baseBranches };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

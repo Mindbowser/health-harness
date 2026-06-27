@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect } = require('../hooks/outward-guard.js');
 
 const action = (d) => (d ? d.action : null);
 
@@ -19,6 +19,20 @@ test('decideCriteriaCoverage: uncovered acceptance criterion DENIES the push; de
   assert.strictEqual(decideCriteriaCoverage(push, '.', { hasManifest: false }), null);
   // not a push → defer
   assert.strictEqual(decideCriteriaCoverage('git status', '.', { hasManifest: true, cov: { covered: [], uncovered: ['AC-2'], deferred: [], ok: false } }), null);
+});
+
+test('decideCriteriaDetect (audit): hipaa + PHI added + no audit criterion → ASK; audit authored or non-hipaa → defer', () => {
+  const push = 'git push origin HEAD';
+  // PHI access added on a hipaa repo, no kind:audit criterion authored → ASK backstop
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { profile: 'hipaa', phi: ['patient'], kinds: [] })), 'ask');
+  // an audit criterion IS authored → the deterministic criterion path covers it; no extra ASK
+  assert.strictEqual(decideCriteriaDetect(push, '.', { profile: 'hipaa', phi: ['patient'], kinds: ['audit'] }), null);
+  // non-hipaa profile → PHI gate does not apply
+  assert.strictEqual(decideCriteriaDetect(push, '.', { profile: 'none', phi: ['patient'], kinds: [] }), null);
+  // no PHI signals on the diff → nothing to gate
+  assert.strictEqual(decideCriteriaDetect(push, '.', { profile: 'hipaa', phi: [], kinds: [] }), null);
+  // not a push → defer
+  assert.strictEqual(decideCriteriaDetect('git status', '.', { profile: 'hipaa', phi: ['patient'], kinds: [] }), null);
 });
 
 test('criterion-coverage is NOT suppressed by a ship grant (decided before dropAsk, like gate-evidence)', () => {
