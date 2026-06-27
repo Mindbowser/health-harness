@@ -168,6 +168,18 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   Scanner error → fail-**closed** to ASK (never silently allows, never bricks shipping). This is a *backstop*
   for literal PHI — it does **not** catch code that *logs* PHI at runtime (that's safe-logging, enforced as
   project TDD tests). So redaction is now *enforced at egress*, not just a remembered `/ship` step.
+- **DENY → criterion-coverage gate** (agent self-corrects): on `git push`, every authored acceptance
+  criterion in the ticket's committed manifest (`.health-harness/criteria/<KEY>.json`, written by `/align`)
+  must be pinned by a real test that names its `[AC-N]` id. An uncovered criterion is hard-blocked citing the
+  id — the `/tdd` agent writes the test, no human prompt. A criterion marked `[AC-N defer:<reason>]`
+  downgrades to ASK. No manifest → dormant (opt-in). NOT suppressed by the ship grant.
+  (`bin/criteria-coverage.js`.)
+- **ASK/DENY → compliance detectors** (backstop): the diff's *added* lines are scanned for a PHI access path
+  (→ audit criterion), introduced logging (→ centralised + rotating app-logging criterion), or a date/time
+  API with no `// tz-safe:` marker (→ timezone, DENY). When the matching convention is recorded in
+  `.health-harness/conventions.json` (logger module / audit helper, set once at `/start`·onboard·scaffold)
+  the backstop is a deterministic **DENY**; absent a recorded convention it's a heuristic **ASK**.
+  (`bin/criteria-detect.js`, `bin/conventions.js`.)
 - **DEFER** (untouched): reads, local/reversible work (a well-formed `git commit` on a feature branch,
   branch, tests, the scanner).
 
@@ -297,6 +309,12 @@ bin/slice-tests.js           # deterministic "did this slice add tests?" (behavi
                              #   per-ticket test/gate telemetry; `--explain` shows the per-file TEST/SOURCE/IGNORED
                              #   buckets to resolve a disputed flag; project.json `tests.pattern` registers a
                              #   non-standard test layout so it isn't false-flagged (+ test/)
+bin/criteria-coverage.js     # deterministic "is every authored [AC-N] criterion pinned by a test?"; wall DENYs an
+                             #   uncovered criterion at push; `write` records the manifest, `--explain` drills down (+ test/)
+bin/criteria-detect.js       # diff detectors (PHI / introduced-logging / date-time + tz-marker) backstopping the
+                             #   audit/app-logging/timezone criteria at the wall (+ test/)
+bin/conventions.js           # records logging/audit/datetime + lint/typecheck/coverage conventions once at
+                             #   start/onboard/scaffold; detectors read it to upgrade ASK→DENY (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/mutation-emit.js         # `npm run mutation:emit` — parse a mutation score from any tool's report/output
                              #   (file arg or stdin) → records test_strength (kind=mutation); pluggable, no
