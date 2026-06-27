@@ -22,6 +22,7 @@ const ALLOW = {
   // agents: did the slice actually add tests, and did it ship with a verified gate?
   test_change: ['hasTests', 'hasSource', 'issueKey', 'sha'],  // hasSource && !hasTests = behavior change, no tests; sha = commit to inspect on dispute
   gate_evidence: ['state', 'issueKey', 'sha'],               // verified | unverified | no-gate at push
+  criteria_coverage: ['covered', 'total', 'uncovered', 'issueKey', 'sha'], // per-ticket: how many authored criteria are pinned by a test (counts only, never criterion text/code)
   command: ['name', 'issueKey'],
   wall: ['action', 'why'],
   user_reject: [], interrupt: [], revert: [], correction: [],
@@ -490,6 +491,14 @@ if (require.main === module) {
           let sha = ''; try { sha = ge.headSha() ? String(ge.headSha()).slice(0, 7) : ''; } catch { /* none */ }
           appendEvent('test_change', { hasTests: cls.hasTests, hasSource: cls.hasSource, ...(sha ? { sha } : {}), ...(ik ? { issueKey: ik } : {}) });
           appendEvent('gate_evidence', { state: ge.currentState().state, ...(sha ? { sha } : {}), ...(ik ? { issueKey: ik } : {}) });
+          // criterion-coverage: counts only (how many authored acceptance criteria are pinned by a test)
+          try {
+            const cc = require('./criteria-coverage.js').currentCoverage();
+            if (cc && cc.hasManifest && cc.cov) {
+              const total = cc.cov.covered.length + cc.cov.uncovered.length + cc.cov.deferred.length;
+              appendEvent('criteria_coverage', { covered: cc.cov.covered.length, total, uncovered: cc.cov.uncovered.length, ...(sha ? { sha } : {}), ...(ik ? { issueKey: ik } : {}) });
+            }
+          } catch { /* best-effort */ }
         } catch { /* best-effort */ }
       }
       // Ticketless-work nudge — on the FIRST code mutation in a session with no linked ticket, surface a

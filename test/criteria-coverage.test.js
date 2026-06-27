@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { parseCriteriaIds, referencedIds, coverage } = require('../bin/criteria-coverage.js');
+const { ALLOW, sanitize } = require('../bin/usage-log.js');
 
 test('parseCriteriaIds: pulls deduped criterion ids from a manifest (object or JSON string)', () => {
   const manifest = { issueKey: 'MBI-61', criteria: [{ id: 'AC-1' }, { id: 'AC-2' }] };
@@ -49,4 +50,11 @@ test('coverage: a criterion with a defer marker is deferred, not hard-uncovered 
   // a deferred criterion that DOES have a test counts as covered (defer is a ceiling, not a floor)
   assert.deepStrictEqual(coverage(crit, ['AC-1', 'AC-2']),
     { covered: ['AC-1', 'AC-2'], uncovered: [], deferred: [], ok: true });
+});
+
+test('criteria_coverage telemetry: whitelisted + metadata-only (counts/sha/issueKey, never criterion text/code)', () => {
+  assert.deepStrictEqual(ALLOW.criteria_coverage, ['covered', 'total', 'uncovered', 'issueKey', 'sha']);
+  // any extra field (criterion prose, code, a leaked secret) is dropped by the ALLOW whitelist
+  const clean = sanitize('criteria_coverage', { covered: 2, total: 3, uncovered: 1, issueKey: 'MBI-61', sha: 'abc1234', text: 'patient note', code: 'token' });
+  assert.deepStrictEqual(clean, { covered: 2, total: 3, uncovered: 1, issueKey: 'MBI-61', sha: 'abc1234' });
 });

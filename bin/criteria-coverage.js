@@ -85,3 +85,30 @@ function currentCoverage(cwd) {
 }
 
 module.exports = { parseCriteriaIds, referencedIds, coverage, branchIssueKey, currentCoverage };
+
+// CLI: the /tdd gate + /ship preview read this.
+//   criteria-coverage.js            → JSON verdict (machine-readable)
+//   criteria-coverage.js --explain  → per-criterion ✓ covered / ✗ uncovered / ⏸ deferred drill-down, so a
+//                                     DENY at push is disputable against the exact ids (pure, nothing to argue).
+if (require.main === module) {
+  const st = currentCoverage();
+  if (process.argv.includes('--explain')) {
+    const out = [];
+    if (!st.hasManifest) {
+      out.push('Criteria coverage: no manifest for this branch — feature dormant (nothing to enforce).');
+    } else {
+      const c = st.cov;
+      const verdict = c.uncovered.length ? `✗ ${c.uncovered.length} criterion(s) with NO test`
+        : c.deferred.length ? `⏸ ${c.deferred.length} deferred (approve at /ship)` : '✓ all criteria pinned by a test';
+      out.push(`Criteria coverage — ${st.issueKey}: ${verdict}`);
+      out.push(`  ✓ covered  (${c.covered.length}): ${c.covered.join(', ') || '—'}`);
+      out.push(`  ✗ NO test  (${c.uncovered.length}): ${c.uncovered.join(', ') || '—'}`);
+      out.push(`  ⏸ deferred (${c.deferred.length}): ${c.deferred.join(', ') || '—'}`);
+      if (c.uncovered.length) out.push('\nAdd a test naming each [AC-N] above, or mark it [AC-N defer:<reason>] in the manifest to ship without one.');
+    }
+    process.stdout.write(out.join('\n') + '\n');
+  } else {
+    process.stdout.write(JSON.stringify(st));
+  }
+  process.exit(0);
+}
