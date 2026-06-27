@@ -23,7 +23,9 @@ function parseCriteriaIds(manifest) {
 
 /** Pure: the `AC-N` ids a test file binds, deduped (first-seen). A binding is an `AC-N` token that appears
  * INSIDE square brackets — `[AC-1]`, `[MBI-61 AC-2]`, `[AC-1][AC-3]`. Brackets are required so a bare
- * `AC-1` (which collides with the wall's Jira-key regex) is never mistaken for a binding. */
+ * `AC-1` (which collides with the wall's Jira-key regex) is never mistaken for a binding.
+ * v1 scope: scans the WHOLE test file, so an `[AC-N]` in a comment/data string also counts. Accepted
+ * trade-off (simple + deterministic); tighten to test titles later if false-positives bite. */
 function referencedIds(text) {
   const out = [];
   const seen = new Set();
@@ -51,6 +53,32 @@ function coverage(criteria, found) {
     else uncovered.push(id);
   }
   return { covered, uncovered, deferred, ok: uncovered.length === 0 };
+}
+
+/** Pure: build a criteria manifest, assigning stable sequential `AC-N` ids by position and preserving
+ * each criterion's kind/text and optional defer marker. This is the single authoring surface so ids are
+ * deterministic (never LLM-guessed) and round-trip exactly through parseCriteriaIds. */
+function buildManifest(issueKey, criteria) {
+  const out = [];
+  (criteria || []).forEach((c, i) => {
+    const e = { id: `AC-${i + 1}` };
+    if (c && c.kind != null) e.kind = c.kind;
+    if (c && c.text != null) e.text = c.text;
+    if (c && c.defer != null) e.defer = c.defer;
+    out.push(e);
+  });
+  return { issueKey, criteria: out };
+}
+
+/** Impure: write the manifest for `issueKey` to .health-harness/criteria/<KEY>.json (committed). Returns
+ * the path written. Creates the directory if needed. */
+function writeManifest(cwd, issueKey, criteria) {
+  const fs = require('fs'), path = require('path');
+  const dir = path.join(cwd || process.cwd(), '.health-harness', 'criteria');
+  fs.mkdirSync(dir, { recursive: true });
+  const p = path.join(dir, `${issueKey}.json`);
+  fs.writeFileSync(p, JSON.stringify(buildManifest(issueKey, criteria), null, 2) + '\n');
+  return p;
 }
 
 /** Impure: the Jira key carried by the current branch name (feature/MBI-61-… → MBI-61), or null. */
@@ -84,13 +112,24 @@ function currentCoverage(cwd) {
   return { hasManifest: true, issueKey: key, cov: coverage(criteria, found) };
 }
 
-module.exports = { parseCriteriaIds, referencedIds, coverage, branchIssueKey, currentCoverage };
+module.exports = { parseCriteriaIds, referencedIds, coverage, buildManifest, writeManifest, branchIssueKey, currentCoverage };
 
 // CLI: the /tdd gate + /ship preview read this.
 //   criteria-coverage.js            → JSON verdict (machine-readable)
 //   criteria-coverage.js --explain  → per-criterion ✓ covered / ✗ uncovered / ⏸ deferred drill-down, so a
 //                                     DENY at push is disputable against the exact ids (pure, nothing to argue).
 if (require.main === module) {
+  // `write <KEY> <criteria-json>` — /align records the manifest deterministically (ids assigned by position).
+  //   criteria-json is a JSON array of {kind?, text?, defer?}.
+  if (process.argv[2] === 'write') {
+    const key = process.argv[3];
+    let criteria = [];
+    try { criteria = JSON.parse(process.argv[4] || '[]'); } catch { process.stderr.write('write: criteria must be a JSON array\n'); process.exit(2); }
+    if (!key) { process.stderr.write('usage: criteria-coverage.js write <ISSUE-KEY> <criteria-json>\n'); process.exit(2); }
+    const p = writeManifest(process.cwd(), key, criteria);
+    process.stdout.write(`wrote ${p}\n`);
+    process.exit(0);
+  }
   const st = currentCoverage();
   if (process.argv.includes('--explain')) {
     const out = [];

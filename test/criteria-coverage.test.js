@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { parseCriteriaIds, referencedIds, coverage } = require('../bin/criteria-coverage.js');
+const { parseCriteriaIds, referencedIds, coverage, buildManifest } = require('../bin/criteria-coverage.js');
 const { ALLOW, sanitize } = require('../bin/usage-log.js');
 
 test('parseCriteriaIds: pulls deduped criterion ids from a manifest (object or JSON string)', () => {
@@ -50,6 +50,24 @@ test('coverage: a criterion with a defer marker is deferred, not hard-uncovered 
   // a deferred criterion that DOES have a test counts as covered (defer is a ceiling, not a floor)
   assert.deepStrictEqual(coverage(crit, ['AC-1', 'AC-2']),
     { covered: ['AC-1', 'AC-2'], uncovered: [], deferred: [], ok: true });
+});
+
+test('buildManifest: assigns sequential [AC-N] ids, preserves kind/text/defer, round-trips via parseCriteriaIds', () => {
+  const m = buildManifest('MBI-61', [
+    { kind: 'functional', text: 'binary coverage' },
+    { kind: 'audit', text: 'audit entry', defer: 'blocked on seam' },
+  ]);
+  assert.deepStrictEqual(m, {
+    issueKey: 'MBI-61',
+    criteria: [
+      { id: 'AC-1', kind: 'functional', text: 'binary coverage' },
+      { id: 'AC-2', kind: 'audit', text: 'audit entry', defer: 'blocked on seam' },
+    ],
+  });
+  // ids are exactly what parseCriteriaIds will read back (deterministic round-trip)
+  assert.deepStrictEqual(parseCriteriaIds(m), ['AC-1', 'AC-2']);
+  // empty/absent criteria → an empty manifest, never throws
+  assert.deepStrictEqual(buildManifest('MBI-9', []), { issueKey: 'MBI-9', criteria: [] });
 });
 
 test('criteria_coverage telemetry: whitelisted + metadata-only (counts/sha/issueKey, never criterion text/code)', () => {
