@@ -35,6 +35,15 @@ test('decideCriteriaDetect (audit): hipaa + PHI added + no audit criterion → A
   assert.strictEqual(decideCriteriaDetect('git status', '.', { profile: 'hipaa', phi: ['patient'], kinds: [] }), null);
 });
 
+test('decideCriteriaDetect (app-logging): logger introduced + no app-logging criterion → ASK', () => {
+  const push = 'git push origin HEAD';
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { logging: true, kinds: [] })), 'ask');
+  // an app-logging criterion is authored → no extra ASK
+  assert.strictEqual(decideCriteriaDetect(push, '.', { logging: true, kinds: ['app-logging'] }), null);
+  // no logging introduced → nothing to gate
+  assert.strictEqual(decideCriteriaDetect(push, '.', { logging: false, kinds: [] }), null);
+});
+
 test('criterion-coverage is NOT suppressed by a ship grant (decided before dropAsk, like gate-evidence)', () => {
   // granted (shipGrant=true) still DENIES an uncovered criterion
   const uncovered = { hasManifest: true, cov: { covered: ['AC-1'], uncovered: ['AC-2'], deferred: [], ok: false } };

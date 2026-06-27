@@ -55,7 +55,15 @@ function currentFacts(cwd) {
   let profile = 'hipaa';
   try { profile = require('./redaction-scan.js').loadConfig(dir).profile || 'hipaa'; } catch { /* default */ }
   const diff = branchDiff(dir);
-  return { profile, kinds: manifestKinds(dir), phi: detectPhiSignals(diff) };
+  return { profile, kinds: manifestKinds(dir), phi: detectPhiSignals(diff), logging: detectLoggingIntroduced(diff) };
 }
 
-module.exports = { addedLines, detectPhiSignals, branchDiff, manifestKinds, currentFacts };
+// Logger wiring or raw console.* on an added line → the slice "introduces logging".
+const LOG_RE = /(createLogger|getLogger|\bwinston\b|\bpino\b|\bbunyan\b|log4j|console\.(log|info|warn|error|debug))/i;
+
+/** Pure: did the slice introduce logging (a logger wiring or a raw console.* call) on an added line? */
+function detectLoggingIntroduced(diff) {
+  return addedLines(diff).some((l) => LOG_RE.test(l));
+}
+
+module.exports = { addedLines, detectPhiSignals, detectLoggingIntroduced, branchDiff, manifestKinds, currentFacts };

@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { detectPhiSignals } = require('../bin/criteria-detect.js');
+const { detectPhiSignals, detectLoggingIntroduced } = require('../bin/criteria-detect.js');
 
 test('detectPhiSignals: flags PHI access tokens on ADDED diff lines; ignores removed lines + headers', () => {
   const diff = [
@@ -20,4 +20,15 @@ test('detectPhiSignals: flags PHI access tokens on ADDED diff lines; ignores rem
   assert.deepStrictEqual(detectPhiSignals('+const compatients = 3;'), []);
   assert.deepStrictEqual(detectPhiSignals('+const x = 1;'), []);
   assert.deepStrictEqual(detectPhiSignals(''), []);
+});
+
+test('detectLoggingIntroduced: true when an added line wires a logger or raw console.*; removed lines ignored', () => {
+  assert.strictEqual(detectLoggingIntroduced('+const log = createLogger();'), true);
+  assert.strictEqual(detectLoggingIntroduced('+import winston from "winston";'), true);
+  assert.strictEqual(detectLoggingIntroduced('+  console.error("boom");'), true);
+  assert.strictEqual(detectLoggingIntroduced('+const log = pino();'), true);
+  // a removed logger line does not count (we gate what's added)
+  assert.strictEqual(detectLoggingIntroduced('-console.log("gone");'), false);
+  assert.strictEqual(detectLoggingIntroduced('+const total = sum(a, b);'), false);
+  assert.strictEqual(detectLoggingIntroduced(''), false);
 });
