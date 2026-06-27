@@ -1,9 +1,34 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage } = require('../hooks/outward-guard.js');
 
 const action = (d) => (d ? d.action : null);
+
+test('decideCriteriaCoverage: uncovered acceptance criterion DENIES the push; defer→ask; covered/no-manifest→defer', () => {
+  const push = 'git push origin HEAD';
+  // an authored criterion with no test → DENY, citing the specific [AC-N]
+  const deny = decideCriteriaCoverage(push, '.', { hasManifest: true, issueKey: 'MBI-61', cov: { covered: ['AC-1'], uncovered: ['AC-2'], deferred: [], ok: false } });
+  assert.strictEqual(action(deny), 'deny');
+  assert.match(deny.reason, /AC-2/);
+  // a criterion explicitly deferred (recorded escape) → ASK, not DENY
+  assert.strictEqual(action(decideCriteriaCoverage(push, '.', { hasManifest: true, cov: { covered: ['AC-1'], uncovered: [], deferred: ['AC-2'], ok: true } })), 'ask');
+  // all criteria covered → defer (no decision)
+  assert.strictEqual(decideCriteriaCoverage(push, '.', { hasManifest: true, cov: { covered: ['AC-1', 'AC-2'], uncovered: [], deferred: [], ok: true } }), null);
+  // no manifest → defer (AC-6 opt-in: the feature is dormant until /align authors one)
+  assert.strictEqual(decideCriteriaCoverage(push, '.', { hasManifest: false }), null);
+  // not a push → defer
+  assert.strictEqual(decideCriteriaCoverage('git status', '.', { hasManifest: true, cov: { covered: [], uncovered: ['AC-2'], deferred: [], ok: false } }), null);
+});
+
+test('criterion-coverage is NOT suppressed by a ship grant (decided before dropAsk, like gate-evidence)', () => {
+  // granted (shipGrant=true) still DENIES an uncovered criterion
+  const uncovered = { hasManifest: true, cov: { covered: ['AC-1'], uncovered: ['AC-2'], deferred: [], ok: false } };
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, undefined, true, uncovered)), 'deny');
+  // and a deferred criterion still ASKS under a grant
+  const deferred = { hasManifest: true, cov: { covered: ['AC-1'], uncovered: [], deferred: ['AC-2'], ok: true } };
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, undefined, true, deferred)), 'ask');
+});
 
 test('redaction egress gate: PHI in an outbound payload → DENY; clean → defer; reads not scanned', () => {
   // a Jira/Linear MCP WRITE carrying PHI is hard-blocked (before the outward ASK)

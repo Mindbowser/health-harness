@@ -155,6 +155,27 @@ function decideGateEvidence(command, cwd, stateOverride) {
   return { action: 'ask', reason: `health-harness wall: no captured PASSING gate run for this commit (${String(st.sha).slice(0, 12)}) — run the gate green first, or approve to ship unverified. (Blocks a hallucinated "it's green".)` };
 }
 
+// ── criterion-coverage gate → DENY an acceptance criterion with no test (agent self-corrects); defer→ASK ─
+// Deterministic: at push time, every authored acceptance criterion in the committed manifest must be pinned
+// by a real test (its [AC-N] id named in the test). Uncovered → DENY — the /tdd agent's job is to write
+// the test, so it self-corrects (no human). A criterion carrying a defer marker → ASK (a recorded,
+// auditable human escape). No manifest → defer (AC-6 opt-in: dormant until /align authors one). Like
+// gate-evidence, NOT suppressed by the ship grant — a quality question, not the routine outward ASK.
+function decideCriteriaCoverage(command, cwd, override) {
+  if (!PUBLISH_RE.test(String(command || ''))) return null;
+  let st = override;
+  if (!st) { try { st = require('../bin/criteria-coverage.js').currentCoverage(cwd || process.cwd()); } catch { return null; } }
+  if (!st || !st.hasManifest || !st.cov) return null; // nothing authored → no block
+  const cov = st.cov;
+  if (cov.uncovered && cov.uncovered.length) {
+    return { action: 'deny', reason: `health-harness wall — push blocked: acceptance criteria with no test: ${cov.uncovered.join(', ')}. Add a test naming each [AC-N], or mark it [AC-N defer:<reason>] to ship without one. (criterion-coverage)` };
+  }
+  if (cov.deferred && cov.deferred.length) {
+    return { action: 'ask', reason: `health-harness wall: acceptance criteria explicitly deferred without a test: ${cov.deferred.join(', ')} — approve to ship with these deferred. (criterion-coverage)` };
+  }
+  return null;
+}
+
 function decideBash(command) {
   const cmd = String(command || '');
   for (const [re, why] of DENY) if (re.test(cmd)) return { action: 'deny', reason: `health-harness wall — blocked: ${why}. If genuinely required, a human runs it outside the agent.` };
@@ -219,7 +240,7 @@ function decideRedactionMcp(tool, toolInput, cwd) {
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
 }
 
-function decide(toolName, toolInput, gitState, shipGrant) {
+function decide(toolName, toolInput, gitState, shipGrant, covOverride) {
   try {
     const cwd = process.cwd();
     // A live ship grant means the user already approved this publish batch on /ship's verbatim preview — so
@@ -234,6 +255,8 @@ function decide(toolName, toolInput, gitState, shipGrant) {
       if (bash && bash.action === 'deny') return bash; // catastrophic DENY (force-push, rm -rf …) beats all below
       const gate = decideGateEvidence(cmd, cwd);       // ship-without-passing-gate → ASK, NOT grant-suppressed
       if (gate) return gate;
+      const cov = decideCriteriaCoverage(cmd, cwd, covOverride); // uncovered criterion → DENY / defer → ASK, NOT grant-suppressed
+      if (cov) return cov;
       const gs = gitState !== undefined ? gitState : gitProbe();
       return dropAsk(bash)                             // outward ASK suppressed under a grant
         || decideCommitGuard(cmd, gs)                  // commit guards: not part of the batch
@@ -248,7 +271,7 @@ function decide(toolName, toolInput, gitState, shipGrant) {
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, gitProbe, baseBranches };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, gitProbe, baseBranches };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
