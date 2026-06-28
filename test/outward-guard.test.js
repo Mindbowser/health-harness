@@ -5,6 +5,11 @@ const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, e
 
 const action = (d) => (d ? d.action : null);
 
+// Hermetic override args for decide() routing tests (MBI-72): gitState=undefined, shipGrant=false,
+// covOverride=no-manifest, detectOverride=no-triggers, gateOverride=verified — so routing assertions don't
+// depend on a live ship-grant / gate-evidence / branch diff. Spread after (toolName, toolInput).
+const HERMETIC = [undefined, false, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }];
+
 test('decideCriteriaCoverage: uncovered acceptance criterion DENIES the push; defer→ask; covered/no-manifest→defer', () => {
   const push = 'git push origin HEAD';
   // an authored criterion with no test → DENY, citing the specific [AC-N]
@@ -93,8 +98,8 @@ test('redaction egress gate: PHI in an outbound payload → DENY; clean → defe
 });
 
 test('redaction gate wins over the outward ASK (decide routes PHI write to deny, clean write to ask)', () => {
-  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'DOB: 1980-04-02' } })), 'deny');
-  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'synthetic ticket' } })), 'ask');
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'DOB: 1980-04-02' } }, ...HERMETIC)), 'deny');
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'synthetic ticket' } }, ...HERMETIC)), 'ask');
 });
 
 test('ship grant suppresses the outward ASK (one approval covers the batch) but NEVER DENY/redaction', () => {
@@ -223,8 +228,8 @@ test('commit on a base branch ASKs; feature branch / initial commit defer', () =
 });
 
 test('decide() routes by tool_name; unknown tools defer', () => {
-  assert.strictEqual(action(decide('Bash', { command: 'git push' })), 'ask');
-  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', {})), 'ask');
-  assert.strictEqual(decide('Read', { file_path: '/x' }), null);
-  assert.strictEqual(decide('Edit', {}), null);
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, ...HERMETIC)), 'ask');
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', {}, ...HERMETIC)), 'ask');
+  assert.strictEqual(decide('Read', { file_path: '/x' }, ...HERMETIC), null);
+  assert.strictEqual(decide('Edit', {}, ...HERMETIC), null);
 });
