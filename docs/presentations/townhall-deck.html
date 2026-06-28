@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Townhall — one way to build</title>
+<style>
+  :root{
+    --ink:#1f2937; --soft:#6b7280; --line:#e5e7eb; --bg:#f7f8fa;
+    --you:#16a34a; --youbg:#ecfdf3; --does:#2563eb; --doesbg:#eff6ff;
+    --check:#d97706; --checkbg:#fff7ed;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:var(--ink);background:#0b1020;overflow:hidden}
+
+  /* ---- deck / slide system ---- */
+  .deck{position:fixed;inset:0;background:var(--bg)}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+         padding:6vh 7vw;overflow:auto}
+  .slide.active{display:flex;animation:fade .45s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .kicker{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--does);margin:0 0 10px}
+  .slide h1{font-size:clamp(30px,5vw,58px);margin:0 0 14px;font-weight:800;letter-spacing:-.5px;line-height:1.05}
+  .slide h2{font-size:clamp(24px,3.6vw,42px);margin:0 0 22px;font-weight:750;letter-spacing:-.3px}
+  .lead{font-size:clamp(16px,1.9vw,22px);color:var(--soft);max-width:60ch;line-height:1.5;margin:0 0 18px}
+  .chip-line{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .tag{display:inline-block;font-size:14px;font-weight:600;background:#fff;border:1px solid var(--line);
+       padding:7px 14px;border-radius:999px}
+  .tag.g{background:var(--youbg);border-color:#bbf7d0;color:#065f46}
+
+  /* ---- title slide accent ---- */
+  .slide.title{background:radial-gradient(1200px 600px at 70% -10%,#16233f,#0b1224);color:#e7edf6}
+  .slide.title .kicker{color:#7cc4ff}
+  .slide.title h1{color:#fff}
+  .slide.title .lead{color:#aebfd6}
+  .slide.title .tag{background:#16233f;border-color:#2a3a5c;color:#dbe7ff}
+  .slide.title .tag.g{background:#10331f;border-color:#1c5235;color:#86efac}
+
+  /* ---- generic cards ---- */
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%}
+  @media(max-width:820px){.trio{grid-template-columns:1fr}}
+  .tcard{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .tcard .tt{font-weight:750;font-size:clamp(17px,1.7vw,20px);margin:0 0 6px}
+  .tcard .td{font-size:clamp(13.5px,1.4vw,16px);color:var(--soft);margin:0;line-height:1.45}
+  .reinvent{margin:22px 0 0;padding:16px 18px;background:var(--youbg);border:1px solid #bbf7d0;border-radius:12px;
+        font-size:clamp(15px,1.7vw,19px);color:#065f46}
+  .reinvent b{color:#047857}
+
+  /* ---- steps ---- */
+  .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%}
+  @media(max-width:820px){.flow{grid-template-columns:1fr}}
+  .step{position:relative;background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px 18px;
+        display:flex;flex-direction:column;gap:11px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .step .num{position:absolute;top:-12px;left:18px;background:var(--ink);color:#fff;font-size:13px;font-weight:700;
+        width:26px;height:26px;border-radius:50%;display:grid;place-items:center}
+  .title2{font-size:clamp(19px,2vw,24px);font-weight:750;margin:0}
+  .sdlc{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.3px;color:#475569;
+        background:#eef2f7;border:1px solid #e2e8f0;border-radius:6px;padding:3px 9px;align-self:flex-start}
+  .cmd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;background:#0f172a;color:#e2e8f0;
+       padding:8px 13px;border-radius:8px;align-self:flex-start}
+  .block{border-radius:10px;padding:10px 12px;font-size:clamp(13px,1.35vw,15px)}
+  .block .lab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;display:block}
+  .you{background:var(--youbg)} .you .lab{color:var(--you)}
+  .does{background:var(--doesbg)} .does .lab{color:var(--does)}
+  .block ul{margin:0;padding-left:16px} .block li{margin:1px 0}
+
+  /* ---- validation grid ---- */
+  .vgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%}
+  @media(max-width:820px){.vgrid{grid-template-columns:1fr}}
+  .vitem{background:var(--checkbg);border:1px solid #f0d8b8;border-radius:13px;padding:15px 16px}
+  .vitem .vt{font-size:clamp(15px,1.6vw,18px);font-weight:750;color:#92400e;margin:0 0 4px}
+  .vitem .vd{font-size:clamp(13px,1.35vw,15px);color:#7c5e35;margin:0;line-height:1.4}
+  .footnote{font-size:14px;color:var(--soft);margin:16px 0 0}
+
+  /* ---- analytics pills ---- */
+  .pillrow{display:flex;gap:12px;flex-wrap:wrap}
+  .pill{font-size:clamp(14px,1.5vw,17px);background:var(--doesbg);border:1px solid #cfe0fd;color:#1e40af;
+        padding:11px 16px;border-radius:12px;font-weight:600}
+  .muted{font-size:15px;color:var(--soft);margin:0 0 18px}
+
+  /* ---- rollout ---- */
+  .rollout{display:flex;align-items:stretch;gap:18px;flex-wrap:wrap;width:100%}
+  .rstage{flex:1;min-width:240px;border:1px solid var(--line);border-radius:16px;padding:22px;background:#fff}
+  .rstage .rh{font-weight:800;font-size:clamp(18px,2vw,24px);margin:0 0 6px}
+  .rstage .rs{font-size:clamp(13.5px,1.4vw,16px);color:var(--soft);margin:0;line-height:1.45}
+  .rstage.now{border-color:#bbf7d0;background:#f0fdf4}
+  .rstage.next{border-color:#cfe0fd;background:#f4f8ff}
+  .rarrow{display:flex;align-items:center;font-size:34px;color:#94a3b8;font-weight:800}
+  @media(max-width:820px){.rarrow{transform:rotate(90deg);justify-content:center}}
+
+  /* ===== the abstraction — click-driven walkthrough ===== */
+  .hero{width:100%;max-width:1000px;margin:0 auto}
+  .hero-top{display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center}
+  .hero-lab{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--soft);transition:.2s}
+  .cmd.big{font-size:24px;padding:12px 24px;border-radius:10px;transition:.25s}
+  .flowtag{font-size:13.5px;color:var(--soft);text-align:center;margin:10px 0}
+  .flowtag.down b{color:var(--does)}
+  .engine{display:flex;align-items:center;gap:16px;background:linear-gradient(180deg,#0f172a,#13203b);border-radius:14px;padding:18px}
+  .gear{font-size:28px;animation:spin 11s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .stack{position:relative;flex:1;min-height:40px}
+  .phase{display:none;gap:9px;flex-wrap:wrap;align-content:center}
+  .phase.show{display:flex}
+  .ch{font-size:13.5px;color:#7e93b4;background:#1b2942;border:1px solid #25395c;border-radius:999px;padding:7px 12px;transition:.2s}
+  .ch.done{color:#cfe8df;border-color:#2f5e50;background:#172e29}
+  .ch.lit{color:#0b1120;background:#5eead4;border-color:#5eead4;box-shadow:0 0 16px rgba(94,234,212,.55);transform:translateY(-2px)}
+  .notebox{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-height:104px}
+  .notechip{display:inline-block;font-size:12.5px;font-weight:700;background:#ecfeff;border:1px solid #a5f3fc;color:#0e7490;border-radius:999px;padding:4px 11px;margin-bottom:9px}
+  .notetext{font-size:clamp(15px,1.7vw,19px);color:var(--ink);margin:0;line-height:1.45}
+  .heroProg{text-align:center;font-size:13px;color:var(--soft);margin:14px 0 0}
+  .heroProg b{color:var(--does)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.86em;background:#eef2f7;
+       padding:1px 6px;border-radius:5px;color:#334155}
+
+  /* ---- PM / Engineer split ---- */
+  .brings{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:940px;margin:0 auto}
+  @media(max-width:760px){.brings{grid-template-columns:1fr}}
+  .bcard{border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:#fff}
+  .bcard.pm{border-color:#bcd3ff;background:#f3f8ff}
+  .bcard.eng{border-color:#bbf7d0;background:#f0fdf6}
+  .bcard h4{margin:0 0 4px;font-size:clamp(15px,1.6vw,18px)}
+  .bcard .role{font-size:12px;color:var(--soft);margin:0 0 9px}
+  .bcard ul{margin:0;padding-left:18px;font-size:clamp(13px,1.4vw,15.5px);color:#374151;line-height:1.55}
+  .bcard.pm h4{color:#0747a6} .bcard.eng h4{color:#006644}
+  .toarrow{text-align:center;font-size:14px;color:var(--soft);margin:16px 0 12px}
+
+  /* ---- Jira-style story card ---- */
+  .jira{background:#fff;border:1px solid #dfe1e6;border-radius:10px;overflow:hidden;
+        box-shadow:0 4px 14px rgba(9,30,66,.12);max-width:720px;margin:0 auto;width:100%}
+  .jira-head{display:flex;align-items:center;gap:9px;padding:11px 16px;border-bottom:1px solid #f0f1f3;background:#fafbfc}
+  .jtype{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#5e6c84;text-transform:uppercase;letter-spacing:.4px}
+  .jic{width:16px;height:16px;border-radius:3px;background:#36b37e;display:inline-grid;place-items:center;color:#fff;font-size:11px;font-weight:800}
+  .jkey{font-size:12.5px;color:#5e6c84;font-weight:700}
+  .jstatus{margin-left:auto;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:4px 10px;border-radius:4px;background:#ede9fe;color:#6d28d9}
+  .jbody{padding:15px 18px}
+  .jsummary{font-size:clamp(16px,1.9vw,21px);font-weight:750;margin:0 0 6px;color:#172b4d}
+  .jdesc{font-size:13.5px;color:#5e6c84;margin:0 0 14px}
+  .jlabel{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#5e6c84;margin:0 0 9px}
+  .aclist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+  .acitem{display:flex;align-items:center;gap:10px;font-size:clamp(13px,1.45vw,15.5px);color:#172b4d}
+  .acbox{width:17px;height:17px;border:2px solid #b3bac5;border-radius:4px;flex:0 0 auto;display:grid;place-items:center;font-size:12px;color:#fff}
+  .acbox.on{background:#36b37e;border-color:#36b37e}
+  .acid{font-weight:800;color:#0052cc;margin-right:5px}
+  .actext{flex:1}
+  .owner{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap;letter-spacing:.2px}
+  .owner.pm{background:#deebff;color:#0747a6}
+  .owner.hipaa{background:#ffebe6;color:#bf2600}
+
+  /* ---- TDD example panels ---- */
+  .tddex{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:1000px;margin:6px auto 0}
+  @media(max-width:820px){.tddex{grid-template-columns:1fr}}
+  .tpanel{border-radius:12px;border:1px solid #1e293b;overflow:hidden;background:#0f172a;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  .tpanel .ph{font-size:12.5px;font-weight:800;letter-spacing:.5px;padding:9px 13px;color:#fff;display:flex;gap:8px;align-items:center}
+  .tpanel.red .ph{background:#9f1239} .tpanel.green .ph{background:#166534} .tpanel.blue .ph{background:#1e40af}
+  .tpanel pre{margin:0;padding:13px;color:#cbd5e1;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;
+        line-height:1.55;white-space:pre-wrap;background:transparent}
+  .tpanel .cmt{color:#64748b}
+  .tpanel .ok{color:#4ade80} .tpanel .bad{color:#fb7185}
+  .whyai{max-width:1000px;margin:20px auto 0;background:#eef5ff;border:1px solid #cfe0fd;border-radius:14px;padding:16px 20px}
+  .whyai h4{margin:0 0 9px;color:#1e40af;font-size:clamp(15px,1.7vw,18px)}
+  .whyai ul{margin:0;padding-left:20px;font-size:clamp(13.5px,1.45vw,16px);color:#243b53;line-height:1.6}
+  .whyai b{color:#1e40af}
+  .lead.center{text-align:center;margin:0 auto 16px}
+
+  /* ---- harness layer ---- */
+  .surface{max-width:940px;margin:0 auto 6px;background:#ecfdf3;border:1px solid #bbf7d0;border-radius:12px;
+           padding:13px 16px;text-align:center;font-weight:650;color:#065f46;font-size:clamp(14px,1.6vw,18px)}
+  .surface code{background:#d1fae5;color:#065f46}
+  .layhint{text-align:center;font-size:13px;color:var(--soft);margin:10px 0 12px}
+  .layers{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%;max-width:1010px;margin:0 auto}
+  @media(max-width:820px){.layers{grid-template-columns:repeat(2,1fr)}}
+  .lcard{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:13px 14px;color:#e2e8f0}
+  .lcard .lt{font-weight:700;font-size:clamp(12.5px,1.35vw,14px);margin:0 0 4px;display:flex;gap:7px;align-items:center}
+  .lcard .ld{font-size:clamp(11px,1.2vw,12.5px);color:#94a3b8;margin:0;line-height:1.42}
+
+  /* ---- stat cards (pilot) ---- */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;width:100%;max-width:1000px;margin:0 auto}
+  @media(max-width:820px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 14px;text-align:center}
+  .stat .big{font-size:clamp(26px,4vw,42px);font-weight:800;color:#0f766e;margin:0;line-height:1}
+  .stat .lbl{font-size:13px;color:#334155;font-weight:600;margin:7px 0 0}
+  .stat .sub{font-size:11.5px;color:#94a3b8;margin:3px 0 0}
+  /* ---- example rows (abstraction) ---- */
+  .exrow{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);border-radius:12px;
+         padding:13px 16px;margin:0 auto 10px;max-width:920px}
+  .exrow .ei{font-size:22px;flex:0 0 auto}
+  .exrow .et{font-weight:750;font-size:clamp(14px,1.5vw,17px);margin:0;min-width:130px}
+  .exrow .ed{font-size:clamp(13px,1.4vw,15.5px);color:var(--soft);margin:0}
+  /* ---- risk / future callout ---- */
+  .danger{max-width:1000px;margin:18px auto 0;background:#fff5f5;border:1px solid #fecaca;border-radius:14px;padding:16px 20px}
+  .danger h4{margin:0 0 7px;color:#b91c1c;font-size:clamp(15px,1.6vw,18px)}
+  .danger p{margin:0;font-size:clamp(13.5px,1.45vw,16px);color:#7f1d1d;line-height:1.55}
+  .danger code{background:#fee2e2;color:#991b1b}
+
+  /* ---- terminal (CLI glimpse) ---- */
+  .term{max-width:880px;margin:0 auto;background:#0d1117;border:1px solid #1f2630;border-radius:12px;
+        overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.28);text-align:left}
+  .term-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;background:#161b22;border-bottom:1px solid #1f2630}
+  .tl{width:12px;height:12px;border-radius:50%}
+  .tl.r{background:#ff5f56} .tl.y{background:#ffbd2e} .tl.g{background:#27c93f}
+  .term-title{margin-left:8px;color:#8b949e;font-size:12px;font-family:ui-monospace,Menlo,monospace}
+  .term pre{margin:0;padding:16px 20px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+        font-size:clamp(11.5px,1.35vw,14.5px);line-height:1.7;color:#c9d1d9;white-space:pre-wrap}
+  .term .cmd2{color:#7ee787;font-weight:700}
+  .term .you{color:#79c0ff;font-weight:600}
+  .term .ok2{color:#7ee787}
+  .term .dim{color:#8b949e}
+  .term .warn{color:#e3b341}
+
+  /* ---- nav chrome ---- */
+  .pagenum{position:fixed;bottom:16px;left:20px;color:#9aa6b8;font-size:13px;z-index:5}
+  .brand{position:fixed;top:16px;right:22px;color:#9aa6b8;font-size:12px;letter-spacing:.5px;z-index:5}
+  .dots{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:9px;z-index:5}
+  .dot{width:9px;height:9px;border-radius:50%;background:#cdd5e0;border:none;cursor:pointer;padding:0}
+  .dot.on{background:#0f172a;transform:scale(1.25)}
+  .nav{position:fixed;bottom:12px;right:18px;display:flex;gap:8px;z-index:5}
+  .nav button{font-size:18px;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);
+       background:#fff;cursor:pointer;color:#334155}
+  .nav button:hover{background:#f1f5f9}
+  .hint-key{position:fixed;top:16px;left:22px;color:#9aa6b8;font-size:12px;z-index:5}
+
+  @media(prefers-reduced-motion:reduce){
+    .gear,.ch,.phase,.rline,.cyc span,.slide.active{animation:none}
+    .cyc span:nth-child(2),.cyc span:nth-child(3){opacity:0}
+    .phase:nth-of-type(1),.rline:nth-of-type(1){opacity:1}
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1 · TITLE -->
+  <section class="slide title active">
+    <p class="kicker">Annual Townhall</p>
+    <h1>One way to build —<br>piloting small, rolling out wide</h1>
+    <p class="lead">A small team is proving a single, shared way to build software: a few simple steps,
+       with the standard SDLC practices made automatic. Same discipline for everyone — without slowing anyone down.</p>
+    <div class="chip-line">
+      <span class="tag">5–6 engineers piloting now</span>
+      <span class="tag g">✅ Nothing reinvented — it’s just the SDLC</span>
+    </div>
+  </section>
+
+  <!-- 2 · THE PROBLEM -->
+  <section class="slide">
+    <p class="kicker">Where we are today</p>
+    <h2>Great tools — but everyone builds differently</h2>
+    <div class="trio">
+      <div class="tcard"><p class="tt">🧩 Different mental models</p><p class="td">Every engineer has their own habits, beliefs and shortcuts. Hard to review, hard to onboard, hard to trust at scale.</p></div>
+      <div class="tcard"><p class="tt">🌊 Agents change weekly</p><p class="td">New models and features ship constantly — and each of us re-learns them the hard way, in our own corner.</p></div>
+      <div class="tcard"><p class="tt">⚠️ Inconsistent &amp; risky</p><p class="td">In healthcare, “it depends who built it” isn’t good enough. Quality and compliance shouldn’t vary by person.</p></div>
+    </div>
+    <p class="reinvent" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412">💡 We don’t need everyone to agree on habits — we need <b>one shared, safe path</b> everyone can follow.</p>
+  </section>
+
+  <!-- 3 · ABSTRACTION -->
+  <section class="slide">
+    <p class="kicker">The pattern that always worked</p>
+    <h2>Abstraction is how teams scaled before — we’re doing it again</h2>
+    <div class="exrow"><span class="ei">⚛️</span><p class="et">React</p><p class="ed">You describe the UI — you don’t hand-poke the DOM.</p></div>
+    <div class="exrow"><span class="ei">🗃️</span><p class="et">ORM</p><p class="ed">You work with objects — you don’t hand-write SQL for every query.</p></div>
+    <div class="exrow"><span class="ei">☁️</span><p class="et">Cloud SDK</p><p class="ed">You call a method — you don’t sign raw HTTP requests by hand.</p></div>
+    <div class="exrow"><span class="ei">🔌</span><p class="et">Payments SDK</p><p class="ed">You call <code>charge()</code> — you don’t implement PCI plumbing yourself.</p></div>
+    <p class="reinvent">✅ Each one lets you work at a <b>higher level</b> while the layer handles the tricky, error-prone detail. <b>The harness is that same idea — the abstraction for building software with AI.</b> You work in intent (align · tdd · ship); it handles tests, compliance and plumbing.</p>
+  </section>
+
+  <!-- 3b · WHAT THE HARNESS IS (a layer, not a skill) -->
+  <section class="slide">
+    <p class="kicker">Let’s be clear</p>
+    <h2>This isn’t one prompt — it’s a whole layer</h2>
+    <div class="surface">What you touch: <code>/align</code> · <code>/tdd</code> · <code>/ship</code> — three simple commands</div>
+    <p class="layhint">↓ &nbsp;underneath — the harness layer (you barely see it):</p>
+    <div class="layers">
+      <div class="lcard"><p class="lt">🧭 Guided steps</p><p class="ld">The align → tdd → ship workflow, codified so it runs the same way every time.</p></div>
+      <div class="lcard"><p class="lt">🛡️ The guardrail wall</p><p class="ld">Blocks unsafe or off-process actions before they ever run — deterministically.</p></div>
+      <div class="lcard"><p class="lt">✅ Validation engine</p><p class="ld">Tests, acceptance-criteria coverage, and proof the gate actually passed.</p></div>
+      <div class="lcard"><p class="lt">🏥 Compliance profile</p><p class="ld">HIPAA rules applied automatically — audit logging, safe logging.</p></div>
+      <div class="lcard"><p class="lt">🔒 PHI / PII redaction</p><p class="ld">Scans everything leaving the repo and blocks patient data or secrets.</p></div>
+      <div class="lcard"><p class="lt">🔁 Determinism</p><p class="ld">Decide once, reuse — tickets, versions, commits — instead of re-guessing.</p></div>
+      <div class="lcard"><p class="lt">🔗 Jira + Git wiring</p><p class="ld">PRs, status transitions and worklogs handled for you.</p></div>
+      <div class="lcard"><p class="lt">📦 Org distribution</p><p class="ld">Same version for everyone (MDM); a stale install is blocked from mutating.</p></div>
+    </div>
+    <p class="reinvent" style="text-align:center">A <b>skill</b> is one instruction. The <b>harness</b> is the whole layer beneath it — many parts working together so each engineer doesn’t have to.</p>
+  </section>
+
+  <!-- 4 · WHY -->
+  <section class="slide">
+    <p class="kicker">So this is what we built</p>
+    <h2>One shared way — not many personal ones</h2>
+    <div class="trio">
+      <div class="tcard"><p class="tt">🤝 Consistency</p><p class="td">One shared path — predictable, easy to review, easy to join. Habits stop being personal.</p></div>
+      <div class="tcard"><p class="tt">🛡️ Safety built in</p><p class="td">HIPAA guardrails + tests run automatically — not from memory, not optional. Compliance by default.</p></div>
+      <div class="tcard"><p class="tt">⚡ Fast stays safe</p><p class="td">AI lets us move fast; the guardrails make sure fast never turns into risky or sloppy.</p></div>
+    </div>
+    <p class="reinvent">✅ <b>Nothing reinvented.</b> It’s the standard SDLC — Plan &amp; Design → Build &amp; Test → Review &amp; Release — only made automatic, and the same for everyone.</p>
+  </section>
+
+  <!-- 3 · ALIGN — PM + Engineer → a Jira story -->
+  <section class="slide">
+    <p class="kicker">Step 1 · /align — together</p>
+    <h2>PM + Engineer agree — and it becomes one story</h2>
+    <div class="brings">
+      <div class="bcard pm">
+        <h4>🧑‍💼 The PM brings</h4>
+        <p class="role">the <b>what &amp; why</b> — business intent</p>
+        <ul>
+          <li>Goal: a patient can view their lab results in the portal</li>
+          <li>Rules: see only your own · newest first · never someone else’s</li>
+        </ul>
+      </div>
+      <div class="bcard eng">
+        <h4>👩‍💻 The Engineer brings</h4>
+        <p class="role">the <b>how + safety</b> — grounded in the code</p>
+        <ul>
+          <li>Feasibility: filter the existing results table by the signed-in patient</li>
+          <li>Flags HIPAA: results are PHI → audit every view · keep values out of logs</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="toarrow">↓ &nbsp;<code>/align</code> turns the conversation into one shared, testable story</p>
+
+    <div class="jira">
+      <div class="jira-head">
+        <span class="jtype"><span class="jic">✓</span> Story</span>
+        <span class="jkey">SAMPLE-204</span>
+        <span class="jstatus">In Refinement</span>
+      </div>
+      <div class="jbody">
+        <p class="jsummary">Patient can view their lab results in the portal</p>
+        <p class="jdesc">A signed-in patient sees a list of their own lab results, newest first. All data synthetic.</p>
+        <p class="jlabel">Acceptance criteria</p>
+        <ul class="aclist">
+          <li class="acitem"><span class="acbox"></span><span class="actext"><span class="acid">AC-1</span>A patient sees only their own results — never another patient’s</span><span class="owner pm">🧑‍💼 PM</span></li>
+          <li class="acitem"><span class="acbox"></span><span class="actext"><span class="acid">AC-2</span>Results are shown newest first</span><span class="owner pm">🧑‍💼 PM</span></li>
+          <li class="acitem"><span class="acbox"></span><span class="actext"><span class="acid">AC-3</span>Only provider-released results show; pending ones are hidden</span><span class="owner pm">🧑‍💼 PM</span></li>
+          <li class="acitem"><span class="acbox"></span><span class="actext"><span class="acid">AC-4</span>Every view is audit-logged — who · what · when</span><span class="owner hipaa">🛡️ HIPAA</span></li>
+          <li class="acitem"><span class="acbox"></span><span class="actext"><span class="acid">AC-5</span>Logs never contain the result values</span><span class="owner hipaa">🛡️ HIPAA</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3b · CLI glimpse — your part is just a few prompts -->
+  <section class="slide">
+    <p class="kicker">In practice · /align</p>
+    <h2>Your part? A few prompts and a brainstorm</h2>
+    <p class="lead center">No setup, no boilerplate, no checklist to memorise. You talk it through — the harness writes it down.</p>
+    <div class="term">
+      <div class="term-bar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="term-title">claude — ~/portal</span></div>
+<pre>$ claude
+<span class="cmd2">&gt; /align SAMPLE-204</span>
+
+<span class="dim">⚖  Reading SAMPLE-204 — “Patient can view their lab results.”
+   A few quick questions:</span>
+   • Who can see a result?       <span class="you">▸ only their own</span>
+   • Anything to hide?           <span class="you">▸ results not yet released by the provider</span>
+   • Sort order?                 <span class="you">▸ newest first</span>
+
+<span class="warn">✓  Health data detected (lab results = PHI)</span>
+<span class="dim">   adding HIPAA criteria: audit every view · keep values out of logs</span>
+
+<span class="ok2">✓  Wrote 5 acceptance criteria → SAMPLE-204
+✓  Saved the criteria manifest · ready for /tdd</span></pre>
+    </div>
+    <p class="reinvent" style="text-align:center;max-width:880px;margin-left:auto;margin-right:auto">🙌 That’s the whole job in <code>/align</code> — <b>a short brainstorm, a few prompts.</b> The harness writes the criteria now, and the tests &amp; checks later.</p>
+  </section>
+
+  <!-- 4 · TDD — what it is + why it fits AI -->
+  <section class="slide">
+    <p class="kicker">Step 2 · /tdd — how we build</p>
+    <h2>Test-Driven Development — and why it fits AI</h2>
+    <p class="lead center">Write the test <b>first</b> → make it pass → clean up. One behaviour at a time. Here is <code>AC-1</code> of <code>SAMPLE-204</code>:</p>
+    <div class="tddex">
+      <div class="tpanel red">
+        <div class="ph">🔴 RED · write the test first</div>
+<pre>test('AC-1: only own results', () =&gt; {
+  login(Raj)
+  expect(results())
+    .not.toContain(Jane.result)
+})
+<span class="bad">// ✗ fails — Jane’s row leaks</span></pre>
+      </div>
+      <div class="tpanel green">
+        <div class="ph">🟢 GREEN · least code to pass</div>
+<pre>results = labResults
+  .where({ patientId: user.id })
+
+<span class="ok">// ✓ the test passes</span></pre>
+      </div>
+      <div class="tpanel blue">
+        <div class="ph">🔵 REFACTOR · clean up, stay green</div>
+<pre>function resultsForPatient(id){
+  return labResults
+    .where({ patientId: id })
+}
+<span class="ok">// ✓ tests still green</span></pre>
+      </div>
+    </div>
+    <div class="whyai">
+      <h4>Why TDD fits AI especially well</h4>
+      <ul>
+        <li><b>Proof, not vibes.</b> AI writes code fast — the test proves it actually works, instead of just looking right.</li>
+        <li><b>No “fake green.”</b> Writing the test first stops the AI declaring “done” without a real, passing check.</li>
+        <li><b>An executable spec.</b> Each acceptance criterion becomes a test the AI can’t drift away from.</li>
+        <li><b>A self-correcting loop.</b> The gate runs after every change, so the AI fixes its own mistakes — your tests set the quality ceiling.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 4 · THE 3 STEPS = SDLC -->
+  <section class="slide">
+    <p class="kicker">Zoom out · the whole flow</p>
+    <h2>Three steps — the standard SDLC, made automatic</h2>
+    <div class="flow">
+      <div class="step">
+        <div class="num">1</div>
+        <p class="title2">Agree</p>
+        <span class="sdlc">SDLC · Plan &amp; Design</span>
+        <div class="cmd">/align</div>
+        <div class="block you"><span class="lab">You do</span>Agree what to build + the rules that matter (with the PM).</div>
+        <div class="block does"><span class="lab">Harness</span>Turns it into clear, checkable acceptance criteria.</div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <p class="title2">Build</p>
+        <span class="sdlc">SDLC · Build &amp; Test</span>
+        <div class="cmd">/tdd</div>
+        <div class="block you"><span class="lab">You do</span>Let it build, one small piece at a time.</div>
+        <div class="block does"><span class="lab">Harness</span>Test first, then code; runs the gate every change; keeps PHI out.</div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <p class="title2">Ship</p>
+        <span class="sdlc">SDLC · Review &amp; Release</span>
+        <div class="cmd">/ship</div>
+        <div class="block you"><span class="lab">You do</span>Read the summary, approve once.</div>
+        <div class="block does"><span class="lab">Harness</span>Opens the PR, updates the ticket, logs time — after a redaction scan.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · VALIDATION LAYER -->
+  <section class="slide">
+    <p class="kicker">The validation layer</p>
+    <h2>What we check before anything ships</h2>
+    <p class="muted">Automatic and exact — pass or fail, no guessing. If a check fails, it stops and fixes it.</p>
+    <div class="vgrid">
+      <div class="vitem"><p class="vt">📝 Acceptance-criteria coverage</p><p class="vd">Every criterion agreed in <code>/align</code> is pinned by a real test.</p></div>
+      <div class="vitem"><p class="vt">✔️ Green gate</p><p class="vd">Tests + types + lint all pass — re-run every change, never skipped.</p></div>
+      <div class="vitem"><p class="vt">🔒 PHI / PII redaction</p><p class="vd">Code, tickets &amp; PRs scanned at the boundary; real patient data, identifiers or secrets are blocked.</p></div>
+      <div class="vitem"><p class="vt">🧾 Audit logging</p><p class="vd">PHI reads, writes &amp; denied access recorded — who · what · when · outcome. The HIPAA trail.</p></div>
+      <div class="vitem"><p class="vt">🧹 Safe logging</p><p class="vd">Logs carry a record id, never PHI/PII values.</p></div>
+    </div>
+    <p class="footnote">Plus lighter guards: timezone-safe date/time · conventional, ticket-keyed commits · feature-branch hygiene.</p>
+  </section>
+
+  <!-- PILOT RESULTS -->
+  <section class="slide">
+    <p class="kicker">Pilot · early signals</p>
+    <h2>What we’re seeing with the small team</h2>
+    <div class="stats">
+      <div class="stat"><p class="big">85%</p><p class="lbl">of work goes through the flow</p><p class="sub">adoption, 5–6 engineers</p></div>
+      <div class="stat"><p class="big">~35%</p><p class="lbl">faster ticket → PR</p><p class="sub">less plumbing &amp; rework</p></div>
+      <div class="stat"><p class="big">100%</p><p class="lbl">criteria pinned by tests</p><p class="sub">nothing “done” without proof</p></div>
+      <div class="stat"><p class="big">0</p><p class="lbl">PHI leaks reach a PR</p><p class="sub">caught at the wall</p></div>
+    </div>
+    <p class="footnote" style="text-align:center">Measured privately — numbers only, never code, prompts or patient data. <i>(Early pilot signals — replace with our actuals before the readout.)</i></p>
+  </section>
+
+  <!-- NEXT PHASE -->
+  <section class="slide">
+    <p class="kicker">Where this goes next</p>
+    <h2>Closing the loop — with QA raising the ceiling</h2>
+    <div class="trio">
+      <div class="tcard"><p class="tt">🧪 QA deepens the tests</p><p class="td">QA enhances the safety net — broader coverage and real end-to-end checks (e.g. Playwright) on top of the unit tests.</p></div>
+      <div class="tcard"><p class="tt">🔁 Close the loop from CI</p><p class="td">CI failures feed straight back to the agent; fixes are re-verified automatically — less manual back-and-forth.</p></div>
+      <div class="tcard"><p class="tt">🎫 Automate the busywork</p><p class="td">Ticket status, worklogs and hand-offs flow on their own — people spend time on judgment, not bookkeeping.</p></div>
+    </div>
+    <p class="reinvent">The flow becomes a system that <b>improves itself</b> — QA shifts from gate-keeping to <b>raising the quality ceiling</b> for everyone.</p>
+  </section>
+
+  <!-- FUTURE -->
+  <section class="slide">
+    <p class="kicker">The shift</p>
+    <h2>From writing code → managing agents + the harness</h2>
+    <div class="brings">
+      <div class="bcard eng">
+        <h4>⌨️ Less of</h4>
+        <p class="role">the mechanical work</p>
+        <ul>
+          <li>Hand-writing boilerplate &amp; plumbing</li>
+          <li>Remembering every compliance step</li>
+          <li>Manual tickets, status, time-logs</li>
+        </ul>
+      </div>
+      <div class="bcard pm">
+        <h4>🧭 More of</h4>
+        <p class="role">where humans are irreplaceable</p>
+        <ul>
+          <li>Directing agents &amp; reviewing intent</li>
+          <li>Judgment calls, edge cases, trade-offs</li>
+          <li>Catching where the AI can be wrong</li>
+        </ul>
+      </div>
+    </div>
+    <div class="danger">
+      <h4>⚠️ Spend your attention where the machine is weakest</h4>
+      <p>An LLM can <b>hallucinate</b> — in <code>SAMPLE-204</code> it might invent a lab value that was never returned, or quietly mis-apply the access rule and show <i>Raj</i> someone else’s row. That’s exactly where you look: the <code>AC-1</code> test catches the access slip, the audit + redaction checks catch PHI — and <b>you</b> own the judgment. Clear mental model + harness = your time goes to what only a human can do.</p>
+    </div>
+  </section>
+
+  <!-- 7 · ROLLOUT -->
+  <section class="slide">
+    <p class="kicker">The ask</p>
+    <h2>Prove small → roll out org-wide</h2>
+    <div class="rollout">
+      <div class="rstage now">
+        <p class="rh">Now · Pilot</p>
+        <p class="rs">A small team (5–6) on real work — proving the flow and the guardrails hold.</p>
+      </div>
+      <div class="rarrow">→</div>
+      <div class="rstage next">
+        <p class="rh">Next · Every engineer</p>
+        <p class="rs">Pushed through central IT (MDM): same version, same guardrails, on by default — no per-person setup.</p>
+      </div>
+    </div>
+    <p class="reinvent" style="text-align:center">One shared, safe way to build — <b>standard SDLC, made automatic, for everyone.</b></p>
+  </section>
+
+</div>
+
+<!-- chrome -->
+<div class="brand">MINDBOWSER</div>
+<div class="hint-key">← → or Space to navigate</div>
+<div class="pagenum"><span id="cur">1</span> / <span id="total">7</span></div>
+<div class="dots" id="dots"></div>
+<div class="nav"><button id="prev" aria-label="Previous">‹</button><button id="next" aria-label="Next">›</button></div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsWrap = document.getElementById('dots');
+  const curEl = document.getElementById('cur');
+  document.getElementById('total').textContent = slides.length;
+
+  /* ---- slide nav ---- */
+  let i = 0;
+  slides.forEach((_, n) => {
+    const b = document.createElement('button');
+    b.className = 'dot' + (n === 0 ? ' on' : '');
+    b.addEventListener('click', () => jump(n));
+    dotsWrap.appendChild(b);
+  });
+  const dots = Array.from(dotsWrap.children);
+  function showSlide(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    dots.forEach((d, k) => d.classList.toggle('on', k === i));
+    curEl.textContent = i + 1;
+  }
+  function next(){ if (i < slides.length - 1) showSlide(i + 1); }
+  function prev(){ if (i > 0) showSlide(i - 1); }
+  function jump(n){ showSlide(n); }
+
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'PageDown'){ e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp'){ e.preventDefault(); prev(); }
+    else if (e.key === 'Home'){ jump(0); } else if (e.key === 'End'){ jump(slides.length - 1); }
+  });
+</script>
+</body>
+</html>
