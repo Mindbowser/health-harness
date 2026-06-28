@@ -141,8 +141,10 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 - **ASK** (you must approve): `git push`, `gh pr create`/merge, `rm -rf`, `git reset --hard`, package
   publish, `docker push`, cloud/infra mutations (`kubectl/terraform/aws … apply|delete|deploy`), `curl`
   writes, **a `git commit` while you're on the base branch** (`main`/`master`/the configured `baseBranch`
-  — branch first, or approve to commit on base), and **any external-system write via MCP** (Jira/Linear
-  create/update/transition/comment).
+  — branch first, or approve to commit on base), and **external-system *content* writes via MCP** (Jira/Linear
+  create/update). **Reversible, low-stakes MCP ops — a status `transition`, a `comment`, a `worklog` — DEFER
+  (no prompt)** since they're routine and reversible (MBI-67); the redaction egress scan still runs on them,
+  so PHI in a comment is still DENY'd.
 - **DENY → agent self-corrects** (no human): a **malformed commit message**. The wall enforces a
   deterministic conventional `type(scope): subject` prefix (on by default); a bad message is blocked with the
   reason so the agent fixes and retries — you're never asked. Policy is `.health-harness/project.json`
