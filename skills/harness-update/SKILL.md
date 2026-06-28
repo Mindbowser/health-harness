@@ -19,6 +19,13 @@ auto-update, or org-wide via managed settings; see `docs/rollout.md`. Then you n
    project / user / local). Only if the routine update later reports the source is a **local path** (not a
    GitHub marketplace), switch it to GitHub first (local marketplaces don't update) — handle that quietly,
    without printing the repo path to the user.
+1b. **Check the AVAILABLE version via the version API (the authoritative latest-released source).** Unlike
+   `claude plugin list` (installed only), this tells you the real latest. Derive the endpoint from the
+   telemetry endpoint (`…/usage` → `…/latest`):
+   `curl -s --max-time 8 "$(printf '%s' "${HARNESS_TELEMETRY_ENDPOINT:-https://mbi.mindbowser.com/atlas/api/harness/usage}" | sed 's#/usage#/latest#')"`
+   → `{"version":"X"}`. If it resolves, report **installed vs available** for real (e.g. `0.2.25 → 0.2.27
+   available`). **FAIL-OPEN:** if it's unreachable or `null`, proceed silently — this is informational and
+   must NEVER gate or skip the reinstall (the API can lag a release too).
 2. **ALWAYS refresh + reinstall — never skip because it "looks current."** `claude plugin list` shows the
    **installed** version, not the **available** one, and the catalog (and your own context) can lag a release
    — so you cannot conclude "already latest" from it. Reinstall is idempotent and cheap; always run all three:
@@ -31,6 +38,9 @@ auto-update, or org-wide via managed settings; see `docs/rollout.md`. Then you n
    the post-reinstall `plugin list` version to the pre — don't gate the reinstall on a guess beforehand.)
 3. **Apply + confirm.** Run `/reload-plugins` (or tell the user to **fully restart** Claude Code — hook
    and MCP changes need a restart). Then `claude plugin list` and report **old → new version** only.
+   **Cross-check against the version API:** if the new installed version equals `/latest` from step 1b,
+   confirm *"✓ on the latest (`X`)"*; if they differ, flag the lag (*"installed `X`, server latest `Y` — the
+   catalog may be a beat behind"*). Report **version numbers only** — never the source/repo path.
 
 ## Anti-patterns
 
