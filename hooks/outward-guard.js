@@ -42,6 +42,11 @@ const ASK = [
 
 // MCP write verbs → ASK (Jira/Linear/GitHub writes). Read verbs are left to defer.
 const MCP_WRITE = /(create|update|edit|add|delete|remove|transition|move|assign|comment|post|put|push|write|close|resolve|set)/i;
+// Reversible / low-stakes writes → DEFER (no prompt): a status transition, a comment, a worklog entry —
+// routine, reversible, not outward *content* creation, so no per-call approval (MBI-67). Redaction still
+// runs on them (decideRedactionMcp precedes decideMcp), so PHI in a comment is still DENY'd. Content
+// create/edit and destructive verbs are unaffected.
+const REVERSIBLE_MCP = /transition|worklog|comment/i;
 
 // ── base-branch commit guard → ASK ────────────────────────────────────────────
 // A freshly-cloned repo sits on the base branch (main/master, or the repo's
@@ -216,7 +221,9 @@ function decideBash(command) {
 }
 
 function decideMcp(tool) {
-  if (MCP_WRITE.test(String(tool || ''))) {
+  const t = String(tool || '');
+  if (REVERSIBLE_MCP.test(t)) return null; // reversible/low-stakes (transition/comment/worklog) → no prompt (MBI-67)
+  if (MCP_WRITE.test(t)) {
     return { action: 'ask', reason: `health-harness wall: writing to an external system (${tool}). Approve to proceed.` };
   }
   return null;

@@ -98,9 +98,9 @@ test('redaction gate wins over the outward ASK (decide routes PHI write to deny,
 });
 
 test('ship grant suppresses the outward ASK (one approval covers the batch) but NEVER DENY/redaction', () => {
-  // clean outward write: no grant → ASK; active grant → defer (no re-prompt)
-  assert.strictEqual(action(decide('mcp__atlassian__addCommentToJiraIssue', { commentBody: 'PR #42 up' }, undefined, false)), 'ask');
-  assert.strictEqual(decide('mcp__atlassian__addCommentToJiraIssue', { commentBody: 'PR #42 up' }, undefined, true), null);
+  // clean outward CONTENT write (editJiraIssue still ASKs; comments now defer per MBI-67): no grant → ASK; grant → defer
+  assert.strictEqual(action(decide('mcp__atlassian__editJiraIssue', { fields: { description: 'PR #42 up' } }, undefined, false)), 'ask');
+  assert.strictEqual(decide('mcp__atlassian__editJiraIssue', { fields: { description: 'PR #42 up' } }, undefined, true), null);
   // gh pr create (outward ASK, NOT gate-gated) under a grant → defer; without → ASK
   assert.strictEqual(action(decide('Bash', { command: 'gh pr create --title x --body "clean summary"' }, undefined, false)), 'ask');
   assert.strictEqual(decide('Bash', { command: 'gh pr create --title x --body "clean summary"' }, undefined, true), null);
@@ -178,11 +178,16 @@ test('DEFER normal local work (no decision)', () => {
   assert.strictEqual(decideBash('ls -la'), null);
 });
 
-test('MCP writes ASK, reads DEFER', () => {
+test('MCP: content writes ASK, reversible ops (transition/comment/worklog) DEFER, reads DEFER (MBI-67)', () => {
+  // content create/edit still ASKs (outward content)
   assert.strictEqual(action(decideMcp('mcp__atlassian__createJiraIssue')), 'ask');
   assert.strictEqual(action(decideMcp('mcp__atlassian__editJiraIssue')), 'ask');
-  assert.strictEqual(action(decideMcp('mcp__atlassian__transitionJiraIssue')), 'ask');
-  assert.strictEqual(action(decideMcp('mcp__atlassian__addCommentToJiraIssue')), 'ask');
+  assert.strictEqual(action(decideMcp('mcp__atlassian__updateConfluencePage')), 'ask');
+  // reversible / low-stakes writes now DEFER (no prompt) — MBI-67
+  assert.strictEqual(decideMcp('mcp__atlassian__transitionJiraIssue'), null);
+  assert.strictEqual(decideMcp('mcp__atlassian__addCommentToJiraIssue'), null);
+  assert.strictEqual(decideMcp('mcp__atlassian__addWorklogToJiraIssue'), null);
+  // reads DEFER (unchanged)
   assert.strictEqual(decideMcp('mcp__atlassian__getJiraIssue'), null);
   assert.strictEqual(decideMcp('mcp__atlassian__searchJiraIssuesUsingJql'), null);
 });
