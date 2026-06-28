@@ -29,6 +29,14 @@ tests** that pin current behavior before changing anything. **Hard gate: no loop
 Don't stop at the first passing test — work through all the criteria. You're done only when the whole
 slice is demoable end-to-end and the gate is green. Track which criteria are covered so you don't quit early.
 
+**Bind each test to its criterion — coverage is enforced deterministically, not on trust.** When the ticket
+has a committed criteria manifest (`.health-harness/criteria/<KEY>.json`, written by `/align`), name the
+criterion's `[AC-N]` id in the test (e.g. `test('[AC-2] uncovered criterion denies the push', …)`). Run
+`node "/Users/pravinuttarwar/.claude/plugins/cache/mindbowser/health-harness/0.2.21/bin/criteria-coverage.js" --explain`
+as the loop's exit check: every authored criterion must be pinned. The `/ship` wall **DENY**s a push with an
+uncovered criterion (you self-correct by writing the test) — so this isn't optional. A criterion that genuinely
+can't be pinned yet gets a `defer` reason in the manifest (downgrades that one to a conscious ASK at ship).
+
 ## Keep the build quiet — interrupt only at real judgment points
 
 AFK build should run *silent*, breaking only for decisions a human must own. Apply the **interrupt gate**

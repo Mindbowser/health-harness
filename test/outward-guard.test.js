@@ -1,9 +1,80 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect } = require('../hooks/outward-guard.js');
 
 const action = (d) => (d ? d.action : null);
+
+test('decideCriteriaCoverage: uncovered acceptance criterion DENIES the push; defer→ask; covered/no-manifest→defer', () => {
+  const push = 'git push origin HEAD';
+  // an authored criterion with no test → DENY, citing the specific [AC-N]
+  const deny = decideCriteriaCoverage(push, '.', { hasManifest: true, issueKey: 'MBI-61', cov: { covered: ['AC-1'], uncovered: ['AC-2'], deferred: [], ok: false } });
+  assert.strictEqual(action(deny), 'deny');
+  assert.match(deny.reason, /AC-2/);
+  // a criterion explicitly deferred (recorded escape) → ASK, not DENY
+  assert.strictEqual(action(decideCriteriaCoverage(push, '.', { hasManifest: true, cov: { covered: ['AC-1'], uncovered: [], deferred: ['AC-2'], ok: true } })), 'ask');
+  // all criteria covered → defer (no decision)
+  assert.strictEqual(decideCriteriaCoverage(push, '.', { hasManifest: true, cov: { covered: ['AC-1', 'AC-2'], uncovered: [], deferred: [], ok: true } }), null);
+  // no manifest → defer (AC-6 opt-in: the feature is dormant until /align authors one)
+  assert.strictEqual(decideCriteriaCoverage(push, '.', { hasManifest: false }), null);
+  // not a push → defer
+  assert.strictEqual(decideCriteriaCoverage('git status', '.', { hasManifest: true, cov: { covered: [], uncovered: ['AC-2'], deferred: [], ok: false } }), null);
+});
+
+test('decideCriteriaDetect (audit): hipaa + PHI added + no audit criterion → ASK; audit authored or non-hipaa → defer', () => {
+  const push = 'git push origin HEAD';
+  // PHI access added on a hipaa repo, no kind:audit criterion authored → ASK backstop
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { profile: 'hipaa', phi: ['patient'], kinds: [] })), 'ask');
+  // an audit criterion IS authored → the deterministic criterion path covers it; no extra ASK
+  assert.strictEqual(decideCriteriaDetect(push, '.', { profile: 'hipaa', phi: ['patient'], kinds: ['audit'] }), null);
+  // non-hipaa profile → PHI gate does not apply
+  assert.strictEqual(decideCriteriaDetect(push, '.', { profile: 'none', phi: ['patient'], kinds: [] }), null);
+  // no PHI signals on the diff → nothing to gate
+  assert.strictEqual(decideCriteriaDetect(push, '.', { profile: 'hipaa', phi: [], kinds: [] }), null);
+  // not a push → defer
+  assert.strictEqual(decideCriteriaDetect('git status', '.', { profile: 'hipaa', phi: ['patient'], kinds: [] }), null);
+});
+
+test('decideCriteriaDetect (app-logging): logger introduced + no app-logging criterion → ASK', () => {
+  const push = 'git push origin HEAD';
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { logging: true, kinds: [] })), 'ask');
+  // an app-logging criterion is authored → no extra ASK
+  assert.strictEqual(decideCriteriaDetect(push, '.', { logging: true, kinds: ['app-logging'] }), null);
+  // no logging introduced → nothing to gate
+  assert.strictEqual(decideCriteriaDetect(push, '.', { logging: false, kinds: [] }), null);
+});
+
+test('decideCriteriaDetect: a recorded convention upgrades the audit/logging backstop from ASK to DENY', () => {
+  const push = 'git push origin HEAD';
+  // audit helper recorded in conventions → the project HAS a standard, so a missing audit criterion is DENY
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { profile: 'hipaa', phi: ['patient'], kinds: [], conventions: { audit: { helper: 'src/lib/audit.record' } } })), 'deny');
+  // logger module recorded → raw logging without the app-logging criterion is DENY
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { logging: true, kinds: [], conventions: { logging: { module: 'src/lib/logger' } } })), 'deny');
+  // no convention recorded → stays a heuristic ASK
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { logging: true, kinds: [] })), 'ask');
+});
+
+test('decideCriteriaDetect (timezone): date/time API used with no marker/criterion → DENY; marker or criterion → defer', () => {
+  const push = 'git push origin HEAD';
+  assert.strictEqual(action(decideCriteriaDetect(push, '.', { datetime: true, tzMarker: false, kinds: [] })), 'deny');
+  // an explicit // tz-safe marker → no block
+  assert.strictEqual(decideCriteriaDetect(push, '.', { datetime: true, tzMarker: true, kinds: [] }), null);
+  // a kind:timezone criterion authored → no block
+  assert.strictEqual(decideCriteriaDetect(push, '.', { datetime: true, tzMarker: false, kinds: ['timezone'] }), null);
+  // no date/time API used → nothing to gate
+  assert.strictEqual(decideCriteriaDetect(push, '.', { datetime: false, tzMarker: false, kinds: [] }), null);
+});
+
+test('criterion-coverage is NOT suppressed by a ship grant (decided before dropAsk, like gate-evidence)', () => {
+  // gateOverride 'verified' so gate-evidence (which also precedes dropAsk) doesn't mask the cov decision
+  const verified = { state: 'verified' };
+  // granted (shipGrant=true) still DENIES an uncovered criterion
+  const uncovered = { hasManifest: true, cov: { covered: ['AC-1'], uncovered: ['AC-2'], deferred: [], ok: false } };
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, undefined, true, uncovered, undefined, verified)), 'deny');
+  // and a deferred criterion still ASKS under a grant
+  const deferred = { hasManifest: true, cov: { covered: ['AC-1'], uncovered: [], deferred: ['AC-2'], ok: true } };
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, undefined, true, deferred, undefined, verified)), 'ask');
+});
 
 test('redaction egress gate: PHI in an outbound payload → DENY; clean → defer; reads not scanned', () => {
   // a Jira/Linear MCP WRITE carrying PHI is hard-blocked (before the outward ASK)

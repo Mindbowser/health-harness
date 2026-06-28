@@ -45,6 +45,12 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/boilerplate-registry.js" resolve "<stack>"   # �
 4. **Set the compliance profile.** Run `/compliance-profile` to write `.health-harness/compliance.json`.
    **Default to `hipaa`** (the MB fail-safe); only set a lighter profile if the user confirms the repo
    handles no PHI.
+4b. **Record project conventions + gate completeness** (so the build loop's compliance checks are
+   deterministic, not guessed). The boilerplate's centralised **logger** module + **rotation**, the
+   **audit** helper, the **datetime** policy, and that **lint / typecheck / coverage-%** are in the gate —
+   `node "/Users/pravinuttarwar/.claude/plugins/cache/mindbowser/health-harness/0.2.21/bin/conventions.js" set '<json>'`.
+   Anything the boilerplate lacks → establish it now or record a deferred gap (`… conventions.js gaps`). The
+   compliance detectors read `.health-harness/conventions.json` to upgrade a heuristic ASK to a deterministic DENY.
 5. **Install the harness.** Reference the `health-harness` plugin and add a repo `CLAUDE.md` that states the
    stack, the gate command, and the active compliance profile.
 6. **Verify it boots.** Install deps, run the gate green, confirm the dev server starts. Commit the

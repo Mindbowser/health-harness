@@ -119,6 +119,15 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    while the criteria preview stays **readable text above** the popup. Don't ask the obvious: if a step is
    inferable or reversible, just do it and say so in one line — a popup is for a genuine decision or an
    outward/irreversible action only, and the change must never *increase* the number of prompts.
+   - **Also record the deterministic manifest (makes coverage machine-checkable, never guessed).** Give each
+     Given/When/Then a stable `[AC-N]` id (keep it visible in the Jira prose too — e.g. `[AC-1] Given…`) and
+     write the committed manifest with
+     `node "/Users/pravinuttarwar/.claude/plugins/cache/mindbowser/health-harness/0.2.21/bin/criteria-coverage.js" write <KEY> '<json>'`
+     where `<json>` is a JSON array of `{kind?, text}` (ids are assigned by position → `AC-1`, `AC-2`, …).
+     This commits `.health-harness/criteria/<KEY>.json`, which `/tdd`'s gate and the `/ship` wall read to
+     enforce that **every** criterion is pinned by a real test. Tag compliance criteria by `kind`:
+     `"audit"` (ePHI), `"app-logging"`, `"timezone"`. A criterion you deliberately ship untested carries a
+     `defer` reason (downgrades its push-block from DENY to ASK).
    - **AUTHOR mode (PM refining a ticket):** **update the Jira ticket** with the agreed Given/When/Then
      via the tracker MCP — show them, **confirm via the popup** (it's an outward write),
      `/phi-redaction-check` the text first (no PHI/secrets in a ticket), then push. Write **clean Markdown with

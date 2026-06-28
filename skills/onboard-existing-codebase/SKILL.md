@@ -43,6 +43,13 @@ it — their conventions, their architecture, their IP.
    - If it's missing, broken, or thin → **write characterization tests** that pin the *current*
      behavior around where you'll work, and assemble a one-command gate. **Do not change any behavior
      until this gate is green.** No feedback loop ⇒ no AFK build (Matt: no loop = no quality ceiling).
+   - **Record conventions + gate completeness** (so the build loop's compliance checks are deterministic,
+     not guessed): the existing centralised **logger** module + **rotation**, the **audit** helper, the
+     **datetime** policy, and whether **lint / typecheck / coverage-%** are in the gate —
+     `node "/Users/pravinuttarwar/.claude/plugins/cache/mindbowser/health-harness/0.2.21/bin/conventions.js" set '<json>'`.
+     A brownfield repo MISSING one (no centralised logger, lint not wired) → **flag it as a gap to
+     establish** (`… conventions.js gaps`), don't silently re-discover it each ticket. The compliance
+     detectors read `.health-harness/conventions.json` to upgrade a heuristic ASK into a deterministic DENY.
    - **DB check:** the pre-flight flags it, but confirm — if the repo has a **database but no migration
      layer** (Prisma/Knex/TypeORM/Alembic/Liquibase/Rails/Django/…), raise it: schema changes have no safe,
      reversible path. Recommend adding one *before* any schema work (no DB → ignore).

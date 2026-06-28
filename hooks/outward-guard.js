@@ -155,6 +155,59 @@ function decideGateEvidence(command, cwd, stateOverride) {
   return { action: 'ask', reason: `health-harness wall: no captured PASSING gate run for this commit (${String(st.sha).slice(0, 12)}) — run the gate green first, or approve to ship unverified. (Blocks a hallucinated "it's green".)` };
 }
 
+// ── criterion-coverage gate → DENY an acceptance criterion with no test (agent self-corrects); defer→ASK ─
+// Deterministic: at push time, every authored acceptance criterion in the committed manifest must be pinned
+// by a real test (its [AC-N] id named in the test). Uncovered → DENY — the /tdd agent's job is to write
+// the test, so it self-corrects (no human). A criterion carrying a defer marker → ASK (a recorded,
+// auditable human escape). No manifest → defer (AC-6 opt-in: dormant until /align authors one). Like
+// gate-evidence, NOT suppressed by the ship grant — a quality question, not the routine outward ASK.
+function decideCriteriaCoverage(command, cwd, override) {
+  if (!PUBLISH_RE.test(String(command || ''))) return null;
+  let st = override;
+  if (!st) { try { st = require('../bin/criteria-coverage.js').currentCoverage(cwd || process.cwd()); } catch { return null; } }
+  if (!st || !st.hasManifest || !st.cov) return null; // nothing authored → no block
+  const cov = st.cov;
+  if (cov.uncovered && cov.uncovered.length) {
+    return { action: 'deny', reason: `health-harness wall — push blocked: acceptance criteria with no test: ${cov.uncovered.join(', ')}. Add a test naming each [AC-N], or mark it [AC-N defer:<reason>] to ship without one. (criterion-coverage)` };
+  }
+  if (cov.deferred && cov.deferred.length) {
+    return { action: 'ask', reason: `health-harness wall: acceptance criteria explicitly deferred without a test: ${cov.deferred.join(', ')} — approve to ship with these deferred. (criterion-coverage)` };
+  }
+  return null;
+}
+
+// ── compliance detectors (backstop) → ASK/DENY when a slice adds a concern with no criterion authored ───
+// criteria-detect scans the diff's ADDED lines. These are heuristic backstops to the deterministic
+// criterion path: if /align didn't auto-author the right criterion, the slice still can't silently ship the
+// concern. Audit (hipaa + PHI access, no kind:audit) → ASK. (Logging + timezone branches grow per slice.)
+// `facts` is injectable for tests; otherwise read from disk. NOT grant-suppressed (a compliance question).
+function decideCriteriaDetect(command, cwd, facts) {
+  if (!PUBLISH_RE.test(String(command || ''))) return null;
+  let f = facts;
+  if (!f) { try { f = require('../bin/criteria-detect.js').currentFacts(cwd || process.cwd()); } catch { return null; } }
+  if (!f) return null;
+  const kinds = new Set(f.kinds || []);
+  const conv = f.conventions || {};
+  // A recorded convention means the project HAS a standard, so a miss is a deterministic DENY; with no
+  // convention recorded the detector is heuristic → ASK (the human adds the criterion or approves).
+  const sev = (recorded) => (recorded ? 'deny' : 'ask');
+  // timezone: a date/time API is used with no explicit marker and no kind:timezone criterion → DENY
+  if (f.datetime && !f.tzMarker && !kinds.has('timezone')) {
+    return { action: 'deny', reason: 'health-harness wall — push blocked: this slice uses a date/time API but carries no timezone handling marker. Add a kind:timezone criterion or a `// tz-safe:<reason>` annotation. (criteria-detect)' };
+  }
+  // audit: PHI access added on a hipaa repo with no kind:audit criterion authored. DENY when the audit
+  // helper convention is recorded (Slice 5), else ASK (heuristic).
+  if (f.profile === 'hipaa' && Array.isArray(f.phi) && f.phi.length && !kinds.has('audit')) {
+    return { action: sev(conv.audit && conv.audit.helper), reason: `health-harness wall: this slice adds a PHI access path (${f.phi.join(', ')}) but no audit criterion is authored — add a kind:audit acceptance criterion${conv.audit && conv.audit.helper ? ` (log via ${conv.audit.helper})` : ''}, or approve to proceed. (criteria-detect)` };
+  }
+  // logging: a logger is introduced with no kind:app-logging criterion authored. DENY when the centralised
+  // logger convention is recorded (Slice 5), else ASK.
+  if (f.logging && !kinds.has('app-logging')) {
+    return { action: sev(conv.logging && conv.logging.module), reason: `health-harness wall: this slice introduces logging but no app-logging criterion is authored — use the centralised logger${conv.logging && conv.logging.module ? ` (${conv.logging.module})` : ''} + a rotating handler, or approve to proceed. (criteria-detect)` };
+  }
+  return null;
+}
+
 function decideBash(command) {
   const cmd = String(command || '');
   for (const [re, why] of DENY) if (re.test(cmd)) return { action: 'deny', reason: `health-harness wall — blocked: ${why}. If genuinely required, a human runs it outside the agent.` };
@@ -219,7 +272,7 @@ function decideRedactionMcp(tool, toolInput, cwd) {
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
 }
 
-function decide(toolName, toolInput, gitState, shipGrant) {
+function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOverride, gateOverride) {
   try {
     const cwd = process.cwd();
     // A live ship grant means the user already approved this publish batch on /ship's verbatim preview — so
@@ -232,8 +285,12 @@ function decide(toolName, toolInput, gitState, shipGrant) {
       if (red) return red;
       const bash = decideBash(cmd);
       if (bash && bash.action === 'deny') return bash; // catastrophic DENY (force-push, rm -rf …) beats all below
-      const gate = decideGateEvidence(cmd, cwd);       // ship-without-passing-gate → ASK, NOT grant-suppressed
+      const gate = decideGateEvidence(cmd, cwd, gateOverride); // ship-without-passing-gate → ASK, NOT grant-suppressed
       if (gate) return gate;
+      const cov = decideCriteriaCoverage(cmd, cwd, covOverride); // uncovered criterion → DENY / defer → ASK, NOT grant-suppressed
+      if (cov) return cov;
+      const det = decideCriteriaDetect(cmd, cwd, detectOverride); // compliance backstops (audit/logging/tz), NOT grant-suppressed
+      if (det) return det;
       const gs = gitState !== undefined ? gitState : gitProbe();
       return dropAsk(bash)                             // outward ASK suppressed under a grant
         || decideCommitGuard(cmd, gs)                  // commit guards: not part of the batch
@@ -248,7 +305,7 @@ function decide(toolName, toolInput, gitState, shipGrant) {
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, gitProbe, baseBranches };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, gitProbe, baseBranches };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

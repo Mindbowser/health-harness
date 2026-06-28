@@ -31,6 +31,16 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    blind (a near-empty repo might still be an existing clone mid-setup).
 3. **Ensure the compliance profile is set.** If `.health-harness/compliance.json` is missing, run
    `/compliance-profile` (default `hipaa`). Both paths need this before work starts.
+3b. **Record project conventions + gate completeness (one-time → the build loop's compliance checks become
+   deterministic, not guessed).** Discover and record the centralised **logger** module, log **rotation**,
+   the **audit** helper, the **datetime** policy, and whether **lint / typecheck / coverage-%** are wired
+   into the gate:
+   `node "/Users/pravinuttarwar/.claude/plugins/cache/mindbowser/health-harness/0.2.21/bin/conventions.js" set '<json>'`
+   (e.g. `{"logging":{"module":"src/lib/logger","rotating":true},"audit":{"helper":"src/lib/audit.record"},"datetime":{"policy":"store-utc"},"lint":true,"typecheck":true}`).
+   List what's still missing with `… conventions.js gaps`; for each gap **ASK the human to establish it now**
+   (onboarding/start is the place to prompt — never mid-build), or record it as an explicit deferred gap.
+   The compliance detectors read `.health-harness/conventions.json` to upgrade a heuristic ASK into a
+   deterministic DENY.
 4. **Connect the tracker + confirm git identity (once per project/person).** Set these up *here*, not
    mid-build:
    - **Tracker (Jira/Linear) MCP** — verify it's connected (the agent can "list issues in the current
