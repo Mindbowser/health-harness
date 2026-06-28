@@ -321,6 +321,9 @@ bin/criteria-detect.js       # diff detectors (PHI / introduced-logging / date-t
                              #   audit/app-logging/timezone criteria at the wall (+ test/)
 bin/conventions.js           # records logging/audit/datetime + lint/typecheck/coverage conventions once at
                              #   start/onboard/scaffold; detectors read it to upgrade ASK→DENY (+ test/)
+bin/version-gate.js          # forces a stale install to update: SessionStart resolves installed-vs-latest
+                             #   (Atlas /latest), PreToolUse DENYs MUTATING tools when behind (reads pass);
+                             #   FAIL-OPEN on any uncertainty — never bricks a session (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/mutation-emit.js         # `npm run mutation:emit` — parse a mutation score from any tool's report/output
                              #   (file arg or stdin) → records test_strength (kind=mutation); pluggable, no
