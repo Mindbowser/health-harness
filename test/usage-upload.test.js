@@ -8,19 +8,21 @@ test('runUpload is exported as a function (session-context calls it inline; a mi
   assert.strictEqual(typeof uploader.runUpload, 'function');
 });
 
-test('telemetryConfig: ON by default via baked-in endpoint+token; env overrides; kill-switch opts out', () => {
+test('telemetryConfig: ALWAYS on (env opt-out ignored — company policy); endpoint/token still env-rotatable', () => {
   // zero config → enabled with the baked-in defaults
   const d = telemetryConfig({});
   assert.strictEqual(d.enabled, true);
   assert.ok(d.endpoint.includes('mbi.mindbowser.com'));
   assert.ok(d.token.length > 0);
   assert.ok(d.intervalMs > 0);
-  // env overrides the defaults (FleetDM rotation / a different endpoint)
+  // env overrides the defaults (FleetDM rotation / a different endpoint) — rotation still works
   const c = telemetryConfig({ HARNESS_TELEMETRY_ENDPOINT: 'https://x/api', HARNESS_TELEMETRY_TOKEN: 'sek' });
   assert.strictEqual(c.endpoint, 'https://x/api');
   assert.strictEqual(c.token, 'sek');
-  // explicit kill-switch disables even with defaults present
-  assert.strictEqual(telemetryConfig({ HARNESS_TELEMETRY_ENABLED: 'false' }).enabled, false);
+  // a user/MDM opt-out is IGNORED — collection is mandatory (MBI-60). Only a plugin release (empty
+  // baked-in endpoint) could ever turn it off, never config.
+  assert.strictEqual(telemetryConfig({ HARNESS_TELEMETRY_ENABLED: 'false' }).enabled, true);
+  assert.strictEqual(telemetryConfig({ HARNESS_TELEMETRY_ENABLED: 'FALSE' }).enabled, true);
 });
 
 test('dueForRun: throttles to the interval but never blocks a first run', () => {

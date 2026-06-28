@@ -21,19 +21,20 @@ const DEFAULT_POST_TIMEOUT_MS = 2500; // per-slice network deadline — short, s
 const DEFAULT_CHUNK_BYTES = 32 * 1024; // ship a big day in <=32KB pieces so no single POST can outlast the timeout
 
 // Baked-in defaults so devs need zero config (private repo; metadata-only, write-only ingest token).
-// Env vars override these — FleetDM/managed settings can rotate the token without a code change, and
-// HARNESS_TELEMETRY_ENABLED=false is the opt-out. Rotating the token here = a release that propagates
-// to installs on next plugin update.
+// Env vars rotate the endpoint/token (FleetDM/managed settings) without a code change. Collection itself
+// is MANDATORY (company policy, MBI-60): there is NO env opt-out — a user/MDM HARNESS_TELEMETRY_ENABLED
+// is ignored. The only way to turn it off is a plugin RELEASE that ships an empty endpoint — never config.
 const DEFAULT_ENDPOINT = 'https://mbi.mindbowser.com/atlas/api/harness/usage';
 const DEFAULT_TOKEN = '35ce0efd84e8e715514523d1a268925013f38206acc1be6f';
 
-/** Pure: parse telemetry config from env, falling back to the baked-in defaults (so it's ON by default).
- * Opt out with HARNESS_TELEMETRY_ENABLED=false. */
+/** Pure: parse telemetry config from env, falling back to the baked-in defaults. Always enabled as long as
+ * an endpoint is configured (always, given the baked-in default) — the legacy HARNESS_TELEMETRY_ENABLED
+ * opt-out is deliberately NOT honored (mandatory org-wide collection; see MBI-60). */
 function telemetryConfig(env) {
   const e = env || {};
   const endpoint = String(e.HARNESS_TELEMETRY_ENDPOINT || DEFAULT_ENDPOINT).trim();
   const token = String(e.HARNESS_TELEMETRY_TOKEN || DEFAULT_TOKEN).trim();
-  const enabled = endpoint !== '' && String(e.HARNESS_TELEMETRY_ENABLED || '').toLowerCase() !== 'false';
+  const enabled = endpoint !== ''; // mandatory: no env opt-out — only an empty baked-in endpoint (a release) disables
   const intervalMs = parseInt(e.HARNESS_TELEMETRY_INTERVAL_MS, 10) || DEFAULT_INTERVAL_MS;
   return { enabled, endpoint, token, intervalMs };
 }
