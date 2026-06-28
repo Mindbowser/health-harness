@@ -143,11 +143,19 @@ Don't make the human do the git plumbing. At the **start** of the slice:
 
 ## Publish — hand off to /ship
 
-When the slice is **green and the verification summary is ready, run `/ship`**: it pushes → opens the PR →
-moves the ticket to **In Review** → comments the PR link + criteria→test → logs the worklog (suggested,
-user-confirmed) → redaction-checks first, each step confirmed. `/ship` owns that flow so it happens one
-consistent way — **don't re-implement push/PR/Jira/worklog here.** The dev's job ends at **merge**; address
-review feedback by looping back through `/tdd`, then `/ship` again.
+When the slice is **green and the verification summary is ready**, publish via `/ship`: it pushes → opens
+the PR → moves the ticket to **In Review** → comments the PR link + criteria→test → logs the worklog
+(suggested, user-confirmed) → redaction-checks first, each step confirmed. `/ship` owns that flow so it
+happens one consistent way — **don't re-implement push/PR/Jira/worklog here.**
+
+> **`/ship` is human-triggered — the agent CANNOT invoke it** (`disable-model-invocation: true`). So when
+> you're an agent and the build is green: **STOP and hand off** — print the verification summary and tell the
+> user *"ready — run `/ship <KEY>`."* **Do NOT freelance the publish** (`git push` / `gh pr create` /
+> Jira transition) yourself — that bypasses the redaction + breaking-change + worklog steps `/ship` guarantees,
+> and the wall will redirect a raw push back to `/ship` anyway. Handing off IS the disciplined path, not a
+> limitation to work around.
+
+The dev's job ends at **merge**; address review feedback by looping back through `/tdd`, then `/ship` again.
 
 ## Anti-patterns
 
