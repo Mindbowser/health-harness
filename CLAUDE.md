@@ -59,12 +59,14 @@ module, archetype, compliance profile, …). One word, one meaning.
   leaves the README/diagram stale is **incomplete** — don't merge it. (Full authoring contract:
   `skills/writing-great-skills`.)
 - **Release gate — every push to `main` releases.** This repo IS the plugin/marketplace, so `main` is the
-  release channel: never push `main` without cutting a release. After committing the version bump, run
-  **`npm run release`** (`bin/release.js`) — it verifies you're on a clean `main` with the three manifests
-  agreeing, runs the gate, pushes `main`, then creates + pushes the tag **`health-harness--v<version>`**
-  (lightweight-style annotated tags; no GitHub Releases). If you ever `git push origin main` by hand, you
-  MUST follow it with the matching tag. A pushed `main` commit with no new tag is an incomplete release.
-  (This applies ONLY to the harness repo — never auto-release a customer's repo.)
+  release channel. **CI cuts the tag automatically:** `.github/workflows/release.yml` runs on every push to
+  `main`, reads the current version from the three manifests (must agree), runs the gate, and creates+pushes
+  **`health-harness--v<version>`** if that tag doesn't exist yet (idempotent — a merge with no version bump is
+  a no-op). So the normal path is just **bump the version in the PR and merge** — CI tags it. The marketplace
+  detects new versions by this tag, so a bumped+merged version IS the release. **`npm run release`**
+  (`bin/release.js`) remains the manual fallback (same checks) if CI is unavailable. A bumped `main` commit
+  with no matching tag is an incomplete release — but CI now prevents that. (Harness repo ONLY — never
+  auto-release a customer's repo.)
 
 ## Repo facts (onboarded 2026-06-25)
 
