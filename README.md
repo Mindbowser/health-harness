@@ -145,6 +145,10 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   create/update). **Reversible, low-stakes MCP ops — a status `transition`, a `comment`, a `worklog` — DEFER
   (no prompt)** since they're routine and reversible (MBI-67); the redaction egress scan still runs on them,
   so PHI in a comment is still DENY'd.
+  - **`git push` / `gh pr create` redirect to `/ship`** (MBI-69): outside an active `/ship` grant, the ASK
+    reason says *"this is a shipping step — run `/ship`"* (it batches push → PR → Jira → worklog + redaction
+    + breaking-change). You can still approve a one-off manual push, but the default path is the flow; inside
+    `/ship` the grant suppresses these (one approval for the whole batch).
 - **DENY → agent self-corrects** (no human): a **malformed commit message**. The wall enforces a
   deterministic conventional `type(scope): subject` prefix (on by default); a bad message is blocked with the
   reason so the agent fixes and retries — you're never asked. Policy is `.health-harness/project.json`

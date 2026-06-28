@@ -161,6 +161,14 @@ test('DENY catastrophic / irreversible', () => {
   assert.strictEqual(action(decideBash('psql -c "DROP TABLE patients"')), 'deny');
 });
 
+test('push/PR ASK redirects to /ship (MBI-69) — reason names the command; grant-suppressed inside /ship', () => {
+  // AC-1: a raw push / PR points the user at /ship rather than just "outward"
+  assert.match(decideBash('git push origin feature/x').reason, /\/ship/);
+  assert.match(decideBash('gh pr create --base dev').reason, /\/ship/);
+  // AC-2: inside /ship (active grant) the PR step stands down — no prompt (gate path aside)
+  assert.strictEqual(decide('Bash', { command: 'gh pr create --title x --body "clean"' }, undefined, true), null);
+});
+
 test('ASK outward / mutating (user approves)', () => {
   assert.strictEqual(action(decideBash('git push origin feature/x')), 'ask');
   assert.strictEqual(action(decideBash('gh pr create --base dev')), 'ask');

@@ -27,8 +27,8 @@ const DENY = [
 
 // ── outward / mutating → ASK (user approves) ──────────────────────────────────
 const ASK = [
-  [/git\s+push\b/i, 'git push — pushing to a remote is outward'],
-  [/gh\s+pr\s+(create|merge|ready)\b/i, 'opening/merging a PR is outward'],
+  [/git\s+push\b/i, 'pushing is a shipping step — run `/ship` (it does push → PR → Jira → worklog + redaction + breaking-change in one approved flow), or approve this one-off manual push'],
+  [/gh\s+pr\s+(create|merge|ready)\b/i, 'opening a PR is a shipping step — run `/ship` (push → PR → Jira → worklog in one approved flow), or approve this one-off manual PR'],
   [/gh\s+(release|repo\s+create)\b/i, 'creating a release/repo is outward'],
   [/git\s+remote\s+(add|set-url)\b/i, 'changing git remotes'],
   [/\brm\s+-\w*[rf]\w*\b/i, 'rm -rf — destructive delete'],
