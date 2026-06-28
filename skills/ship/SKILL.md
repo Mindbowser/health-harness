@@ -59,6 +59,10 @@ rather than re-implementing it (one definition, no drift).
    `node "${CLAUDE_PLUGIN_ROOT}/bin/ship-grant.js" set`. This suppresses only the wall's *outward ASK* for ~3
    min — **DENY still fires** (a catastrophic command or a PHI/secret in the payload is still blocked, grant or
    not). Run `… ship-grant.js clear` once publishing finishes (or on abort/cancel).
+   > **Set the grant as its OWN command and let it return BEFORE the push — never combine `ship-grant.js set`
+   > with `git push` in one shell line.** The wall's PreToolUse hook evaluates the *entire* command string
+   > *before any of it runs*, so a combined `… ship-grant.js set && git push …` is judged while the grant is
+   > still inactive → the push ASKs anyway. Grant first (separate call), then push (separate call).
 2. **Redaction-check first (proactive — the wall also enforces it).** A PR/ticket is third-party-visible —
    run `/phi-redaction-check` on the PR title, body, and Jira comment text. Synthetic examples only; no real
    PHI/secrets. Fix before sending. *This is the proactive pass:* the wall now also scans the outbound content
