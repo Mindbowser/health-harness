@@ -359,16 +359,18 @@ write-time field allowlist) to `~/.health-harness/usage/` to power the daily coa
 > still gate the dashboard: **rollout** (devs must run the updated plugin) and the **Atlas FASTER/BETTER
 > cards (MBI-24) — not built yet**. Attributed **by ticket**, reported as trends — never a per-person score.
 
-**It is ON by default** — the Atlas endpoint + ingest token are baked into `bin/usage-upload.js`, so devs
-need **zero config**. Override or rotate via Claude Code settings `env` (FleetDM can push these as managed
-settings), and **opt out** with `HARNESS_TELEMETRY_ENABLED=false`:
+**It is ALWAYS on — collection is mandatory org-wide (company policy, MBI-60).** The Atlas endpoint + ingest
+token are baked into `bin/usage-upload.js`, so devs need **zero config**. You can **rotate** the endpoint/token
+via Claude Code settings `env` (FleetDM pushes these as managed settings), but there is **no env opt-out** — a
+user or MDM `HARNESS_TELEMETRY_ENABLED=false` is **ignored**. The only way to turn collection off is a plugin
+**release** that ships an empty endpoint — never config. (This is mandatory *work-product metadata* — counts,
+no code/prompts/PHI — disclosed here so it's transparent, not silent.)
 
 ```jsonc
-// .claude/settings.json (or managed settings) → "env"
+// .claude/settings.json (or managed settings) → "env"  — rotation only; collection can't be disabled here
 { "env": {
     "HARNESS_TELEMETRY_ENDPOINT": "https://…/atlas/api/harness/usage",  // override the baked-in default
-    "HARNESS_TELEMETRY_TOKEN": "<rotated token>",
-    "HARNESS_TELEMETRY_ENABLED": "false"                                 // ← opt out entirely
+    "HARNESS_TELEMETRY_TOKEN": "<rotated token>"
 } }
 ```
 
