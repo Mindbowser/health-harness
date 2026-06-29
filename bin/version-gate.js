@@ -1,37 +1,23 @@
 #!/usr/bin/env node
 /**
- * version-gate.js — force a stale harness install to update (MBI-70).
+ * version-gate.js — nudge (never block) a stale harness install to update (MBI-70; warn-only since MBI-91).
  *
- * SessionStart resolves installed-vs-latest once and writes a cached verdict; PreToolUse reads it and DENYs
- * MUTATING tools (Edit/Write/Bash-writes/MCP-writes) when the install is CONFIRMED behind latest — reads
- * always pass. The decision is pure (`isStale`/`decideVersionGate`, tested). The whole gate is FAIL-OPEN:
- * any uncertainty (no network, can't resolve a version, no verdict) lets work through, so a transient
- * failure can never brick the team.
+ * SessionStart resolves installed-vs-latest once and emits a one-line WARNING (scope-aware: restart for
+ * managed installs, `claude plugin update` for manual). It does NOT block any tool: staleness is a currency
+ * nudge, not a safety gate, and it can't be fixed mid-session anyway (an update needs a restart) — so
+ * blocking would only lock the user out of work they can't unblock. The real correctness gates (the wall,
+ * redaction, the test gate) are untouched. FAIL-OPEN throughout: any uncertainty emits nothing.
  */
 'use strict';
 
 /** Pure: numeric semver compare. true only when installed < latest. Any unparseable/missing → false
- * (fail-open: never block on a bad signal). */
+ * (fail-open: never warn on a bad signal). */
 function isStale(installed, latest) {
   const p = (v) => { const m = /^(\d+)\.(\d+)\.(\d+)/.exec(String(v || '').trim()); return m ? [+m[1], +m[2], +m[3]] : null; };
   const a = p(installed), b = p(latest);
   if (!a || !b) return false;
   for (let i = 0; i < 3; i++) { if (a[i] < b[i]) return true; if (a[i] > b[i]) return false; }
   return false;
-}
-
-// What counts as a MUTATING action (blocked on a stale install). Reads pass.
-const MUTATING_TOOLS = /^(Edit|Write|MultiEdit|NotebookEdit)$/;
-const MUTATING_BASH = /(^|\s|;|&|\|)(rm|mv|cp|mkdir|touch|chmod|chown|ln|tee)\b|>>?|\bsed\s+-i|\bgit\s+(commit|push|add|merge|rebase|reset|checkout|tag|stash|rm|mv|apply|cherry-pick)\b|\b(npm|pnpm|yarn)\s+(i|install|ci|publish|run|add|remove|update)\b|\bdocker\b|\bkubectl\b|\bterraform\b|\bmake\b/i;
-const MCP_WRITE_VERB = /(create|update|edit|add|delete|remove|transition|move|assign|comment|post|put|write|close|resolve|set|merge)/i;
-
-/** Pure: is this tool call a mutation? */
-function isMutating(toolName, toolInput) {
-  const t = String(toolName || '');
-  if (MUTATING_TOOLS.test(t)) return true;
-  if (t === 'Bash') return MUTATING_BASH.test(String((toolInput || {}).command || ''));
-  if (t.startsWith('mcp__')) return MCP_WRITE_VERB.test(t);
-  return false; // Read/Grep/Glob/MCP reads/etc.
 }
 
 /** Pure: is this install declaratively auto-managed (managed-settings / `enabledPlugins`+autoUpdate /
@@ -43,19 +29,12 @@ function isAutoManaged(signals) {
   return s.forceEnv === '1' || !!s.managedEnabled || !!s.userAutoUpdate;
 }
 
-/** Pure (the tested heart): given the cached verdict + whether the install is auto-managed, decide whether
- * to gate this tool. NEVER hard-locks:
- *   - not stale / no verdict / read tool  → null (fail-open).
- *   - auto-managed + stale + mutating     → null (don't block — auto-update lands on restart; the
- *                                           SessionStart warning nudges it. Blocking would punish a delay
- *                                           outside the user's control, and `plugin update` fails for them).
- *   - manual + stale + mutating           → { action:'ask' } (overridable — the human approves to keep
- *                                           working; the message names the working `plugin update` command). */
-function decideVersionGate(toolName, toolInput, verdict, autoManaged) {
-  if (!verdict || !verdict.stale) return null;          // fail-open: no verdict / not stale → allow
-  if (!isMutating(toolName, toolInput)) return null;    // reads always pass
-  if (autoManaged) return null;                         // managed/auto-update → never block; restart handles it
-  return { action: 'ask', reason: `⚠️ health-harness ${verdict.latest} is available — you're on ${verdict.installed}. Run \`claude plugin update health-harness@mindbowser\` then restart Claude Code to get current, or approve to keep working on this version. (version-gate)` };
+/** Pure: WARN-ONLY (MBI-91) — the version gate NEVER blocks a tool, for any input. Staleness is a currency
+ * nudge, not a safety gate, and it can't be fixed mid-session (an update needs a restart), so blocking only
+ * locks the user out of work they can't unblock. The nudge is the SessionStart warning + `/harness-update`.
+ * Kept (always null) so the decision is explicit + tested, and any lingering PreToolUse wiring is a no-op. */
+function decideVersionGate() {
+  return null;
 }
 
 // ── I/O (fail-open everywhere) ────────────────────────────────────────────────
@@ -123,14 +102,14 @@ function autoManagedSignals() {
   return out;
 }
 
-module.exports = { isStale, isMutating, decideVersionGate, isAutoManaged, autoManagedSignals, installedVersion, latestEndpoint, fetchLatest, verdictPath };
+module.exports = { isStale, decideVersionGate, isAutoManaged, autoManagedSignals, installedVersion, latestEndpoint, fetchLatest, verdictPath };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
   const mode = process.argv[2];
   const fs = require('fs');
   if (mode === 'sessionstart') {
-    // resolve once, cache a verdict for PreToolUse. Never throws, never blocks session start.
+    // resolve once + emit a one-line WARNING. Never throws, never blocks session start, never blocks tools.
     (async () => {
       try {
         const installed = installedVersion();
@@ -149,22 +128,10 @@ if (require.main === module) {
       } catch { /* fail-open */ }
       process.exit(0);
     })();
-  } else if (mode === 'pretooluse') {
-    let raw = '';
-    process.stdin.on('data', (c) => { raw += c; });
-    process.stdin.on('end', () => {
-      let d = null;
-      try {
-        const input = JSON.parse(raw || '{}');
-        let verdict = null;
-        try { verdict = JSON.parse(fs.readFileSync(verdictPath(), 'utf8')); } catch { /* no verdict → fail-open */ }
-        d = decideVersionGate(input.tool_name, input.tool_input, verdict, verdict && verdict.autoManaged);
-      } catch { /* fail-open */ }
-      if (d) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: d.action, permissionDecisionReason: d.reason } }));
-      process.exit(0);
-    });
   } else {
-    process.stderr.write('usage: version-gate.js <sessionstart|pretooluse>\n');
+    // warn-only: there is no tool-blocking mode anymore. (`decideVersionGate` stays null-always for any
+    // lingering PreToolUse wiring, so an old hook registration can never block.)
+    process.stderr.write('usage: version-gate.js sessionstart\n');
     process.exit(2);
   }
 }
