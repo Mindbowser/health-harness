@@ -182,7 +182,9 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   (`bin/criteria-coverage.js`.)
 - **ASK/DENY → compliance detectors** (backstop): the diff's *added* lines are scanned for a PHI access path
   (→ audit criterion), introduced logging (→ centralised + rotating app-logging criterion), or a date/time
-  API with no `// tz-safe:` marker (→ timezone, DENY). When the matching convention is recorded in
+  API with no `tz-safe` marker (→ timezone, DENY). The date/time detector is **language-agnostic** — it
+  fires on JS, Python, Ruby, .NET, PHP, Go and JVM date APIs (not JS-only), so it can't silently no-op on a
+  non-JS product repo. When the matching convention is recorded in
   `.health-harness/conventions.json` (logger module / audit helper, set once at `/start`·onboard·scaffold)
   the backstop is a deterministic **DENY**; absent a recorded convention it's a heuristic **ASK**.
   (`bin/criteria-detect.js`, `bin/conventions.js`.)
