@@ -15,13 +15,22 @@ auto-update, or org-wide via managed settings; see `docs/rollout.md`. Then you n
 
 ## Process
 
-0. **First: is this a managed / auto-update install?** If the plugin is enabled via **managed settings**
-   (MDM/Fleet rollout) or `enabledPlugins` + a marketplace with `autoUpdate: true` (or `FORCE_AUTOUPDATE_PLUGINS=1`),
-   there is **no manual user-scope install** — so `claude plugin uninstall/update --scope …` fails with
-   *"not installed at scope user"*. For these, the update is **automatic on restart**: run
-   `claude plugin marketplace update mindbowser` (refresh the catalog), then tell the user to **fully restart
-   Claude Code** — auto-update reinstalls the latest. Do NOT run uninstall/install --scope. (Signal that you're
-   in this case: the user already has managed-settings, or step 2's commands return "not installed at scope".)
+0. **First: is this a managed / auto-update install?** If `claude plugin list` shows **Scope: managed**, or
+   the plugin is enabled via **managed settings** (MDM/Fleet rollout), there is **no manual user-scope
+   install** — so `claude plugin uninstall/update --scope …` fails with *"not installed at scope user"*.
+   **Do NOT run uninstall/install --scope, do NOT route a regular dev to their admin, and do NOT suggest a
+   user-scope install** (it can conflict with the managed pin). Instead, branch on whether auto-update is on:
+   - **Managed + auto-update ON** (marketplace `autoUpdate: true` and/or `FORCE_AUTOUPDATE_PLUGINS=1` — the
+     normal org rollout): this is **self-serve for any dev**. The update lands automatically on restart →
+     run `claude plugin marketplace update mindbowser` (refresh the catalog), then **"fully quit and reopen
+     Claude Code"**. No admin, no manual install. This is the answer for a dev trying to update themselves.
+   - **Managed + auto-update OFF** (a pinned managed version, no autoUpdate): a dev genuinely *can't*
+     self-update — the version only moves when the **org admin** bumps the pin or enables auto-update in the
+     managed settings. Say exactly that (and, if the user IS the admin, point them at the managed-settings
+     config, not at "ask an admin").
+   - **Verify the restart actually moved it** (managed auto-update has been known to silently not fire): note
+     the version before, restart, re-check. If it didn't move with auto-update ON, that's a rollout bug
+     (managed scope not honoring `autoUpdate`) — escalate it, don't tell the dev to keep retrying.
 1. **Check current state.** Run `claude plugin list` (note the installed version + **scope**:
    project / user / local). Only if the routine update later reports the source is a **local path** (not a
    GitHub marketplace), switch it to GitHub first (local marketplaces don't update) — handle that quietly,
@@ -61,6 +70,9 @@ auto-update, or org-wide via managed settings; see `docs/rollout.md`. Then you n
   version, not the available one, and the catalog/your context can be stale (this is exactly how a `.89`
   machine reported "already latest" when `.94` was out). Always reinstall; confirm from the *after* version.
 - ❌ Leaving a local-path marketplace in place — it will never pull new versions.
+- ❌ **Routing a regular dev to "ask your admin" or to a `--scope user` install when the install is managed
+  + auto-update ON.** That's friction for nothing — the dev self-serves by restarting (auto-update lands it).
+  The admin/pin path is only for managed installs with auto-update OFF.
 
 ## Completion criteria
 
