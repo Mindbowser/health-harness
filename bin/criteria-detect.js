@@ -72,8 +72,30 @@ function detectLoggingIntroduced(diff) {
   return addedLines(diff).some((l) => LOG_RE.test(l));
 }
 
-// Date/time APIs (JS + a few common others) on an added line → the slice does time-specific work.
-const DATETIME_RE = /(new\s+Date\b|Date\.now\b|\bmoment\b|\bdayjs\b|Intl\.DateTimeFormat|toLocale(?:Date|Time)?String|\bLocalDate\b|\bInstant\b|time\.Now\s*\()/;
+// Date/time APIs on an added line → the slice does time-specific work. Language-agnostic by design: the
+// harness installs into JS, Python, Ruby, .NET, PHP, Go and JVM repos, so a JS-only trigger would SILENTLY
+// no-op on a non-JS product repo (a false-negative is worse than a noisy block). Tokens are chosen to be
+// date-specific enough that false positives are rare; when one slips through, the cheap `tz-safe` escape
+// handles it. (Future precision refinement: key the ambiguous tokens by the diff's file extension.)
+const DATETIME_RE = new RegExp([
+  // JS / TS
+  'new\\s+Date\\b', 'Date\\.now\\b', '\\bmoment\\b', '\\bdayjs\\b', '\\bluxon\\b',
+  'Intl\\.DateTimeFormat', 'toLocale(?:Date|Time)?String',
+  // Java / Kotlin / JVM
+  '\\bLocalDate(?:Time)?\\b', '\\bZonedDateTime\\b', '\\bOffsetDateTime\\b', '\\bInstant\\b', '\\bZoneId\\b',
+  // Go
+  'time\\.Now\\s*\\(', 'time\\.Parse\\b', 'time\\.Date\\b', 'time\\.LoadLocation\\b',
+  // Python
+  '\\bdatetime\\b', '\\bzoneinfo\\b', '\\bpytz\\b', '\\bastimezone\\b', '\\butcnow\\b', '\\bfromtimestamp\\b',
+  // Ruby
+  'Time\\.(?:now|parse|zone|at|current)\\b', '\\bDateTime\\.', '\\bin_time_zone\\b',
+  // .NET / C#
+  '\\bDateTimeOffset\\b', '\\bDateTime\\b', '\\bTimeZoneInfo\\b',
+  // PHP
+  '\\bDateTimeImmutable\\b', '\\bstrtotime\\s*\\(', '\\bgmdate\\s*\\(', '\\bmktime\\s*\\(',
+  // C / POSIX / general
+  '\\bstrftime\\b', '\\bstrptime\\b', '\\blocaltime\\b', '\\bgmtime\\b',
+].join('|'));
 // Explicit timezone-handling acknowledgement: `// tz-safe: <reason>` or `@tz-safe`.
 const TZ_MARKER_RE = /tz-safe/i;
 

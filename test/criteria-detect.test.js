@@ -43,6 +43,30 @@ test('detectDateTimeApi: true when an added line uses a date/time API; removed l
   assert.strictEqual(detectDateTimeApi(''), false);
 });
 
+test('detectDateTimeApi: language-agnostic — fires on Python/Ruby/.NET/PHP/Go/Java date APIs, not just JS', () => {
+  // Python
+  assert.strictEqual(detectDateTimeApi('+from datetime import datetime'), true, 'py datetime');
+  assert.strictEqual(detectDateTimeApi('+    return dt.astimezone(tz)'), true, 'py astimezone');
+  assert.strictEqual(detectDateTimeApi('+from zoneinfo import ZoneInfo'), true, 'py zoneinfo');
+  assert.strictEqual(detectDateTimeApi('+    now = datetime.utcnow()'), true, 'py utcnow');
+  // Ruby
+  assert.strictEqual(detectDateTimeApi('+    t = Time.now'), true, 'ruby Time.now');
+  assert.strictEqual(detectDateTimeApi('+    t.in_time_zone("UTC")'), true, 'ruby in_time_zone');
+  // .NET / C#
+  assert.strictEqual(detectDateTimeApi('+        var t = DateTime.UtcNow;'), true, 'dotnet DateTime');
+  assert.strictEqual(detectDateTimeApi('+        DateTimeOffset o = ...;'), true, 'dotnet DateTimeOffset');
+  // PHP
+  assert.strictEqual(detectDateTimeApi('+    $t = strtotime($s);'), true, 'php strtotime');
+  // C / POSIX
+  assert.strictEqual(detectDateTimeApi('+    strftime(buf, n, fmt, tm);'), true, 'c strftime');
+  // Go + Java still fire (regression guard for the originally-covered tokens)
+  assert.strictEqual(detectDateTimeApi('+    t := time.Now()'), true, 'go time.Now');
+  assert.strictEqual(detectDateTimeApi('+        LocalDate d = LocalDate.now();'), true, 'java LocalDate');
+  // Must NOT over-fire on non-date code that merely contains a substring
+  assert.strictEqual(detectDateTimeApi('+    const updated = a + b;'), false, 'no false positive on "updated"');
+  assert.strictEqual(detectDateTimeApi('+    validate(payload);'), false, 'no false positive on "date" in validate');
+});
+
 test('hasTzMarker: true when an added line carries an explicit // tz-safe / @tz-safe acknowledgement', () => {
   assert.strictEqual(hasTzMarker('+const t = new Date(); // tz-safe: stored UTC'), true);
   assert.strictEqual(hasTzMarker('+// @tz-safe handled by caller'), true);
