@@ -4,6 +4,10 @@ Run these on **one pilot machine** (with Claude Code installed) before pushing f
 **do → expect → verify**. The script is `mb_harness.sh` (macOS/Linux) / `mb_harness.ps1` (Windows) — no
 variables, just run it.
 
+> **You (IT) can run every scenario yourself — no developer needed.** You just need Claude Code installed on
+> the pilot machine to run the `claude plugin list` checks and the restarts. Where a developer would use the
+> in-app `/harness-update`, the CLI equivalent you can run is given.
+
 **Managed-settings path per OS (used in the verify steps):**
 
 | OS | Path |
@@ -29,10 +33,11 @@ variables, just run it.
 - **Expect:** version moves up on its own.
 - **Verify:** `claude plugin list` before vs after restart → version increased. *(Best-effort; if it didn't move, scenario 2 forces it.)*
 
-### 4. Dev self-serve "update now" — `/harness-update`
-- **Do:** in a dev's Claude Code, run `/harness-update`.
-- **Expect:** reports `old → new` + a reload/restart step. **Does not** error "not installed at scope user".
-- **Verify:** after restart, `claude plugin list` shows the latest.
+### 4. Force an update now — manual (the per-dev "update now" lever)
+- **Do (IT, CLI):** run `claude plugin marketplace update mindbowser`, then **restart Claude Code**.
+  *(The in-app equivalent a developer types is `/harness-update` — same effect. Note: `claude plugin update … --scope user` will fail on a managed install — that's expected; use the `marketplace update` + restart shown here.)*
+- **Expect:** the marketplace update succeeds (no error).
+- **Verify:** after restart, `claude plugin list` shows the latest version.
 
 ### 5. Idempotent / self-healing
 - **Do:** run the script **twice**.
@@ -51,7 +56,7 @@ variables, just run it.
 - [ ] 1 — install: managed scope, enabled, latest version
 - [ ] 2 — re-run pushes a newer release
 - [ ] 3 — restart auto-updates on its own
-- [ ] 4 — `/harness-update` works for a dev (no scope error)
+- [ ] 4 — manual force-update works (`marketplace update` + restart → latest)
 - [ ] 5 — re-running is harmless (policy-safe)
 - [ ] 6 — refresh soft-skips without failing the script
 
