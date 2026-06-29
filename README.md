@@ -326,8 +326,10 @@ bin/tz-gate.js               # composes the recommended HOSTILE-clock gate run f
                              #   `--invocation` prints `TZ=<hostile> <gate>` (zone differs from home + has DST) (+ test/)
 bin/conventions.js           # records logging/audit/datetime + lint/typecheck/coverage conventions once at
                              #   start/onboard/scaffold; detectors read it to upgrade ASK→DENY (+ test/)
-bin/version-gate.js          # forces a stale install to update: SessionStart resolves installed-vs-latest
-                             #   (Atlas /latest), PreToolUse DENYs MUTATING tools when behind (reads pass);
+bin/version-gate.js          # nudges a stale install to update: SessionStart resolves installed-vs-latest
+                             #   (Atlas /latest) + restart-vs-`plugin update` by install method. Scope-aware,
+                             #   never hard-locks: managed/auto-update installs aren't blocked (restart lands
+                             #   it); manual installs get an overridable ASK on MUTATING tools (reads pass);
                              #   FAIL-OPEN on any uncertainty — never bricks a session (+ test/)
 bin/release.js               # `npm run release` — gate + push main + tag health-harness--v<version>
 bin/mutation-emit.js         # `npm run mutation:emit` — parse a mutation score from any tool's report/output
