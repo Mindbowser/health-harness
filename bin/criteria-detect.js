@@ -109,4 +109,21 @@ function hasTzMarker(diff) {
   return addedLines(diff).some((l) => TZ_MARKER_RE.test(l));
 }
 
-module.exports = { addedLines, detectPhiSignals, detectLoggingIntroduced, detectDateTimeApi, hasTzMarker, branchDiff, manifestKinds, currentFacts };
+/** Pure: the build-time timezone decision for a slice, from its facts ({datetime, tzMarker, kinds}).
+ * Lets the TDD skill raise the question *before* the wall blocks at push time (tier 1.5 of
+ * docs/timezone-assurance.md):
+ *   'none'      — no date/time API touched → nothing to decide.
+ *   'satisfied' — touched a date API but already acknowledged: a `tz-safe` marker OR a `timezone`
+ *                 criterion in the manifest (the latter obligates the hostile-clock/matrix test).
+ *   'decide'    — touched a date API with neither → the agent must resolve it: ASK the human (the
+ *                 AskUserQuestion: converts user-facing time? → `kind:timezone` + matrix test / internal
+ *                 → `tz-safe` / defer), or AFK apply the safe default (treat as TZ-relevant unless it's
+ *                 obviously a duration/internal-UTC/log timestamp). Never silently skip — the wall backstops. */
+function tzGateAction(facts) {
+  const f = facts || {};
+  if (!f.datetime) return 'none';
+  if (f.tzMarker || (Array.isArray(f.kinds) && f.kinds.includes('timezone'))) return 'satisfied';
+  return 'decide';
+}
+
+module.exports = { addedLines, detectPhiSignals, detectLoggingIntroduced, detectDateTimeApi, hasTzMarker, tzGateAction, branchDiff, manifestKinds, currentFacts };

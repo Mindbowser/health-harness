@@ -101,12 +101,24 @@ Tests verify **behavior through public interfaces**, not implementation details.
      record id but no PHI).
    For `none` profiles (no regulated data) this step is a no-op — `secrets` must still never be logged.
 7. **Timezone governance — when the slice touches a date/time API.** A gate that only ever runs in your
-   home zone (or UTC) silently passes code that breaks for users elsewhere. So for any date-touching slice,
-   **run the gate under a hostile clock**, not just the bare gate: `node bin/tz-gate.js --invocation` prints
-   the recommended `TZ=<hostile> <gate>` (the hostile zone differs from the team's home zone and has DST —
-   e.g. `TZ=America/New_York npm test` for the Kolkata-based team). Green under the hostile clock is the bar.
-   If the date use is genuinely TZ-agnostic (monotonic duration, internal-UTC, log timestamp), mark the line
-   `// tz-safe: <reason>` instead. (Wall backstop: the date/time criterion blocks a push that does neither.)
+   home zone (or UTC) silently passes code that breaks for users elsewhere. **Resolve it at build time —
+   don't let the wall block you at push.** When you add a date/time API and there's no `tz-safe` marker or
+   `timezone` criterion yet (`tzGateAction` returns `decide`):
+   - **Human present → ASK** (the framing carries the teaching: *users in other timezones / across DST &
+     offset boundaries may see wrong results*). Three durable outcomes:
+     | Answer | Do this |
+     |---|---|
+     | **Converts user-facing time** | add a `kind:timezone` acceptance criterion + write the DST/offset **matrix test**, build it red-green |
+     | **Internal / UTC-only / duration** | mark the line `// tz-safe: <reason>` |
+     | **Not sure — defer** | leave the criterion open + a tracked TODO (do **not** silently pass) |
+   - **AFK / no human → decide and record, never skip:** obviously a duration/internal-UTC/log timestamp →
+     `// tz-safe:<reason>`; otherwise apply the **safe default** — treat as TZ-relevant, add the criterion +
+     matrix test. (A needless matrix test is cheap; a missed conversion bug ships to every user in the wrong zone.)
+
+   Then **run the gate under a hostile clock**, not the bare gate: `node bin/tz-gate.js --invocation` prints
+   the recommended `TZ=<hostile> <gate>` (zone differs from the team's home + has DST — e.g.
+   `TZ=America/New_York npm test` for the Kolkata-based team). Green under the hostile clock is the bar.
+   (Wall backstop: the date/time criterion DENYs a push that has neither a marker nor the criterion.)
 
 ## Prove it — evidence in the PR + Jira (this is what makes review cheap)
 
