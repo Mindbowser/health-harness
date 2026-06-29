@@ -20,16 +20,6 @@
             "timeout": 10
           }
         ]
-      },
-      {
-        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/version-gate.js\" pretooluse",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "Notification": [

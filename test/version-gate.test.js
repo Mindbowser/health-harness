@@ -18,37 +18,20 @@ test('isStale: true only when installed < latest (numeric semver, not lexical); 
 
 const STALE = { stale: true, installed: '0.2.24', latest: '0.2.25' };
 
-test('decideVersionGate: MANUAL stale install ASKs (overridable — never hard-locks) on mutating tools, ALLOWS reads', () => {
-  const a = (d) => (d ? d.action : null);
-  // autoManaged=false (manual install) → ASK on mutations (the human can approve to keep working)
-  assert.strictEqual(a(decideVersionGate('Edit', {}, STALE, false)), 'ask');
-  assert.strictEqual(a(decideVersionGate('Write', {}, STALE, false)), 'ask');
-  assert.strictEqual(a(decideVersionGate('MultiEdit', {}, STALE, false)), 'ask');
-  assert.strictEqual(a(decideVersionGate('Bash', { command: 'git commit -m x' }, STALE, false)), 'ask');
-  assert.strictEqual(a(decideVersionGate('Bash', { command: 'echo hi > f.txt' }, STALE, false)), 'ask');
-  assert.strictEqual(a(decideVersionGate('mcp__atlassian__createJiraIssue', {}, STALE, false)), 'ask');
-  // reads always pass
-  assert.strictEqual(decideVersionGate('Bash', { command: 'ls -la' }, STALE, false), null);
-  assert.strictEqual(decideVersionGate('Read', {}, STALE, false), null);
-  assert.strictEqual(decideVersionGate('mcp__atlassian__getJiraIssue', {}, STALE, false), null);
-  // message names both versions + the manual update command
-  assert.match(decideVersionGate('Edit', {}, STALE, false).reason, /0\.2\.25.*0\.2\.24|0\.2\.24.*0\.2\.25/);
-  assert.match(decideVersionGate('Edit', {}, STALE, false).reason, /plugin update/);
-});
-
-test('decideVersionGate: MANAGED/auto-update install NEVER blocks — restart + auto-update lands it', () => {
-  // autoManaged=true → even a mutating tool on a stale install passes; the SessionStart warning nudges restart.
-  // (Blocking would punish a delay outside the user's control + the manual update command fails for them.)
-  assert.strictEqual(decideVersionGate('Edit', {}, STALE, true), null);
-  assert.strictEqual(decideVersionGate('Bash', { command: 'git commit -m x' }, STALE, true), null);
+test('decideVersionGate: WARN-ONLY — NEVER blocks any tool (staleness is a currency nudge, not a gate)', () => {
+  // A stale install can't be fixed mid-session (update needs a restart), so blocking only locks the user
+  // out of work they can't unblock. The nudge lives in the SessionStart warning + /harness-update.
+  // Stale + mutating, managed OR manual → still null (no deny, no ask):
+  assert.strictEqual(decideVersionGate('Edit', {}, STALE, false), null);
+  assert.strictEqual(decideVersionGate('Write', {}, STALE, true), null);
+  assert.strictEqual(decideVersionGate('MultiEdit', {}, STALE, false), null);
+  assert.strictEqual(decideVersionGate('Bash', { command: 'git commit -m x' }, STALE, false), null);
   assert.strictEqual(decideVersionGate('mcp__atlassian__createJiraIssue', {}, STALE, true), null);
-});
-
-test('decideVersionGate: FAIL-OPEN — not stale, or no/unknown verdict → never blocks', () => {
+  // reads, not-stale, no verdict → null too
+  assert.strictEqual(decideVersionGate('Read', {}, STALE, false), null);
   assert.strictEqual(decideVersionGate('Edit', {}, { stale: false }, false), null);
   assert.strictEqual(decideVersionGate('Edit', {}, null, false), null);
-  assert.strictEqual(decideVersionGate('Edit', {}, undefined, false), null);
-  assert.strictEqual(decideVersionGate('Bash', { command: 'git commit -m x' }, { stale: false }, false), null);
+  assert.strictEqual(decideVersionGate('Edit', {}, undefined), null);
 });
 
 test('isAutoManaged: declarative/auto-update install detected from env or settings signals', () => {
