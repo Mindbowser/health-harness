@@ -319,8 +319,10 @@ bin/slice-tests.js           # deterministic "did this slice add tests?" (behavi
                              #   non-standard test layout so it isn't false-flagged (+ test/)
 bin/criteria-coverage.js     # deterministic "is every authored [AC-N] criterion pinned by a test?"; wall DENYs an
                              #   uncovered criterion at push; `write` records the manifest, `--explain` drills down (+ test/)
-bin/criteria-detect.js       # diff detectors (PHI / introduced-logging / date-time + tz-marker) backstopping the
-                             #   audit/app-logging/timezone criteria at the wall (+ test/)
+bin/criteria-detect.js       # diff detectors (PHI / introduced-logging / language-agnostic date-time + tz-marker)
+                             #   backstopping the audit/app-logging/timezone criteria at the wall (+ test/)
+bin/tz-gate.js               # composes the recommended HOSTILE-clock gate run for date-touching slices —
+                             #   `--invocation` prints `TZ=<hostile> <gate>` (zone differs from home + has DST) (+ test/)
 bin/conventions.js           # records logging/audit/datetime + lint/typecheck/coverage conventions once at
                              #   start/onboard/scaffold; detectors read it to upgrade ASK→DENY (+ test/)
 bin/version-gate.js          # forces a stale install to update: SessionStart resolves installed-vs-latest
