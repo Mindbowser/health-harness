@@ -1,9 +1,9 @@
 # Timezone assurance — from "did you notice" to "survives a hostile clock"
 
 > **Status:** tier 1 (agnostic detector) **shipped** (MBI-83, v0.2.29); tier 2 (hostile-clock gate run)
-> **shipped** (`bin/tz-gate.js` + TDD-skill step, v0.2.30). The build-time AskUserQuestion + AFK default
-> and tier 3 (matrix-with-coverage) are not yet wired. This *upgrades* the existing `criteria-detect` tz
-> tripwire, it doesn't replace it.
+> **shipped** (MBI-84, v0.2.30); the build-time question + AFK default **shipped** (`tzGateAction` +
+> TDD-skill flow, v0.2.31). Tier 3 (matrix-with-coverage) is not yet wired. This *upgrades* the existing
+> `criteria-detect` tz tripwire, it doesn't replace it.
 
 ## The problem with today's gate
 

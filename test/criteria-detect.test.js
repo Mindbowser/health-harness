@@ -67,6 +67,20 @@ test('detectDateTimeApi: language-agnostic — fires on Python/Ruby/.NET/PHP/Go/
   assert.strictEqual(detectDateTimeApi('+    validate(payload);'), false, 'no false positive on "date" in validate');
 });
 
+test('tzGateAction: decides whether the agent must raise the build-time timezone question', () => {
+  const { tzGateAction } = require('../bin/criteria-detect.js');
+  // no date/time work at all → nothing to decide
+  assert.strictEqual(tzGateAction({ datetime: false, tzMarker: false, kinds: [] }), 'none');
+  // touched a date API but already acknowledged tz-safe → satisfied
+  assert.strictEqual(tzGateAction({ datetime: true, tzMarker: true, kinds: [] }), 'satisfied');
+  // touched a date API and a timezone criterion exists (obligates the matrix test) → satisfied
+  assert.strictEqual(tzGateAction({ datetime: true, tzMarker: false, kinds: ['timezone'] }), 'satisfied');
+  // touched a date API, no marker, no criterion → the agent must decide (ask human / AFK safe-default)
+  assert.strictEqual(tzGateAction({ datetime: true, tzMarker: false, kinds: ['audit'] }), 'decide');
+  assert.strictEqual(tzGateAction({ datetime: true, tzMarker: false, kinds: [] }), 'decide');
+  assert.strictEqual(tzGateAction({}), 'none', 'empty facts → none');
+});
+
 test('hasTzMarker: true when an added line carries an explicit // tz-safe / @tz-safe acknowledgement', () => {
   assert.strictEqual(hasTzMarker('+const t = new Date(); // tz-safe: stored UTC'), true);
   assert.strictEqual(hasTzMarker('+// @tz-safe handled by caller'), true);
