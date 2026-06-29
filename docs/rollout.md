@@ -117,6 +117,49 @@ committing project settings does **not** auto-install plugins — only managed s
   in **managed settings** (admin/MDM — see the org-wide section above). Per Claude Code's docs this is the
   **only** way to default it on without each person toggling.
 
+## Updates — making sure *everyone* stays current
+
+Auto-update **fires at Claude Code startup** when the marketplace has `autoUpdate: true`: it refreshes the
+marketplace and updates installed plugins to the latest, then notifies the user to run `/reload-plugins`
+(or restart). So the universal rule for any stale install is **fully restart Claude Code** — a catalog
+refresh alone does *not* change the running version. There are two populations and two routes:
+
+| Population | End-user self-serve | Admin / IT (Fleet) |
+|---|---|---|
+| **Managed** (Fleet managed-settings) | **Restart Claude Code** → auto-update lands the latest. `claude plugin update --scope user` is *not* available (managed is read-only at user scope) and must not be suggested. | Nothing per-release — clients self-update from the marketplace on restart. One-time managed-settings rollout only. |
+| **Manual** (user-scope install) | `/harness-update`, or `claude plugin update --scope user` | n/a |
+
+**Releasing a new version (admin):** bump the `version` in `.claude-plugin/marketplace.json` (we bump all
+three manifests together) and push to the marketplace repo. Managed clients detect the new `version` and
+install it on their next restart. There is **no admin force-push CLI** — distribution is marketplace polling
+at client restart. For an **urgent** rollout where you can't wait for organic restarts, add
+`"forceRemoteSettingsRefresh": true` to managed settings (clients block at startup until the settings fetch
+succeeds), then communicate a restart window.
+
+### ⚠️ Repo visibility controls whether managed auto-update works (landmine)
+
+The marketplace repo is currently **public**, so background auto-update fetches it **tokenless** and works.
+**If it is ever made private** (the confidentiality posture pushes that way) **and no token is provisioned,
+managed auto-update silently STOPS for the whole fleet** — interactive installs still work, so it fails
+quietly and everyone drifts stale. If you flip it private, you MUST deploy a read-only
+`GITHUB_TOKEN` (fine-grained PAT scoped to just this repo, or a GitHub App token) into the environment where
+Claude Code runs — via Fleet, in the managed-settings `env` block or a system env var. Keep the token out of
+the repo; inject it as a Fleet secret.
+
+### Troubleshooting — managed install won't update
+
+| Symptom / condition | Cause | Fix |
+|---|---|---|
+| Version unchanged after running `/harness-update` | catalog refreshed but session not restarted | **Fully restart** Claude Code (or `/reload-plugins`) |
+| Whole fleet silently stops updating after repo went private | private repo, no `GITHUB_TOKEN` in env → background fetch skips | deploy a read-only `GITHUB_TOKEN` via Fleet (see landmine above) |
+| Nothing auto-updates at all | `DISABLE_AUTOUPDATER=1` set globally | also set `FORCE_AUTOUPDATE_PLUGINS=1` to re-enable plugin-only auto-update |
+| Seed-deployed marketplace never updates | seed marketplaces are read-only by design | update the seed image and redistribute |
+| `--scope user` update errors "not installed at scope user" | it's a **managed** install (read-only at user scope) | don't reinstall — restart (auto-update); see the managed row above |
+
+Empirical check (settles "is auto-update firing?"): on a managed box, `claude plugin list | grep -A2
+health-harness` → note the version → **fully restart** → run again. Version moves = working; unchanged with
+a current marketplace = investigate the table above.
+
 There is **no install-time flag** and **no marketplace-author field** to default auto-update on — a
 third-party plugin can't force it onto its users by design. So the realistic "set once for the whole org"
 answer is **managed settings**; otherwise it's the per-user toggle.
