@@ -14,6 +14,9 @@ the latest release on restart. Un-manage scripts revert a machine to user-owned.
 | `mb_harness_macos_unmanage.sh` | macOS | **Un-manage**: remove that managed-settings.json → machine becomes user-owned |
 | `mb_harness_ubuntu_unmanage.sh` | Ubuntu / Linux / WSL | **Un-manage**: remove that managed-settings.json → machine becomes user-owned |
 | `mb_harness_windows_unmanage.ps1` | Windows | **Un-manage**: remove that managed-settings.json → machine becomes user-owned |
+| `mb_harness_macos_refresh.sh` | macOS | **Force catalog refresh**: pull latest marketplace data (user context); restart applies |
+| `mb_harness_ubuntu_refresh.sh` | Ubuntu / Linux / WSL | **Force catalog refresh**: pull latest marketplace data (user context); restart applies |
+| `mb_harness_windows_refresh.ps1` | Windows | **Force catalog refresh**: pull latest marketplace data (user context); restart applies |
 
 ## How updates work (important)
 
@@ -23,8 +26,25 @@ restart**: it reads the marketplace, sees a newer version, and pulls it. The mar
 latest release. So **IT never pushes versions** — new releases flow to everyone automatically on restart.
 
 Auto-update at startup is **best-effort** (async fetch; a slow network can make it land on a *later*
-restart). If a dev needs the latest **immediately**, they run **`/harness-update`** — **not**
-`claude plugin update` (that fails on managed scope, which is read-only).
+restart, and it sometimes **doesn't refresh the catalog / find the new version** at all). If a dev needs the
+latest **immediately**, they run **`/harness-update`** — **not** `claude plugin update` (that fails on
+managed scope, which is read-only). `/harness-update` does the explicit `marketplace update` that
+auto-update skipped, then reloads.
+
+### Force a catalog refresh fleet-wide (when auto-update keeps missing the new version)
+
+If you see machines that won't find the new version, push the per-OS **`*_refresh`** script. It runs
+`claude plugin marketplace update mindbowser` explicitly, so the next restart deterministically finds the
+latest. Two things to know:
+- It **pre-stages only** — users still **restart** (or `/reload-plugins`) to apply.
+- The marketplace cache is **per-user**, so the refresh must run **as the logged-in user**. The shell
+  scripts re-exec as the console user if Fleet runs them as root; on Windows, configure the Fleet script to
+  run **as the current user** (not SYSTEM). If `claude` isn't on that user's PATH it no-ops with a note —
+  in which case the dev's own **`/harness-update`** is the fallback.
+
+Alternative (no per-user execution): for an **urgent** push, deploy a manage script variant with
+`"forceRemoteSettingsRefresh": true` in managed-settings — clients block at startup until they refresh, so
+the next restart reliably pulls. Drop the flag afterward so it doesn't gate every future startup.
 
 ## IT admin handover — the whole job
 
