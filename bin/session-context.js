@@ -92,8 +92,15 @@ async function updateNudge() {
     if (latest) { try { fs.mkdirSync(path.dirname(cacheFile), { recursive: true }); fs.writeFileSync(cacheFile, JSON.stringify({ ts: Date.now(), latest })); } catch { /* ignore */ } }
   }
   if (latest && cmpVersion(latest, installed) > 0) {
-    return `⬆️ Update available: Mindbowser Health Harness ${latest} (you're on ${installed}). `
-      + 'Run `/harness-update`, then restart Claude Code. (Auto-update also catches up on its own, on a delay.)';
+    // Scope-aware: a managed/auto-update install (the MDM/Fleet norm) updates on RESTART — telling those
+    // users to run `/harness-update`/`claude plugin update` fails ("not installed at scope user"). Manual
+    // installs get the explicit command.
+    let autoManaged = false;
+    try { const vg = require('./version-gate.js'); autoManaged = vg.isAutoManaged(vg.autoManagedSignals()); } catch { /* treat as manual */ }
+    const how = autoManaged
+      ? 'Just **restart Claude Code** — auto-update will pick it up.'
+      : 'Run `/harness-update`, then restart Claude Code. (Auto-update also catches up on its own, on a delay.)';
+    return `⬆️ Update available: Mindbowser Health Harness ${latest} (you're on ${installed}). ${how}`;
   }
   return '';
 }

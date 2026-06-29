@@ -34,12 +34,28 @@ function isMutating(toolName, toolInput) {
   return false; // Read/Grep/Glob/MCP reads/etc.
 }
 
-/** Pure (the tested heart): given the cached verdict, decide whether to block this tool. Returns a DENY
- * only for a mutating tool on a confirmed-stale install; otherwise null (fail-open). */
-function decideVersionGate(toolName, toolInput, verdict) {
+/** Pure: is this install declaratively auto-managed (managed-settings / `enabledPlugins`+autoUpdate /
+ * FORCE_AUTOUPDATE_PLUGINS)? Such installs update AUTOMATICALLY on restart — there's no manual user-scope
+ * install, so `claude plugin update` fails for them ("not installed at scope user"). The org/MDM rollout is
+ * exactly this path, so it's the common case. Signals are computed by the hook from env + settings files. */
+function isAutoManaged(signals) {
+  const s = signals || {};
+  return s.forceEnv === '1' || !!s.managedEnabled || !!s.userAutoUpdate;
+}
+
+/** Pure (the tested heart): given the cached verdict + whether the install is auto-managed, decide whether
+ * to gate this tool. NEVER hard-locks:
+ *   - not stale / no verdict / read tool  → null (fail-open).
+ *   - auto-managed + stale + mutating     → null (don't block — auto-update lands on restart; the
+ *                                           SessionStart warning nudges it. Blocking would punish a delay
+ *                                           outside the user's control, and `plugin update` fails for them).
+ *   - manual + stale + mutating           → { action:'ask' } (overridable — the human approves to keep
+ *                                           working; the message names the working `plugin update` command). */
+function decideVersionGate(toolName, toolInput, verdict, autoManaged) {
   if (!verdict || !verdict.stale) return null;          // fail-open: no verdict / not stale → allow
   if (!isMutating(toolName, toolInput)) return null;    // reads always pass
-  return { action: 'deny', reason: `⛔ health-harness ${verdict.latest} is available — you're on ${verdict.installed}. Run \`claude plugin update health-harness@mindbowser\` then restart Claude Code. Mutating work is blocked on a stale install (reads still work). (version-gate)` };
+  if (autoManaged) return null;                         // managed/auto-update → never block; restart handles it
+  return { action: 'ask', reason: `⚠️ health-harness ${verdict.latest} is available — you're on ${verdict.installed}. Run \`claude plugin update health-harness@mindbowser\` then restart Claude Code to get current, or approve to keep working on this version. (version-gate)` };
 }
 
 // ── I/O (fail-open everywhere) ────────────────────────────────────────────────
@@ -88,7 +104,26 @@ function verdictPath() {
   return path.join(os.tmpdir(), 'health-harness-version-verdict.json');
 }
 
-module.exports = { isStale, isMutating, decideVersionGate, installedVersion, latestEndpoint, fetchLatest, verdictPath };
+// OS path to the MDM-deployed managed settings (where an org/Fleet rollout enables the plugin).
+function managedSettingsPath() {
+  const path = require('path');
+  if (process.platform === 'darwin') return '/Library/Application Support/ClaudeCode/managed-settings.json';
+  if (process.platform === 'win32') return 'C:\\Program Files\\ClaudeCode\\managed-settings.json';
+  return '/etc/claude-code/managed-settings.json';
+}
+
+/** Impure: read the auto-managed signals (env + managed/user settings) for this host. Fail-safe → all false. */
+function autoManagedSignals() {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const out = { forceEnv: String(process.env.FORCE_AUTOUPDATE_PLUGINS || '').trim(), managedEnabled: false, userAutoUpdate: false };
+  const enablesPlugin = (j) => !!(j && j.enabledPlugins && j.enabledPlugins['health-harness@mindbowser']);
+  const mktAutoUpdate = (j) => !!(j && j.extraKnownMarketplaces && j.extraKnownMarketplaces.mindbowser && j.extraKnownMarketplaces.mindbowser.autoUpdate);
+  try { out.managedEnabled = enablesPlugin(JSON.parse(fs.readFileSync(managedSettingsPath(), 'utf8'))); } catch { /* none */ }
+  try { const u = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.claude', 'settings.json'), 'utf8')); out.userAutoUpdate = mktAutoUpdate(u) && enablesPlugin(u); } catch { /* none */ }
+  return out;
+}
+
+module.exports = { isStale, isMutating, decideVersionGate, isAutoManaged, autoManagedSignals, installedVersion, latestEndpoint, fetchLatest, verdictPath };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
@@ -100,9 +135,17 @@ if (require.main === module) {
       try {
         const installed = installedVersion();
         const latest = await fetchLatest(1500);
-        const verdict = { installed, latest, stale: isStale(installed, latest), at: Date.now() }; // tz-safe: epoch millis (UTC), timezone-agnostic
+        const autoManaged = isAutoManaged(autoManagedSignals());
+        const verdict = { installed, latest, stale: isStale(installed, latest), autoManaged, at: Date.now() }; // tz-safe: epoch millis (UTC), timezone-agnostic
         try { fs.writeFileSync(verdictPath(), JSON.stringify(verdict)); } catch { /* ignore */ }
-        if (verdict.stale) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: `⚠️ health-harness ${latest} is available (you're on ${installed}). Update with \`claude plugin update health-harness@mindbowser\` and restart — mutating tools are blocked until you do.` } }));
+        if (verdict.stale) {
+          // Scope-aware nudge: managed/auto-update installs (the MDM/Fleet norm) just RESTART; manual installs
+          // run `plugin update` (which fails for managed — "not installed at scope user"). Never claim blocking.
+          const how = autoManaged
+            ? '**Restart Claude Code** to pick up the auto-update.'
+            : 'Run `claude plugin update health-harness@mindbowser` (or `/harness-update`), then restart Claude Code.';
+          process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: `⚠️ health-harness ${latest} is available (you're on ${installed}). ${how}` } }));
+        }
       } catch { /* fail-open */ }
       process.exit(0);
     })();
@@ -115,7 +158,7 @@ if (require.main === module) {
         const input = JSON.parse(raw || '{}');
         let verdict = null;
         try { verdict = JSON.parse(fs.readFileSync(verdictPath(), 'utf8')); } catch { /* no verdict → fail-open */ }
-        d = decideVersionGate(input.tool_name, input.tool_input, verdict);
+        d = decideVersionGate(input.tool_name, input.tool_input, verdict, verdict && verdict.autoManaged);
       } catch { /* fail-open */ }
       if (d) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: d.action, permissionDecisionReason: d.reason } }));
       process.exit(0);

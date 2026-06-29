@@ -15,6 +15,13 @@ auto-update, or org-wide via managed settings; see `docs/rollout.md`. Then you n
 
 ## Process
 
+0. **First: is this a managed / auto-update install?** If the plugin is enabled via **managed settings**
+   (MDM/Fleet rollout) or `enabledPlugins` + a marketplace with `autoUpdate: true` (or `FORCE_AUTOUPDATE_PLUGINS=1`),
+   there is **no manual user-scope install** — so `claude plugin uninstall/update --scope …` fails with
+   *"not installed at scope user"*. For these, the update is **automatic on restart**: run
+   `claude plugin marketplace update mindbowser` (refresh the catalog), then tell the user to **fully restart
+   Claude Code** — auto-update reinstalls the latest. Do NOT run uninstall/install --scope. (Signal that you're
+   in this case: the user already has managed-settings, or step 2's commands return "not installed at scope".)
 1. **Check current state.** Run `claude plugin list` (note the installed version + **scope**:
    project / user / local). Only if the routine update later reports the source is a **local path** (not a
    GitHub marketplace), switch it to GitHub first (local marketplaces don't update) — handle that quietly,
@@ -36,6 +43,8 @@ auto-update, or org-wide via managed settings; see `docs/rollout.md`. Then you n
    ```
    Use the **scope from step 1** (default `user`). (If you want to *verify* there was a newer version, compare
    the post-reinstall `plugin list` version to the pre — don't gate the reinstall on a guess beforehand.)
+   **If any command returns "not installed at scope …", you're in the managed/auto-update case (step 0)** —
+   stop, run only `claude plugin marketplace update mindbowser`, and have the user restart Claude Code.
 3. **Apply + confirm.** Run `/reload-plugins` (or tell the user to **fully restart** Claude Code — hook
    and MCP changes need a restart). Then `claude plugin list` and report **old → new version** only.
    **Cross-check against the version API:** if the new installed version equals `/latest` from step 1b,
