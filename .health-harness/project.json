@@ -34,6 +34,9 @@
   },
   "defaultBranch": "main",
   "gate": "npm test",
+  "timezone": {
+    "home": "Asia/Kolkata"
+  },
   "commit": {
     "conventional": true,
     "requireTicket": true

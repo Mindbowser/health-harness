@@ -100,6 +100,13 @@ Tests verify **behavior through public interfaces**, not implementation details.
      `/audit-logging` (a read path emits an entry; a *denied* access still emits one; the entry has the
      record id but no PHI).
    For `none` profiles (no regulated data) this step is a no-op — `secrets` must still never be logged.
+7. **Timezone governance — when the slice touches a date/time API.** A gate that only ever runs in your
+   home zone (or UTC) silently passes code that breaks for users elsewhere. So for any date-touching slice,
+   **run the gate under a hostile clock**, not just the bare gate: `node bin/tz-gate.js --invocation` prints
+   the recommended `TZ=<hostile> <gate>` (the hostile zone differs from the team's home zone and has DST —
+   e.g. `TZ=America/New_York npm test` for the Kolkata-based team). Green under the hostile clock is the bar.
+   If the date use is genuinely TZ-agnostic (monotonic duration, internal-UTC, log timestamp), mark the line
+   `// tz-safe: <reason>` instead. (Wall backstop: the date/time criterion blocks a push that does neither.)
 
 ## Prove it — evidence in the PR + Jira (this is what makes review cheap)
 

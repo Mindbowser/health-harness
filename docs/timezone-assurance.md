@@ -1,7 +1,9 @@
 # Timezone assurance — from "did you notice" to "survives a hostile clock"
 
-> **Status:** proposal / spec. Tier 2 prototyped (findings below); tiers 1 & 3 not yet wired.
-> Supersedes nothing — it *upgrades* the existing `criteria-detect` tz tripwire, it doesn't replace it.
+> **Status:** tier 1 (agnostic detector) **shipped** (MBI-83, v0.2.29); tier 2 (hostile-clock gate run)
+> **shipped** (`bin/tz-gate.js` + TDD-skill step, v0.2.30). The build-time AskUserQuestion + AFK default
+> and tier 3 (matrix-with-coverage) are not yet wired. This *upgrades* the existing `criteria-detect` tz
+> tripwire, it doesn't replace it.
 
 ## The problem with today's gate
 
@@ -68,7 +70,13 @@ meaner 45-min + DST case). Kolkata stays in the *matrix* as the "+5:30 non-hour-
 slice's file extensions), else the gate silently no-ops in a Python/.NET product repo — a worse failure
 mode than a loud one.
 
-## Tier 2 — CI defaults to a hostile clock, permanently (prototyped)
+## Tier 2 — CI defaults to a hostile clock, permanently (✅ shipped, v0.2.30)
+
+Implemented as `bin/tz-gate.js`: `node bin/tz-gate.js --invocation` reads the repo's `project.json` gate +
+`timezone.home` and prints the recommended `TZ=<hostile> <gate>` (hostile zone differs from home + has DST).
+The TDD skill's timezone-governance step instructs running date-touching slices under it. `timezone.home`
+is recorded in `project.json` (`Asia/Kolkata` for this team). The original prototype findings:
+
 
 Run the gate under a non-UTC default — `TZ=Asia/Kolkata` (or Chatham) — as the *standard* invocation,
 not UTC. This catches the entire "works on my UTC laptop, breaks for half the org" class **for free**,
