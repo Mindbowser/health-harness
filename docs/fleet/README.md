@@ -1,81 +1,55 @@
-# Fleet scripts
+# Fleet script
 
 Org-wide rollout of the health-harness plugin via Claude Code **managed settings**, pushed by IT through
-Fleet. The org model is **Fleet-managed + track-latest**: deploy once, and every machine auto-updates to
-the latest release on restart. Un-manage scripts revert a machine to user-owned.
+Fleet. **One script, one decision.**
 
-## Scripts
+## The whole thing: two files, one action variable
 
-| Script | Hosts | What it does |
+| File | Runs on | You don't pick this — Fleet does |
 |---|---|---|
-| `mb_harness_macos.sh` | macOS | **Manage**: write managed-settings.json → `/Library/Application Support/ClaudeCode/` |
-| `mb_harness_ubuntu.sh` | Ubuntu / Linux / WSL | **Manage**: write managed-settings.json → `/etc/claude-code/` |
-| `mb_harness_windows.ps1` | Windows | **Manage**: write managed-settings.json → `C:\Program Files\ClaudeCode\` |
-| `mb_harness_macos_unmanage.sh` | macOS | **Un-manage**: remove that managed-settings.json → machine becomes user-owned |
-| `mb_harness_ubuntu_unmanage.sh` | Ubuntu / Linux / WSL | **Un-manage**: remove that managed-settings.json → machine becomes user-owned |
-| `mb_harness_windows_unmanage.ps1` | Windows | **Un-manage**: remove that managed-settings.json → machine becomes user-owned |
-| `mb_harness_macos_refresh.sh` | macOS | **Force catalog refresh**: pull latest marketplace data (user context); restart applies |
-| `mb_harness_ubuntu_refresh.sh` | Ubuntu / Linux / WSL | **Force catalog refresh**: pull latest marketplace data (user context); restart applies |
-| `mb_harness_windows_refresh.ps1` | Windows | **Force catalog refresh**: pull latest marketplace data (user context); restart applies |
+| `mb_harness.sh` | macOS + Linux/Ubuntu/WSL | Fleet auto-runs it on those hosts |
+| `mb_harness.ps1` | Windows | Fleet auto-runs it on Windows |
 
-## How updates work (important)
+There are two files only because shell and PowerShell can't be the same file. **Fleet auto-routes by OS**,
+so the admin never picks the OS. The **only** decision is the action — set `MB_HARNESS_ACTION`:
 
-The manage script does **not** perform updates — it writes managed-settings with `"autoUpdate": true`,
-which **turns auto-update on, once**. The actual updating is done by **Claude Code itself at each user's
-restart**: it reads the marketplace, sees a newer version, and pulls it. The marketplace always serves the
-latest release. So **IT never pushes versions** — new releases flow to everyone automatically on restart.
+| `MB_HARNESS_ACTION` | What it does |
+|---|---|
+| `manage` *(default)* | install + enable the plugin + turn on **auto-update** (writes managed-settings.json) |
+| `unmanage` | remove the managed lock → machine becomes **user-owned** (removes managed-settings.json) |
+| `refresh` | force a **catalog refresh** when auto-update misses the new version (restart applies) |
 
-Auto-update at startup is **best-effort** (async fetch; a slow network can make it land on a *later*
-restart, and it sometimes **doesn't refresh the catalog / find the new version** at all). If a dev needs the
-latest **immediately**, they run **`/harness-update`** — **not** `claude plugin update` (that fails on
-managed scope, which is read-only). `/harness-update` does the explicit `marketplace update` that
-auto-update skipped, then reloads.
+## How to run it
 
-### Force a catalog refresh fleet-wide (when auto-update keeps missing the new version)
+1. Upload **both** files to Fleet as one script target (Fleet runs the right one per OS).
+2. Set **`MB_HARNESS_ACTION`** to `manage` / `unmanage` / `refresh` (env var in Fleet, or edit the default
+   at the top of the script). Default is `manage`.
+3. Run across the fleet.
 
-If you see machines that won't find the new version, push the per-OS **`*_refresh`** script. It runs
-`claude plugin marketplace update mindbowser` explicitly, so the next restart deterministically finds the
-latest. Two things to know:
-- It **pre-stages only** — users still **restart** (or `/reload-plugins`) to apply.
-- The marketplace cache is **per-user**, so the refresh must run **as the logged-in user**. The shell
-  scripts re-exec as the console user if Fleet runs them as root; on Windows, configure the Fleet script to
-  run **as the current user** (not SYSTEM). If `claude` isn't on that user's PATH it no-ops with a note —
-  in which case the dev's own **`/harness-update`** is the fallback.
+That's it — no per-OS, no per-action file hunting.
 
-Alternative (no per-user execution): for an **urgent** push, deploy a manage script variant with
-`"forceRemoteSettingsRefresh": true` in managed-settings — clients block at startup until they refresh, so
-the next restart reliably pulls. Drop the flag afterward so it doesn't gate every future startup.
+## What each action means in practice
 
-## IT admin handover — the whole job
+- **`manage`** (the normal rollout): run **once** (or as a self-healing policy — it's idempotent). It
+  enables the plugin and turns on auto-update. From then on, **Claude Code auto-updates each user on
+  restart** — IT never pushes versions. A dev who wants the latest *now* runs **`/harness-update`** (not
+  `claude plugin update`, which fails on managed scope).
+- **`unmanage`**: releases the lock so devs own the plugin themselves
+  (`claude plugin install|update|uninstall health-harness@mindbowser`, default scope `user`).
+- **`refresh`**: for when auto-update's best-effort startup refresh keeps missing the new version. Runs the
+  explicit `claude plugin marketplace update`. **Pre-stages only — users still restart to apply.** The
+  marketplace cache is **per-user**, so `refresh` must run **as the logged-in user** (the `.sh` re-execs as
+  the console user if Fleet runs it as root; on Windows configure the Fleet script to run as the current
+  user). If `claude` isn't on PATH it no-ops — the dev's **`/harness-update`** is the fallback.
 
-1. **Deploy once:** run `mb_harness_<os>` across the fleet (or attach as a self-healing Fleet **policy** —
-   the scripts are idempotent). This enables the plugin + auto-update org-wide.
-2. **Updates flow automatically** — each user gets the latest on their next Claude Code restart. **No
-   per-release action by IT.**
-3. **Dev needs the latest now:** they run **`/harness-update`** (not `claude plugin update`).
-4. **Revert a machine/fleet to user-owned:** run `mb_harness_<os>_unmanage`.
-5. ⚠️ **Landmine:** the marketplace repo is **public**, so this works tokenless. **If it is ever made
-   private, managed auto-update silently stops fleet-wide** unless you deploy a read-only `GITHUB_TOKEN`
-   (Fleet secret → managed-settings `env` or a system env var).
+## IT handover — the whole job
 
-## Deploy notes
-
-- Fleet auto-detects each host's OS and runs the matching script type (shell vs PowerShell).
-- Scripts are **idempotent** and **version-agnostic** (`autoUpdate` converges every host to latest), so
-  they double as **policy remediations** for self-healing — new/drifted hosts get corrected automatically.
-
-## Reverting to user-owned (optional)
-
-Push the `mb_harness_<os>_unmanage` script to release the managed lock. After it runs, a dev owns the
-plugin themselves with plain commands (default scope is `user`):
-
-```
-install  →  claude plugin install   health-harness@mindbowser
-update   →  /harness-update
-remove   →  claude plugin uninstall health-harness@mindbowser
-```
-
-Note: removing the lock removes the managed-scope enablement. A dev whose user-scope settings already
-enable the plugin keeps it; one who relied solely on the lock should run the install command (then restart).
+1. **Roll out:** run with `MB_HARNESS_ACTION=manage` (default). Done — updates flow automatically on restart.
+2. **A dev needs latest now:** they run **`/harness-update`**.
+3. **Catalog keeps missing a version:** run with `MB_HARNESS_ACTION=refresh`, users restart.
+4. **Revert to user-owned:** run with `MB_HARNESS_ACTION=unmanage`.
+5. ⚠️ **Landmine:** the marketplace repo is **public**, so this works tokenless. **If it's ever made
+   private, managed auto-update silently stops fleet-wide** unless you deploy a read-only `GITHUB_TOKEN`.
+   For an urgent push you can also add `"forceRemoteSettingsRefresh": true` to managed-settings.
 
 See `../rollout.md` for the full model, paths, precedence, and troubleshooting.
