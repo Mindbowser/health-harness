@@ -51,6 +51,17 @@ Every event that touches ePHI:
 - A test that a **denied** access still produces an audit entry (failures are audited too).
 - A test that the audit entry contains the record **id** but **no PHI field values**.
 
+### Check locally that no ePHI site is missing its audit call (MBI-100)
+
+Don't eyeball it — scan for the gap: `node "…/bin/audit-scan.js" <changed files>` finds PHI data
+operations (a read/write/delete on a `Patient`/`MedicalRecord`/`Chart`/… entity, or a `getPatient(…)`-shape
+call) with **no audit emission within a few lines**, and exits non-zero on a gap. Point it at your audit
+helper (`--auditRe` / the recorded convention) so `audit.record(...)`/`recordAccess(...)` counts. A
+compliant entry carries: **actor** (who), **action** (what), **subject** (recordId — never the PHI),
+**timestamp** (when, UTC), **outcome** (success/failure/denied). Heuristic + advisory — resolve every gap
+(add the audit call, or confirm the site truly touches no ePHI); it's the checkable form of the `audit`
+cross-cutting concern (`bin/concerns.js`).
+
 ## Anti-patterns
 
 - ❌ Conflating audit logs with app logs — different store, different retention, different access rules.
