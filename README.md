@@ -326,6 +326,8 @@ bin/tz-gate.js               # composes the recommended HOSTILE-clock gate run f
                              #   `--invocation` prints `TZ=<hostile> <gate>` (zone differs from home + has DST) (+ test/)
 bin/conventions.js           # records logging/audit/datetime + lint/typecheck/coverage conventions once at
                              #   start/onboard/scaffold; detectors read it to upgrade ASK→DENY (+ test/)
+bin/lint-detect.js           # detects a configured linter + whether the gate runs it; onboard/scaffold use it
+                             #   to keep lint IN the one-command gate (tests+typecheck+lint) (+ test/)
 bin/version-gate.js          # WARN-ONLY nudge for a stale install (never blocks): SessionStart resolves
                              #   installed-vs-latest (Atlas /latest) + emits a scope-aware warning (restart for
                              #   managed installs, `plugin update`/`/harness-update` for manual). No PreToolUse
