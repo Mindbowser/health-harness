@@ -136,6 +136,17 @@ function commitPolicy(dir) {
   } catch { return {}; }
 }
 
+// ── commit-review gate → ASK before a commit lands (dev reviews the diff) ──────
+// Default is ASK: the agent shouldn't auto-commit without a human seeing the diff (MBI-108). Opt out per
+// project with commit.autoCommit=true (or commit.review=false) in project.json — /start records the choice.
+// Runs after the base-branch + message guards in decide(); it's the catch-all "did a human see this?" step.
+function decideCommitReview(command, policy) {
+  if (!COMMIT_RE.test(String(command || ''))) return null;
+  const p = policy !== undefined ? policy : commitPolicy();
+  if (p.autoCommit === true || p.review === false) return null; // explicit opt-in to auto-commit → silent
+  return { action: 'ask', why: 'commit_review', reason: 'health-harness wall: commit review — review the staged diff before this commit lands (auto-commit is OFF by default). Approve to commit, or set commit.autoCommit=true in .health-harness/project.json to let the agent commit without asking.' };
+}
+
 function decideCommitMessage(command, policy, branch) {
   const bad = checkCommitMessage(extractCommitMessage(command), policy !== undefined ? policy : commitPolicy(), branch);
   if (!bad) return null;
@@ -301,7 +312,8 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       const gs = gitState !== undefined ? gitState : gitProbe();
       return dropAsk(bash)                             // outward ASK suppressed under a grant
         || decideCommitGuard(cmd, gs)                  // commit guards: not part of the batch
-        || decideCommitMessage(cmd, undefined, gs && gs.branch); // no-ticket ASK uses the branch to resolve a key
+        || decideCommitMessage(cmd, undefined, gs && gs.branch) // no-ticket ASK uses the branch to resolve a key
+        || decideCommitReview(cmd);                    // default-ASK dev review before a commit (MBI-108)
     }
     if (String(toolName).startsWith('mcp__')) {
       const red = decideRedactionMcp(toolName, toolInput, cwd); // PHI → DENY, NEVER suppressed
@@ -312,7 +324,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, gitProbe, baseBranches };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, gitProbe, baseBranches };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

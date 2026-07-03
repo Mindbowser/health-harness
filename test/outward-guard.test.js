@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect } = require('../hooks/outward-guard.js');
 
 const action = (d) => (d ? d.action : null);
 
@@ -224,7 +224,17 @@ test('commit on a base branch ASKs; feature branch / initial commit defer', () =
   assert.strictEqual(decideCommitGuard('git status', onMain), null);
   // wired through decide() with injected state
   assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onMain)), 'ask');
-  assert.strictEqual(decide('Bash', { command: 'git commit -m x' }, onFeature), null);
+  // MBI-108: even on a feature branch, a commit now ASKs by default (dev-review checkpoint) — the harness's
+  // own project.json sets no commit.autoCommit, so the default-ask applies.
+  assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onFeature)), 'ask');
+});
+
+test('decideCommitReview (MBI-108): default asks for a dev review before committing; autoCommit opts out', () => {
+  assert.strictEqual(action(decideCommitReview('git commit -m "feat: x"', {})), 'ask');           // default = ask
+  assert.strictEqual(decideCommitReview('git commit -m "feat: x"', { autoCommit: true }), null);   // opt out → silent
+  assert.strictEqual(decideCommitReview('git commit -m "feat: x"', { review: false }), null);      // alias opt out
+  assert.strictEqual(decideCommitReview('git status', {}), null);                                  // not a commit → defer
+  assert.strictEqual(decideCommitReview('echo hi', {}), null);
 });
 
 test('decide() routes by tool_name; unknown tools defer', () => {
