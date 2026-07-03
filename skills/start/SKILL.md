@@ -41,6 +41,11 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    (onboarding/start is the place to prompt — never mid-build), or record it as an explicit deferred gap.
    The compliance detectors read `.health-harness/conventions.json` to upgrade a heuristic ASK into a
    deterministic DENY.
+3c. **Gitignore the harness's dev-local working files (one-time).** `/align` and `/to-prd` write scratch
+   notes (`align.md`, `prd.md`) under `.health-harness/sprints/`; the durable record is Jira, so these are
+   per-dev and must not be committed. Run `node "${CLAUDE_PLUGIN_ROOT}/bin/local-ignores.js"` — it idempotently
+   adds the local-only patterns to `.gitignore` (the committed criteria manifest `.health-harness/criteria/<KEY>.json`
+   is deliberately kept tracked). If a repo already committed one of these, `git rm --cached` it once.
 4. **Connect the tracker + confirm git identity (once per project/person).** Set these up *here*, not
    mid-build:
    - **Tracker (Jira/Linear) MCP** — verify it's connected (the agent can "list issues in the current
