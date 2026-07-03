@@ -83,7 +83,10 @@ Tests verify **behavior through public interfaces**, not implementation details.
 2. **Tracer bullet** — write ONE failing test for ONE behavior (RED), then the minimal code to pass
    (GREEN). Confirm the full **gate** is green.
 3. **Incremental loop** — for each remaining behavior: RED → GREEN → run the gate. One behavior at a
-   time, so each test responds to what the last one taught you.
+   time, so each test responds to what the last one taught you. **One task should encode one behavior**
+   (MBI-102): if a task's criteria describe more than one behavior (`node "…/bin/behavior-count.js" "<criteria>"`
+   returns ≥2), it was under-sliced — its single behavior test can't deterministically confirm it. Prefer
+   getting it re-sliced at `/to-issues`; the task is *done* only when its one behavior test goes red→green.
 4. **Refactor** — only once tests are green: remove duplication, deepen modules, run the gate after
    each step. Never refactor on red.
 5. **Governance** — no real PHI/PII/secrets in tests or fixtures; use synthetic data per the repo's
