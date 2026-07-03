@@ -32,6 +32,11 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
    the whole API") into vertical ones ("award points on lesson-complete, visible on the dashboard").
 4. **Order with blockers.** Give each issue a **blocked-by** list. The result is a DAG, not a sequence
    — unblocked issues can run in parallel. Put genuine prefactoring first.
+   **BE/FE split → keep the gate honest (MBI-101).** A vertical slice is preferred, but when backend and
+   frontend genuinely land as separate slices, a FE slice mustn't pass on a mock for an API that isn't built.
+   Either **block the FE slice on the API slice**, or give both a **shared contract test** (or an integration
+   test at the seam) so each side's green means the contract is really met — never a stub standing in for the
+   unbuilt layer (`bin/contract-guard.js`).
 5. **Quiz the user** on the breakdown before publishing: titles, what each builds end-to-end, the
    blocking graph, and which stories each slice covers. Adjust on feedback.
 6. **Publish back to the tracker** (the PUSH half of the round-trip — `docs/jira.md`). Using the
