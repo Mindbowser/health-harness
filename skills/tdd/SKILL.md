@@ -86,6 +86,13 @@ Tests verify **behavior through public interfaces**, not implementation details.
    time, so each test responds to what the last one taught you.
 4. **Refactor** — only once tests are green: remove duplication, deepen modules, run the gate after
    each step. Never refactor on red.
+4b. **Scale governance — when the slice touches a collection (list / pagination / search / batch).** A gate
+   that only ever tests N=3 silently passes pagination-class bugs (the real-world break: pagination that
+   worked on small lists failed at volume). Get the boundary + volume cases from
+   `node "…/bin/scale-hints.js" "<slice description>" --page <pageSize>` — **empty, single, exactly one page,
+   just over a page, and a realistic large N** (default 1000 when the PRD didn't specify). Write a test at
+   large N + the boundaries, red-green like any behavior. (Advisory nudge, not a hard block — but don't skip
+   it on a paged/searched/listed feature.)
 5. **Governance** — no real PHI/PII/secrets in tests or fixtures; use synthetic data per the repo's
    `compliance-profile`.
 6. **Logging governance — mandatory when the slice touches ePHI** (`compliance-profile` = `hipaa`, or any
