@@ -35,7 +35,10 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
    `node "…/bin/slice-size.js" --behaviors <n> --acs <n> --diff <est>` → `oversized` + the reasons (limits:
    **1 behavior**, **≤5 acceptance criteria**, **≤400 diff lines**). If oversized, **split it** into smaller
    slices and carry the blocking order (step 4) — schema before API before UI. One slice = one behavior = one
-   small PR.
+   small PR. **Keep the balance — split only when a candidate genuinely exceeds the limits.** Don't
+   over-fragment into many tiny tasks: each extra issue is coordination + token overhead, and a cohesive small
+   behavior stays **one** slice. The heuristic only flags a candidate that's actually too big (absent/
+   under-limit signals are never "oversized"); the goal is reviewable PRs, not maximal task count.
 4. **Order with blockers.** Give each issue a **blocked-by** list. The result is a DAG, not a sequence
    — unblocked issues can run in parallel. Put genuine prefactoring first.
 5. **Quiz the user** on the breakdown before publishing: titles, what each builds end-to-end, the
