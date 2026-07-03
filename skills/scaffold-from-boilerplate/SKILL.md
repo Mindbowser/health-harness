@@ -41,6 +41,9 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/boilerplate-registry.js" resolve "<stack>"   # �
    `.git`; re-init a fresh repo. **Never push back to the boilerplate repos — they are clone-only.**
 3. **Wire the gate.** Ensure a single one-command gate exists and passes on the empty project
    (typecheck + build + tests, e.g. `pnpm verify`), with a coverage ratchet if the stack supports it.
+   **Prove it's TDD-ready:** `node "…/bin/test-detect.js"` should report `runnable:true`; then run the
+   red→green smoke (a throwaway failing test → RED → make it pass → GREEN → delete it) so the loop is
+   proven, and record the `gate` + `testFramework` in `.health-harness/project.json`.
    *Feedback loops are the quality ceiling — the project is not ready without this.*
 4. **Set the compliance profile.** Run `/compliance-profile` to write `.health-harness/compliance.json`.
    **Default to `hipaa`** (the MB fail-safe); only set a lighter profile if the user confirms the repo

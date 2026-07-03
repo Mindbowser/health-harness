@@ -39,6 +39,13 @@ it — their conventions, their architecture, their IP.
    PRD/align notes live only locally; their durable form is the Jira ticket.
 3. **Establish the feedback loop — HARD GATE.** Find the existing gate (tests / typecheck / lint /
    build). Run it.
+   - **Detect the test config deterministically:** `node "…/bin/test-detect.js"` → `{framework, gateCommand,
+     runnable, stubScript}`. `runnable:false` (framework `none`, or only the npm default stub) → **no TDD
+     loop exists**, so establishing one (characterization tests) is the first blocking task before any build.
+   - **PROVE the loop works — the red→green smoke (don't assume).** Once a gate is found: write a throwaway
+     failing test (`assert(false)`), run the gate → **see it RED**, flip it to pass, run again → **see it
+     GREEN**, then delete it. A config that can't complete this cycle is not a gate. Record the proven
+     `gate` command + `testFramework` in `.health-harness/project.json` so later skills don't re-derive them.
    - If a working one-command gate exists and passes → record it in `CLAUDE.md`.
    - If it's missing, broken, or thin → **write characterization tests** that pin the *current*
      behavior around where you'll work, and assemble a one-command gate. **Do not change any behavior
