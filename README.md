@@ -304,6 +304,7 @@ bin/gen-sounds.js            # generates the cross-platform fallback chime .wav 
 bin/session-context.js       # SessionStart hook — injects status + runs the daily coach (+ test/)
 bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/; `emit` CLI for hygiene signals (+ test/)
 bin/issue-switch-nudge.js    # smart-zone reminder: UNRELATED new ticket in a heavy session → suggest a clean one (+ test/)
+bin/ac-readability.js        # flags an acceptance criterion that's only code/file refs → needs plain QA-testable language (+ test/)
 bin/ticketless-nudge.js      # soft once/session reminder when work starts with no linked Jira ticket (+ test/)
 bin/issue-graph.js           # deterministic Jira relatedness (parent/epic/links) so related work keeps context (+ test/)
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)

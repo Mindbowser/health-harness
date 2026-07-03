@@ -38,7 +38,10 @@ sprint is unset, have the user run `/sprint set <id>` first. Don't file silently
 2. **Use this structure:**
    - **Problem** — who has it, why it matters.
    - **Solution** — the approach, in plain language.
-   - **User stories** — "As a … I can … so that …", each with acceptance criteria.
+   - **User stories** — "As a … I can … so that …", each with acceptance criteria written in
+     **plain language QA can test** (Given/When/Then observable behavior, not code/file references as the
+     primary phrasing; keep any code ref as a secondary note). `bin/ac-readability.js` flags AC that read as
+     code-only (MBI-106).
    - **Decisions** — the choices made during alignment (and the rejected alternatives, briefly).
    - **Out of scope** — explicit non-goals. Critical for definition of done.
    - **Compliance notes** — PHI/PII/regulated data touched + the repo's `compliance-profile`.
