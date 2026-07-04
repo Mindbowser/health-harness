@@ -1,0 +1,15 @@
+{
+  "issueKey": "MBI-113",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "kind": "app-logging",
+      "text": "Given feedback text containing a PHI/PII/secret pattern, When emit-feedback runs, Then nothing is written locally or queued for upload until the text passes the scan, and a clear message is shown."
+    },
+    {
+      "id": "AC-2",
+      "kind": "app-logging",
+      "text": "Given clean feedback text, When it is scanned, Then it passes and the record is written."
+    }
+  ]
+}
