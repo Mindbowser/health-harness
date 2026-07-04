@@ -156,11 +156,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   convention** (sets `commit.conventional:false` if they consistently use a different style) but **elevates the
   absence of one** — inconsistent/low-quality history keeps the gate on and is flagged as an improvement, not
   mirrored.
-- **ASK → a commit (dev-review checkpoint)**: by **default the agent asks before every commit** so a human
-  reviews the staged diff — the AI shouldn't auto-commit unseen. Approving commits; opt a repo into
-  auto-commit with **`commit.autoCommit:true`** in `.health-harness/project.json` (`/start` records the
-  choice; default is ask). Base-branch + message guards run first, so this is the catch-all "did a human
-  see this?" step. (`hooks/outward-guard.js` `decideCommitReview`.)
+- **ASK → a commit (dev-review checkpoint)**: the `commit` gate is **auto-approved by default** (the agent
+  commits as it works; you review at the PR). A repo that wants the agent to **pause for review before every
+  commit** sets **`wall.autoApprove.commit: false`** in `.health-harness/project.json` — the single, uniform
+  way to tune it (there is no separate `commit.autoCommit`). Base-branch + message guards run first, so this
+  is the catch-all "did a human see this?" step. (`hooks/outward-guard.js` `decideCommitReview`.)
 - **ASK → a commit with no linked Jira ticket** (overridable per commit): `commit.requireTicket` is **ON by
   default** — a commit whose ticket isn't resolvable from the **branch or the message** ASKs ("commit
   anyway?") rather than DENYing (the agent can't invent a ticket). Approving proceeds for that commit; set
@@ -203,10 +203,12 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 **Per-gate auto-approve — skip the *asking*, never the *gate* (`wall.autoApprove`, MBI-110).** Each gate's
 ASK can be silenced with a flag in `.health-harness/project.json` → `wall.autoApprove.<gate>`. **Default-on
 set (the two pure-friction gates): `trackerWrite`** (Jira/Linear **create/edit/link** — redaction still blocks
-PHI in the write; transitions/comments/worklogs already defer) **and `commit`** (the per-commit review, also
-via `commit.autoCommit`). Everything else still **ASKs** until a repo opts in: `push` · `pr` · `infra` ·
-`shipUnverified` (the gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `baseBranchCommit`. Any
-default-on gate can be turned back **off** per repo (`wall.autoApprove.trackerWrite: false`). **Auto-approve
+PHI in the write; transitions/comments/worklogs already defer) **and `commit`** (the per-commit review).
+Everything else still **ASKs** until a repo opts in: `push` · `pr` · `infra` · `shipUnverified` (the
+gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `baseBranchCommit`. Any default-on gate can be
+turned back **off** per repo — e.g. `wall.autoApprove.commit: false` makes the agent **ask before every
+commit**, `wall.autoApprove.trackerWrite: false` re-enables the Jira-write prompt. Every gate is tuned the
+same one way (`wall.autoApprove.<gate>`) — there is no separate `commit.autoCommit`. **Auto-approve
 suppresses only the human prompt — it never skips the gate's check** (gate-evidence still fingerprints
 pass/fail, criteria are still computed and *recorded*) and it **never** silences a **DENY**: catastrophic
 commands, PHI/secret **redaction**, and the commit-message **format** block still fire regardless.
