@@ -378,6 +378,51 @@ test('[AC-3] the feedback record dedup id IS the feedbackId → a resend is idem
   assert.strictEqual(resend.id, first.id);        // same submission → same id → server drops the duplicate
 });
 
+// MBI-114 (S3) — enrichment + graceful degradation. A feedback record is auto-populated with context:
+// tool-derived fields (git name, branch-derived ticket, branch kind, platform) get filled from the env;
+// agent-supplied fields (accountId, ccVersion, model, sessionId, command, phase) ride the payload and are
+// simply kept when present / omitted when absent — never an error. Anonymous mode drops all identity fields.
+const { enrichFeedback } = require('../bin/usage-log.js');
+
+test('[AC-1] enrichFeedback auto-fills the tool-derived context fields onto the record', () => {
+  const enriched = enrichFeedback({ type: 'bug', summary: 's' },
+    { userName: 'Dev Example', issueKey: 'MBI-114', branchKind: 'feature', platform: 'linux' });
+  const rec = buildFeedbackRecord(enriched, { id: 'fb-e', ts: '2026-07-04T00:00:00.000Z', userId: 'dev@mb', repoId: 'mb-harness', hv: '0.3.0' });
+  assert.strictEqual(rec.userName, 'Dev Example');   // git name auto-filled
+  assert.strictEqual(rec.issueKey, 'MBI-114');       // branch-derived ticket
+  assert.strictEqual(rec.branchKind, 'feature');
+  assert.strictEqual(rec.platform, 'linux');
+  // the S1 env stamps are still present alongside the new context
+  assert.strictEqual(rec.userId, 'dev@mb');
+  assert.strictEqual(rec.repoId, 'mb-harness');
+  assert.strictEqual(rec.hv, '0.3.0');
+});
+
+test('[AC-2] agent-supplied fields are kept when present, omitted (not errored) when absent', () => {
+  const withRuntime = enrichFeedback(
+    { type: 'idea', summary: 's', accountId: 'acc-1', ccVersion: '1.2.3', model: 'claude-opus-4-8', sessionId: 'sess-9', command: 'tdd', phase: 'build' },
+    { platform: 'darwin' });
+  const rec = buildFeedbackRecord(withRuntime, { id: 'fb-r', ts: 'T', userId: 'u', repoId: 'r', hv: 'v' });
+  for (const [k, v] of Object.entries({ accountId: 'acc-1', ccVersion: '1.2.3', model: 'claude-opus-4-8', sessionId: 'sess-9', command: 'tdd', phase: 'build' }))
+    assert.strictEqual(rec[k], v, `${k} kept when present`);
+  // none resolvable → the record still builds, the fields are simply absent (no error, no null noise)
+  const bare = buildFeedbackRecord(enrichFeedback({ type: 'bug', summary: 's' }, {}), { id: 'fb-b', ts: 'T', userId: 'u', repoId: 'r', hv: 'v' });
+  assert.strictEqual(bare.event, 'feedback');
+  for (const k of ['accountId', 'ccVersion', 'model', 'sessionId', 'command', 'phase', 'userName', 'issueKey'])
+    assert.ok(!(k in bare), `${k} omitted when unavailable`);
+});
+
+test('[AC-2] anonymous mode drops all identity fields (git name + email + Jira account)', () => {
+  const enriched = enrichFeedback({ type: 'friction', summary: 's', anonymous: true, accountId: 'acc-1' },
+    { userName: 'Dev Example', platform: 'linux' });
+  const rec = buildFeedbackRecord(enriched, { id: 'fb-a', ts: 'T', userId: null, repoId: 'r', hv: 'v' }); // caller nulls userId under anon
+  assert.ok(!('userName' in rec), 'git name dropped');
+  assert.ok(!('accountId' in rec), 'Jira account dropped');
+  assert.strictEqual(rec.userId, null, 'git email dropped');
+  assert.strictEqual(rec.anonymous, true, 'record marked anonymous');
+  assert.strictEqual(rec.platform, 'linux', 'non-identity context still present');
+});
+
 test('MBI-46: transitionsFromIssue maps a real getJiraIssue(expand=changelog) shape via the category map', () => {
   const issueResp = { key: 'MBI-43', changelog: { histories: [
     { created: 't1', items: [{ field: 'status', from: '10225', fromString: 'Idea', to: '10227', toString: 'In Progress' }] },

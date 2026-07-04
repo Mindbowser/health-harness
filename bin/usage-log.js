@@ -57,7 +57,12 @@ const ALLOW = {
   // PHI-scanned (S2) bug/idea/friction report. Its string fields are therefore NOT length-capped (see the
   // `feedback` branch in sanitize). The metadata-only guarantee for every OTHER event above is unchanged.
   // The record's dedup `id` IS the feedbackId (set in buildFeedbackRecord), so a resend is idempotent.
-  feedback: ['type', 'summary', 'detail', 'expected', 'actual', 'severity', 'feedbackId'],
+  feedback: ['type', 'summary', 'detail', 'expected', 'actual', 'severity', 'feedbackId',
+    // enrichment context (MBI-114 / S3): tool-derived (userName, issueKey, branchKind, platform) +
+    // agent/runtime-supplied (accountId, ccVersion, model, sessionId, command, phase). `anonymous` marks a
+    // record whose identity fields (userName + userId + accountId) were deliberately dropped.
+    'userName', 'issueKey', 'branchKind', 'platform',
+    'accountId', 'ccVersion', 'model', 'sessionId', 'command', 'phase', 'anonymous'],
 };
 
 // keep only allowlisted, scalar fields (no nested objects/content)
@@ -86,6 +91,22 @@ function buildFeedbackRecord(data, env) {
   const feedbackId = (data && data.feedbackId) || e.id;
   const clean = sanitize('feedback', { ...(data || {}), feedbackId });
   return { v: 1, id: feedbackId, ts: e.ts, userId: e.userId ?? null, repoId: e.repoId ?? null, hv: e.hv ?? null, event: 'feedback', ...clean };
+}
+
+/** Pure: enrich a raw feedback submission with the auto-captured context (MBI-114 / S3). Tool-derived fields
+ * (userName, issueKey, branchKind, platform) come from `ctx` — the impure caller resolves them from git/os —
+ * and are added only when non-empty (graceful degradation). Agent/runtime-supplied fields (accountId,
+ * ccVersion, model, sessionId, command, phase) already ride the payload; they're kept when present and simply
+ * absent when not — never an error. `anonymous: true` drops all identity fields (git name + Jira account here;
+ * the caller also nulls the top-level userId/git-email) and marks the record `anonymous`. */
+function enrichFeedback(data, ctx) {
+  const d = data || {}, c = ctx || {};
+  const out = { ...d };
+  for (const [k, v] of Object.entries({ userName: c.userName, issueKey: c.issueKey, branchKind: c.branchKind, platform: c.platform })) {
+    if (v !== undefined && v !== null && v !== '') out[k] = v;
+  }
+  if (d.anonymous === true) { delete out.userName; delete out.accountId; out.anonymous = true; }
+  return out;
 }
 
 const GATE_RE = /\b(npm (run )?(test|lint|build|typecheck)|yarn (test|lint)|pnpm (test|lint)|jest|vitest|pytest|go test|gradle|mvn|tsc|eslint|make( test| ci)?)\b/i;
@@ -403,7 +424,7 @@ module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, gateResultTrustwort
   graphMetaFor, emitIssueMeta, fingerprintUnits, commitFingerprint, hash16,
   ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions,
   statusCatFromJira, mergeStatusCategories, transitionsFromIssue, emitTransitionsFromJira,
-  buildFeedbackRecord, appendFeedback };
+  buildFeedbackRecord, enrichFeedback, appendFeedback, gitName };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -417,6 +438,14 @@ function gitEmail() {
     _email = require('child_process').execSync('git config user.email', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim() || null;
   } catch { _email = null; }
   return _email;
+}
+let _name; // memoize git user.name (feedback enrichment — internal-team identity, not customer PII)
+function gitName() {
+  if (_name !== undefined) return _name;
+  try {
+    _name = require('child_process').execSync('git config user.name', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim() || null;
+  } catch { _name = null; }
+  return _name;
 }
 let _ver; // memoize the installed harness version (stamped on every record for cohort/version analysis)
 function harnessVersion() {
@@ -455,9 +484,21 @@ function repoId() {
 function appendFeedback(data) {
   try {
     const fs = require('fs'), path = require('path');
-    const feedbackId = (data && data.feedbackId) || require('crypto').randomUUID();
+    const d = data || {};
+    const anon = d.anonymous === true;
+    // resolve the tool-derivable context (git/os) once, then enrich; agent/runtime fields (accountId,
+    // ccVersion, model, sessionId, command, phase) ride the payload from the /harness-feedback skill (S5).
+    const branch = (() => { try { return require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim(); } catch { return ''; } })();
+    const ctx = {
+      userName: anon ? null : gitName(),
+      issueKey: issueKey(branch),
+      branchKind: branch ? (/^(main|master|develop|release.*)$/i.test(branch) ? 'base' : 'feature') : '',
+      platform: process.platform,
+    };
+    const enriched = enrichFeedback(d, ctx);
+    const feedbackId = d.feedbackId || require('crypto').randomUUID();
     // tz-safe: record timestamp is internal + always UTC (toISOString) — a log stamp, never a user-facing time conversion
-    const rec = buildFeedbackRecord(data, { id: feedbackId, ts: new Date().toISOString(), userId: gitEmail(), repoId: repoId(), hv: harnessVersion() });
+    const rec = buildFeedbackRecord(enriched, { id: feedbackId, ts: new Date().toISOString(), userId: anon ? null : gitEmail(), repoId: repoId(), hv: harnessVersion() });
     const dir = usageDir();
     fs.mkdirSync(dir, { recursive: true });
     fs.appendFileSync(path.join(dir, `${rec.ts.slice(0, 10)}.jsonl`), JSON.stringify(rec) + '\n');
