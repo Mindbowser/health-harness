@@ -90,8 +90,10 @@ a popup — the popup is for the *decision*, not the *content*.
 
 ## Engineering terms
 
-- **Gate** — the repo's single one-command quality check (e.g. `pnpm verify` = typecheck + build +
-  tests). Must be fast and pass/fail. **Feedback loops are the quality ceiling.**
+- **Gate** — the repo's single one-command quality check (e.g. `pnpm verify` = **lint + typecheck +
+  build + tests**). Must be fast and pass/fail; a **lint** failure fails the gate (a linter that isn't in
+  the gate isn't enforced — `bin/lint-detect.js` checks this at onboard/scaffold). **Feedback loops are
+  the quality ceiling.**
 - **Feedback loop** — any tight pass/fail signal for the work in hand (tests, typecheck, lint, a curl
   script, a repro harness). Establishing one is prerequisite to AFK building.
 - **Characterization test** — a test that pins down the *current* behavior of existing code so you can

@@ -13,6 +13,11 @@ This skill is the harness's **fundamentals in practice** — the same ones AI sp
 mocks), **small reversible steps** (one behavior at a time, small commits, on a branch), **deep modules**
 (the refactor step), and **human review** (the PR proof). `/tdd` enforces them so going fast stays safe.
 
+**Planning is test-first too.** If you plan the slice first (plan mode), the plan itself must be
+structured red→green→refactor — each step names the **failing test** it starts from, not "implement X then
+add tests." The wall backstops this: on `ExitPlanMode`, a build plan with no test-first structure gets a
+one-line reminder before it's accepted (`bin/plan-tdd-check.js`). Fix the plan, don't backfill tests.
+
 ## Prerequisite: a feedback loop must exist
 
 You cannot do AFK work without a one-command **gate** (tests + typecheck + lint). If the repo has none
