@@ -13,6 +13,11 @@ This skill is the harness's **fundamentals in practice** — the same ones AI sp
 mocks), **small reversible steps** (one behavior at a time, small commits, on a branch), **deep modules**
 (the refactor step), and **human review** (the PR proof). `/tdd` enforces them so going fast stays safe.
 
+**Planning is test-first too.** If you plan the slice first (plan mode), the plan itself must be
+structured red→green→refactor — each step names the **failing test** it starts from, not "implement X then
+add tests." The wall backstops this: on `ExitPlanMode`, a build plan with no test-first structure gets a
+one-line reminder before it's accepted (`bin/plan-tdd-check.js`). Fix the plan, don't backfill tests.
+
 ## Prerequisite: a feedback loop must exist
 
 You cannot do AFK work without a one-command **gate** (tests + typecheck + lint). If the repo has none
@@ -28,6 +33,12 @@ tests** that pin current behavior before changing anything. **Hard gate: no loop
 
 Don't stop at the first passing test — work through all the criteria. You're done only when the whole
 slice is demoable end-to-end and the gate is green. Track which criteria are covered so you don't quit early.
+
+**Re-check the cross-cutting concerns for this slice** (they should already be criteria from `/align`):
+`node "…/bin/concerns.js" "<slice description>" --profile <profile>` lists the concerns it triggers
+(timezone/DST, audit, PHI-safe logging, error handling, scale/pagination, authz, i18n). Any `needsTest`
+concern without a test is a gap — write the test (a DST-matrix test, a no-stack-trace error test, a
+realistic-volume pagination test, …) before you call the slice done. If `/align` missed one, add it now.
 
 **Bind each test to its criterion — coverage is enforced deterministically, not on trust.** When the ticket
 has a committed criteria manifest (`.health-harness/criteria/<KEY>.json`, written by `/align`), name the
@@ -76,6 +87,13 @@ Tests verify **behavior through public interfaces**, not implementation details.
 - **Bad test** — mocks internal collaborators, asserts on private methods, or checks state out-of-band.
   Tell-tale: it breaks on a refactor even though behavior didn't change.
 
+**Green must reflect REAL end-to-end behavior, not a mock for an unbuilt layer (MBI-101).** When the
+backend and frontend land as separate slices, a FE slice built against a stub for an API that doesn't exist
+yet can go green while nothing actually works end-to-end. So a slice that depends on an **unbuilt API** must
+either be **blocked** by the API slice, or carry a **contract test** both sides share (or an integration
+test at the seam) — check with `node "…/bin/contract-guard.js" --depends [--contract|--integration]`. Never
+let a slice sit quietly green on a stub.
+
 ## Workflow
 
 1. **Plan** — confirm the interface/behavior changes for this slice; list the behaviors to test (not
@@ -83,9 +101,19 @@ Tests verify **behavior through public interfaces**, not implementation details.
 2. **Tracer bullet** — write ONE failing test for ONE behavior (RED), then the minimal code to pass
    (GREEN). Confirm the full **gate** is green.
 3. **Incremental loop** — for each remaining behavior: RED → GREEN → run the gate. One behavior at a
-   time, so each test responds to what the last one taught you.
+   time, so each test responds to what the last one taught you. **One task should encode one behavior**
+   (MBI-102): if a task's criteria describe more than one behavior (`node "…/bin/behavior-count.js" "<criteria>"`
+   returns ≥2), it was under-sliced — its single behavior test can't deterministically confirm it. Prefer
+   getting it re-sliced at `/to-issues`; the task is *done* only when its one behavior test goes red→green.
 4. **Refactor** — only once tests are green: remove duplication, deepen modules, run the gate after
    each step. Never refactor on red.
+4b. **Scale governance — when the slice touches a collection (list / pagination / search / batch).** A gate
+   that only ever tests N=3 silently passes pagination-class bugs (the real-world break: pagination that
+   worked on small lists failed at volume). Get the boundary + volume cases from
+   `node "…/bin/scale-hints.js" "<slice description>" --page <pageSize>` — **empty, single, exactly one page,
+   just over a page, and a realistic large N** (default 1000 when the PRD didn't specify). Write a test at
+   large N + the boundaries, red-green like any behavior. (Advisory nudge, not a hard block — but don't skip
+   it on a paged/searched/listed feature.)
 5. **Governance** — no real PHI/PII/secrets in tests or fixtures; use synthetic data per the repo's
    `compliance-profile`.
 6. **Logging governance — mandatory when the slice touches ePHI** (`compliance-profile` = `hipaa`, or any

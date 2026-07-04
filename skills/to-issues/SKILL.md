@@ -27,11 +27,25 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
    BA/PM-authored stories, **reshape** them; don't re-elicit work the BA already did.
 2. **Explore the codebase** (when one exists) to ground slices in the real architecture and spot
    prefactoring that should happen first.
-3. **Draft vertical slices.** Each slice is a thin, complete path through *every* layer it touches
-   (schema → API → UI → tests), independently demoable or verifiable. Split horizontal stories ("build
-   the whole API") into vertical ones ("award points on lesson-complete, visible on the dashboard").
+3. **Draft vertical slices — one behavior, one small PR each.** Each slice is a thin, complete path through
+   *every* layer it touches (schema → API → UI → tests), independently demoable or verifiable. Split
+   horizontal stories ("build the whole API") into vertical ones ("award points on lesson-complete, visible
+   on the dashboard"). **Don't club multiple stories/behaviors into one issue** — that makes the PR
+   unreviewable. Size-check each candidate against the documented heuristic:
+   `node "…/bin/slice-size.js" --behaviors <n> --acs <n> --diff <est>` → `oversized` + the reasons (limits:
+   **1 behavior**, **≤5 acceptance criteria**, **≤400 diff lines**). If oversized, **split it** into smaller
+   slices and carry the blocking order (step 4) — schema before API before UI. One slice = one behavior = one
+   small PR. **Keep the balance — split only when a candidate genuinely exceeds the limits.** Don't
+   over-fragment into many tiny tasks: each extra issue is coordination + token overhead, and a cohesive small
+   behavior stays **one** slice. The heuristic only flags a candidate that's actually too big (absent/
+   under-limit signals are never "oversized"); the goal is reviewable PRs, not maximal task count.
 4. **Order with blockers.** Give each issue a **blocked-by** list. The result is a DAG, not a sequence
    — unblocked issues can run in parallel. Put genuine prefactoring first.
+   **BE/FE split → keep the gate honest (MBI-101).** A vertical slice is preferred, but when backend and
+   frontend genuinely land as separate slices, a FE slice mustn't pass on a mock for an API that isn't built.
+   Either **block the FE slice on the API slice**, or give both a **shared contract test** (or an integration
+   test at the seam) so each side's green means the contract is really met — never a stub standing in for the
+   unbuilt layer (`bin/contract-guard.js`).
 5. **Quiz the user** on the breakdown before publishing: titles, what each builds end-to-end, the
    blocking graph, and which stories each slice covers. Adjust on feedback.
 6. **Publish back to the tracker** (the PUSH half of the round-trip — `docs/jira.md`). Using the
@@ -40,6 +54,11 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
      double as the `/tdd` behavior list) + **links to the spec** (`prd.md`, `api-contract.md`).
    - **Create the vertical slices as sub-tasks**, tagged per repo (FE/BE/infra), each with "what to
      build" (end-to-end behavior), its acceptance criteria, and **blocked-by** links (incl. cross-repo).
+     **One sub-task = one behavior = one deterministic test.** Each sub-task's criteria should describe a
+     *single* observable behavior, stated as one testable Given/When/Then, so a single pass/fail
+     deterministically confirms it. Check it: `node "…/bin/behavior-count.js" "<the criteria text>"` counts
+     the When→Then pairs — **>1 means multiple behaviors are bundled → split the sub-task** (that count also
+     feeds the `behaviors` signal for the size heuristic). Don't over-split a genuinely single behavior.
    - Tag with the sprint id; mark that it went through the harness.
    - **Idempotent:** match existing issues by key and *update* them — never create duplicates on a re-run.
    - If no tracker MCP is connected, write `issues.md` and print the issues for manual entry instead.
