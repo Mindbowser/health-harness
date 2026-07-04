@@ -497,8 +497,7 @@ function appendFeedback(data) {
     };
     const enriched = enrichFeedback(d, ctx);
     const feedbackId = d.feedbackId || require('crypto').randomUUID();
-    // tz-safe: record timestamp is internal + always UTC (toISOString) — a log stamp, never a user-facing time conversion
-    const rec = buildFeedbackRecord(enriched, { id: feedbackId, ts: new Date().toISOString(), userId: anon ? null : gitEmail(), repoId: repoId(), hv: harnessVersion() });
+    const rec = buildFeedbackRecord(enriched, { id: feedbackId, ts: new Date().toISOString(), userId: anon ? null : gitEmail(), repoId: repoId(), hv: harnessVersion() }); // tz-safe: internal UTC log stamp (toISOString), never a user-facing time conversion
     const dir = usageDir();
     fs.mkdirSync(dir, { recursive: true });
     fs.appendFileSync(path.join(dir, `${rec.ts.slice(0, 10)}.jsonl`), JSON.stringify(rec) + '\n');
