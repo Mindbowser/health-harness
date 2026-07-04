@@ -327,6 +327,7 @@ bin/gen-sounds.js            # generates the cross-platform fallback chime .wav 
 bin/session-context.js       # SessionStart hook — injects status + runs the daily coach (+ test/)
 bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/; `emit` CLI for hygiene signals (+ test/)
 bin/issue-switch-nudge.js    # smart-zone reminder: UNRELATED new ticket in a heavy session → suggest a clean one (+ test/)
+bin/concerns.js              # extensible cross-cutting-concern registry (timezone/audit/errors/scale/…) surfaced at /align + /tdd (+ test/)
 bin/test-detect.js           # detects the test framework + gate command so onboard/scaffold can prove a red→green loop (+ test/)
 bin/doc-scan.js              # ranks a repo's own docs (README/CLAUDE.md/ARCHITECTURE/docs) so onboard reads them first (+ test/)
 bin/plan-tdd-check.js        # PreToolUse ExitPlanMode — flags a build plan that isn't structured test-first (TDD) (+ test/)
