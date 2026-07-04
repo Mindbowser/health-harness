@@ -142,8 +142,18 @@ function commitPolicy(dir) {
 // ── per-gate auto-approve (skip the ASK, never the gate/DENY) — MBI-110 ────────
 // `wall.autoApprove.<gate>=true` in project.json silences that gate's ASK for trusted/unattended contexts.
 // It NEVER suppresses a DENY and NEVER skips the gate's underlying check (gate-evidence still fingerprints,
-// criteria are still computed) — only the human prompt is skipped. Default = all OFF (no behavior change).
-// Back-compat: `commit.autoCommit=true` maps to the `commit` gate.
+// criteria are still computed) — only the human prompt is skipped. Back-compat: `commit.autoCommit` maps to
+// the `commit` gate.
+//
+// DEFAULT-ON set (MBI-110, chosen posture): the two pure-friction gates — `trackerWrite` (Jira/Linear
+// create/edit; redaction still blocks PHI in the write) and `commit` (the per-commit review) — are
+// auto-approved unless a repo sets them false. Everything else (push, pr, infra, shipUnverified,
+// criteriaDefer, complianceBackstop, baseBranchCommit) still ASKs until a repo opts in. So the wall stops
+// nagging on the routine writes but keeps its shipping + quality + compliance prompts.
+const AUTO_APPROVE_DEFAULTS = { trackerWrite: true, commit: true };
+
+// Pure config reader — the values EXPLICITLY set in project.json (no defaults folded in, so callers can tell
+// "unset" from "set false"). decide() layers AUTO_APPROVE_DEFAULTS under this.
 function wallAutoApprove(dir) {
   try {
     const fs = require('fs'), path = require('path');
@@ -321,8 +331,9 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
     const granted = shipGrant !== undefined ? shipGrant : require('../bin/ship-grant.js').isShipGrantActive(cwd);
     const dropAsk = (d) => (granted && d && d.action === 'ask' ? null : d); // grant downgrades ASK→defer
     // Per-gate auto-approve (MBI-110): silences a specific gate's ASK. NEVER applied to a DENY (suppressAsk
-    // no-ops on deny) and NEVER applied to the redaction path (PHI is never auto-approved).
-    const auto = autoApproveOverride !== undefined ? autoApproveOverride : wallAutoApprove(cwd);
+    // no-ops on deny) and NEVER applied to the redaction path (PHI is never auto-approved). An explicit
+    // override is used verbatim (tests); otherwise the DEFAULT-ON set is layered UNDER the repo's config.
+    const auto = autoApproveOverride !== undefined ? autoApproveOverride : { ...AUTO_APPROVE_DEFAULTS, ...wallAutoApprove(cwd) };
     const sa = (d) => suppressAsk(d, auto);
     if (toolName === 'Bash') {
       const cmd = (toolInput || {}).command;

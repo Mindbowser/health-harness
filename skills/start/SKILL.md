@@ -41,14 +41,14 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    (onboarding/start is the place to prompt — never mid-build), or record it as an explicit deferred gap.
    The compliance detectors read `.health-harness/conventions.json` to upgrade a heuristic ASK into a
    deterministic DENY.
-3d. **Settle the wall auto-approve posture once (MBI-110) — optional.** By default the wall ASKs on every
-   outward action. For a **trusted / unattended** repo (e.g. an autonomous agent) you can silence specific
-   gates' prompts in `.health-harness/project.json` → `wall.autoApprove` (per-gate booleans:
-   `push`, `pr`, `infra`, `trackerWrite`, `shipUnverified`, `criteriaDefer`, `complianceBackstop`, `commit`,
-   `baseBranchCommit`). This skips only the **prompt**, never the gate's check and never a DENY (catastrophic /
-   PHI-redaction / commit-format stay hard blocks). Leave it unset for interactive dev. Typical unattended
-   agent: `{"trackerWrite": true}` (stop asking on Jira create/edit) — transitions/comments/worklogs already
-   don't ask.
+3d. **Settle the wall auto-approve posture once (MBI-110).** Two gates auto-approve **by default** —
+   `trackerWrite` (Jira/Linear create/edit) and `commit` (the per-commit review) — so the wall doesn't nag on
+   routine writes (redaction still blocks PHI in a Jira write; PRs are still reviewed). Everything else still
+   ASKs: `push`, `pr`, `infra`, `shipUnverified`, `criteriaDefer`, `complianceBackstop`, `baseBranchCommit`.
+   Tune per repo in `.health-harness/project.json` → `wall.autoApprove` (per-gate booleans): a **trusted /
+   unattended** agent might add `{"push": true, "pr": true}`; a stricter repo can turn a default-on gate back
+   off (`{"trackerWrite": false}`). Auto-approve skips only the **prompt**, never the gate's check and never a
+   DENY (catastrophic / PHI-redaction / commit-format stay hard blocks).
 4. **Connect the tracker + confirm git identity (once per project/person).** Set these up *here*, not
    mid-build:
    - **Tracker (Jira/Linear) MCP** — verify it's connected (the agent can "list issues in the current

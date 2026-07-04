@@ -191,16 +191,18 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 - **DEFER** (untouched): reads, local/reversible work (a well-formed `git commit` on a feature branch,
   branch, tests, the scanner).
 
-**Per-gate auto-approve — skip the *asking*, never the *gate* (`wall.autoApprove`, MBI-110).** For trusted /
-unattended contexts, each gate's ASK can be silenced with a flag in `.health-harness/project.json` →
-`wall.autoApprove.<gate>: true` (default all **off**, so no behavior change until you opt in):
-`push` · `pr` · `infra` · `trackerWrite` (Jira/Linear **create/edit/link**; transitions/comments/worklogs
-already defer) · `shipUnverified` (the gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `commit`
-(also via `commit.autoCommit`) · `baseBranchCommit`. **This suppresses only the human prompt — it never skips
-the gate's check** (gate-evidence still fingerprints pass/fail, criteria are still computed and *recorded*)
-and it **never** silences a **DENY**: catastrophic commands, PHI/secret **redaction**, and the commit-message
-**format** block still fire regardless. Destructive-local deletes (`rm -rf`, `reset --hard`) are deliberately
-**not** auto-approvable. (`hooks/outward-guard.js` `wallAutoApprove`/`suppressAsk`.)
+**Per-gate auto-approve — skip the *asking*, never the *gate* (`wall.autoApprove`, MBI-110).** Each gate's
+ASK can be silenced with a flag in `.health-harness/project.json` → `wall.autoApprove.<gate>`. **Default-on
+set (the two pure-friction gates): `trackerWrite`** (Jira/Linear **create/edit/link** — redaction still blocks
+PHI in the write; transitions/comments/worklogs already defer) **and `commit`** (the per-commit review, also
+via `commit.autoCommit`). Everything else still **ASKs** until a repo opts in: `push` · `pr` · `infra` ·
+`shipUnverified` (the gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `baseBranchCommit`. Any
+default-on gate can be turned back **off** per repo (`wall.autoApprove.trackerWrite: false`). **Auto-approve
+suppresses only the human prompt — it never skips the gate's check** (gate-evidence still fingerprints
+pass/fail, criteria are still computed and *recorded*) and it **never** silences a **DENY**: catastrophic
+commands, PHI/secret **redaction**, and the commit-message **format** block still fire regardless.
+Destructive-local deletes (`rm -rf`, `reset --hard`) are deliberately **not** auto-approvable.
+(`hooks/outward-guard.js` `wallAutoApprove`/`suppressAsk`.)
 
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
 your approval (unless you've consciously auto-approved that gate), the catastrophic ones are blocked

@@ -32,10 +32,19 @@ test('isTrackerWrite + decideMcp: Jira/Linear create-edit is a trackerWrite ASK;
   assert.strictEqual(decideMcp('mcp__atlassian__transitionJiraIssue'), null);       // reversible defers
 });
 
-test('decide (AC-1/AC-4): a tracker write asks by default, is auto-approved when trackerWrite:true', () => {
+test('decide (AC-1/AC-4): a tracker write asks when the flag is off, is auto-approved when trackerWrite:true', () => {
   const clean = { fields: { description: 'synthetic ticket' } };
-  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', clean, ...HERMETIC, {})), 'ask');
-  assert.strictEqual(decide('mcp__atlassian__createJiraIssue', clean, ...HERMETIC, { trackerWrite: true }), null);
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', clean, ...HERMETIC, {})), 'ask');            // explicit all-off → ASK
+  assert.strictEqual(decide('mcp__atlassian__createJiraIssue', clean, ...HERMETIC, { trackerWrite: true }), null); // flag on → auto-approved
+});
+
+test('default-ON posture (MBI-110): with no override, trackerWrite + commit auto-approve from the default set; other gates still ASK', () => {
+  const clean = { fields: { description: 'synthetic ticket' } };
+  // no autoApproveOverride → decide() layers AUTO_APPROVE_DEFAULTS ({trackerWrite,commit}) under the repo config
+  assert.strictEqual(decide('mcp__atlassian__createJiraIssue', clean, ...HERMETIC), null);             // trackerWrite default-on → no prompt
+  assert.strictEqual(action(decide('Bash', { command: 'git push origin x' }, ...HERMETIC)), 'ask');    // push NOT in the default set → still ASKs
+  // a repo can still turn a default-on gate back OFF explicitly
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', clean, ...HERMETIC, { trackerWrite: false })), 'ask');
 });
 
 test('decide (AC-2): NO flag ever suppresses a DENY — PHI redaction + catastrophic stay blocked', () => {
