@@ -87,6 +87,13 @@ Tests verify **behavior through public interfaces**, not implementation details.
 - **Bad test** — mocks internal collaborators, asserts on private methods, or checks state out-of-band.
   Tell-tale: it breaks on a refactor even though behavior didn't change.
 
+**Green must reflect REAL end-to-end behavior, not a mock for an unbuilt layer (MBI-101).** When the
+backend and frontend land as separate slices, a FE slice built against a stub for an API that doesn't exist
+yet can go green while nothing actually works end-to-end. So a slice that depends on an **unbuilt API** must
+either be **blocked** by the API slice, or carry a **contract test** both sides share (or an integration
+test at the seam) — check with `node "…/bin/contract-guard.js" --depends [--contract|--integration]`. Never
+let a slice sit quietly green on a stub.
+
 ## Workflow
 
 1. **Plan** — confirm the interface/behavior changes for this slice; list the behaviors to test (not
