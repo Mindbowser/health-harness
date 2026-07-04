@@ -98,6 +98,14 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    - *safe logs:* "Given an error on a PHI path → the log contains record ids/references, **never PHI**."
    AUTHOR states them as business/compliance criteria; BUILD-PREP makes them technical + testable. No-op
    for `none` (but `secrets` are never logged).
+4a. **Cross-cutting concerns sweep → design them now, don't let the gate catch them late.** Run the concern
+   registry on the item so recurring concerns (timezone/DST, audit, PHI-safe logging, **error handling**,
+   **scale/pagination**, authz, i18n) are surfaced *at design time* and become acceptance criteria — not
+   discovered at build or in prod:
+   `node "${CLAUDE_PLUGIN_ROOT}/bin/concerns.js" "<one-line feature description>" --profile <profile>` →
+   each triggered concern with a design prompt + whether it needs a test. For each hit, **author a
+   Given/When/Then criterion** (this generalizes the healthcare check above and the timezone check in `/tdd`).
+   Registry is extensible — add a concern in `bin/concerns.js`. `/tdd` re-checks and nudges for the tests.
 4b. **Breaking-change + schema-safety check → confirm, then write criteria.** Before finalizing, ask: does
    this change an **existing contract** — a public API signature, an endpoint/route, a response shape, a
    removed/renamed field, an event payload, or a **DB schema**?
@@ -146,7 +154,10 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
        outward write), `/phi-redaction-check` first, clean markdown (`contentFormat:"markdown"`). This is
        the same write AUTHOR mode does — being the engineer doesn't exempt you from recording the spec.
      - **A PM already AUTHORed business criteria** → append/confirm your **technical** criteria on the same ticket.
-     Save `align.md` as the working note; `/to-issues` if multi-part. **Record the criteria in Jira FIRST
+     Save `align.md` as the working note **under `.health-harness/sprints/` — it is dev-local and gitignored,
+     NOT committed** (the kept record is Jira; only the criteria *manifest* at `.health-harness/criteria/<KEY>.json`
+     is committed). Run `node "…/bin/local-ignores.js"` once so `.gitignore` excludes these working files (it's
+     idempotent; `/start` also does it). `/to-issues` if multi-part. **Record the criteria in Jira FIRST
      (the popup above), and only THEN offer `/tdd` — as its own `AskUserQuestion`** ("Run /tdd" first /
      "Not yet"), never shown before the write is confirmed and never as an equal alternative to recording
      the spec. No criteria in the ticket ⇒ not ready to build.
