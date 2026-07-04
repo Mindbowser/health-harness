@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { suggestFromTimestamps, parseDuration, formatDuration, resolveOpts } = require('../bin/worklog-suggest.js');
+const { suggestFromTimestamps, parseDuration, formatDuration, resolveOpts, roundMinutes, DEFAULTS } = require('../bin/worklog-suggest.js');
 
 const MIN = 60 * 1000;
 const t0 = Date.UTC(2026, 5, 20, 9, 0, 0); // a fixed base time (no Date.now in tests)
@@ -82,9 +82,29 @@ test('no commits → zero suggestion, safe', () => {
 
 test('resolveOpts merges string-duration config over defaults', () => {
   const o = resolveOpts({ idleGap: '1h', leadIn: '15m', roundTo: '30m', maxPerDay: '6h' });
-  assert.deepStrictEqual(o, { idleGapMins: 60, leadInMins: 15, roundToMins: 30, maxPerDayMins: 360 });
+  // MBI-104: round granularity is capped at 5m — a coarser config (30m) is clamped down, not honored.
+  assert.deepStrictEqual(o, { idleGapMins: 60, leadInMins: 15, roundToMins: 5, maxPerDayMins: 360 });
   // missing keys fall back to defaults
   const d = resolveOpts({});
   assert.strictEqual(d.idleGapMins, 90);
   assert.strictEqual(d.leadInMins, 30);
+});
+
+test('MBI-104: worklog rounds to 5-minute granularity (nearest, not coarser bucketing)', () => {
+  // default granularity is 5, never 15/30/60
+  assert.strictEqual(DEFAULTS.roundToMins, 5);
+  assert.strictEqual(resolveOpts({}).roundToMins, 5);
+  assert.strictEqual(resolveOpts({ roundTo: '15m' }).roundToMins, 5);   // coarser config clamped to 5
+  assert.strictEqual(resolveOpts({ roundTo: '1h' }).roundToMins, 5);
+  assert.strictEqual(resolveOpts({ roundTo: '0' }).roundToMins, 5);      // bogus → default 5
+  // roundMinutes rounds to nearest 5
+  assert.strictEqual(roundMinutes(7, 5), 5);
+  assert.strictEqual(roundMinutes(8, 5), 10);
+  assert.strictEqual(roundMinutes(12, 5), 10);
+  assert.strictEqual(roundMinutes(13, 5), 15);
+  assert.strictEqual(roundMinutes(2, 5), 0); // below half a unit rounds to 0 (floor applied separately)
+  // end-to-end: 30 lead-in + 8m gap = 38 → nearest 5 = 40
+  const at = (m) => Date.parse('2026-06-01T09:00:00Z') + m * 60000;
+  const s = suggestFromTimestamps([at(0), at(8)], { leadInMins: 30, idleGapMins: 90 }); // default roundTo now 5
+  assert.strictEqual(s.minutes, 40);
 });

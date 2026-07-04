@@ -41,6 +41,19 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    (onboarding/start is the place to prompt — never mid-build), or record it as an explicit deferred gap.
    The compliance detectors read `.health-harness/conventions.json` to upgrade a heuristic ASK into a
    deterministic DENY.
+3c. **Gitignore the harness's dev-local working files (one-time).** `/align` and `/to-prd` write scratch
+   notes (`align.md`, `prd.md`) under `.health-harness/sprints/`; the durable record is Jira, so these are
+   per-dev and must not be committed. Run `node "${CLAUDE_PLUGIN_ROOT}/bin/local-ignores.js"` — it idempotently
+   adds the local-only patterns to `.gitignore` (the committed criteria manifest `.health-harness/criteria/<KEY>.json`
+   is deliberately kept tracked). If a repo already committed one of these, `git rm --cached` it once.
+3d. **Settle the wall auto-approve posture once (MBI-110).** Two gates auto-approve **by default** —
+   `trackerWrite` (Jira/Linear create/edit) and `commit` (the per-commit review) — so the wall doesn't nag on
+   routine writes (redaction still blocks PHI in a Jira write; PRs are still reviewed). Everything else still
+   ASKs: `push`, `pr`, `infra`, `shipUnverified`, `criteriaDefer`, `complianceBackstop`, `baseBranchCommit`.
+   Tune per repo in `.health-harness/project.json` → `wall.autoApprove` (per-gate booleans): a **trusted /
+   unattended** agent might add `{"push": true, "pr": true}`; a stricter repo can turn a default-on gate back
+   off (`{"trackerWrite": false}`). Auto-approve skips only the **prompt**, never the gate's check and never a
+   DENY (catastrophic / PHI-redaction / commit-format stay hard blocks).
 4. **Connect the tracker + confirm git identity (once per project/person).** Set these up *here*, not
    mid-build:
    - **Tracker (Jira/Linear) MCP** — verify it's connected (the agent can "list issues in the current
@@ -56,6 +69,11 @@ ingest a handover. It also makes sure the compliance profile is set, which every
        it with zero input; `/ship` self-heals it if the workflow ever changes.
    - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
      commits, PRs, and the harness usage metrics); set it if it's missing or personal.
+   - **Commit-review mode (MBI-108) — settle it once.** By default the wall **ASKs before every commit** so a
+     dev reviews the diff (the agent shouldn't auto-commit unseen). Confirm the team's preference: keep the
+     default (ask), or opt into unattended auto-commit with **`commit.autoCommit:true`** in
+     `.health-harness/project.json`. Record the choice here so `/tdd` behaves as the team expects; it's
+     committed, so teammates inherit it. Changeable later.
    - **Publish path (get commits to the remote + open the PR) — settle it here so `/ship` is one command
      later.** `/ship` **auto-detects**: it prefers a real `git push` (keeps your commit history) and falls
      back to a credential-free GitHub MCP. Make sure one is ready:
