@@ -328,6 +328,7 @@ bin/session-context.js       # SessionStart hook — injects status + runs the d
 bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/; `emit` CLI for hygiene signals (+ test/)
 bin/issue-switch-nudge.js    # smart-zone reminder: UNRELATED new ticket in a heavy session → suggest a clean one (+ test/)
 bin/audit-scan.js            # flags ePHI access/mutation sites with no audit emission nearby (the HIPAA audit-trail gap) (+ test/)
+bin/error-safety.js          # flags stack traces / raw errors / err.message leaked to the USER (send/json) — logs, not responses (+ test/)
 bin/local-ignores.js         # ensures .gitignore excludes align/prd dev-local working notes (criteria manifest stays tracked) (+ test/)
 bin/ticketless-nudge.js      # soft once/session reminder when work starts with no linked Jira ticket (+ test/)
 bin/issue-graph.js           # deterministic Jira relatedness (parent/epic/links) so related work keeps context (+ test/)
