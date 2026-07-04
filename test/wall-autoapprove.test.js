@@ -16,16 +16,20 @@ function repoWith(cfg) {
   return dir;
 }
 
-test('commit.autoCommit maps BOTH ways (MBI-118): false → review-before-commit, true → auto; wall.autoApprove.commit wins', () => {
-  // false must turn the commit gate OFF (was a no-op before the fix)
-  assert.deepStrictEqual(wallAutoApprove(repoWith({ commit: { autoCommit: false } })), { commit: false });
-  // true keeps it auto (same as the default)
-  assert.deepStrictEqual(wallAutoApprove(repoWith({ commit: { autoCommit: true } })), { commit: true });
-  // an explicit wall.autoApprove.commit wins over the back-compat key
-  assert.deepStrictEqual(wallAutoApprove(repoWith({ commit: { autoCommit: false }, wall: { autoApprove: { commit: true } } })), { commit: true });
-  // and the end-to-end effect: with autoCommit:false a normal commit ASKs (via the default-merge in decide)
-  const auto = { trackerWrite: true, commit: true, ...wallAutoApprove(repoWith({ commit: { autoCommit: false } })) };
-  assert.strictEqual(auto.commit, false, 'commit gate must be OFF (ask) when commit.autoCommit=false');
+test('commit review is controlled ONLY by wall.autoApprove.commit; commit.autoCommit is ignored (MBI-118)', () => {
+  const onFeature = { hasHistory: true, branch: 'feature/ABC-12-x', bases: ['main'] };
+  const H = [onFeature, false, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }];
+  const commitCmd = { command: 'git commit -m "feat: x (ABC-12)"' };
+  // default (commit gate default-ON) → a normal commit does NOT prompt
+  assert.strictEqual(decide('Bash', commitCmd, ...H, { commit: true }), null);
+  // wall.autoApprove.commit:false → ASK before commit
+  const ask = decide('Bash', commitCmd, ...H, { commit: false });
+  assert.strictEqual(action(ask), 'ask');
+  assert.strictEqual(ask.gate, 'commit');
+  // the legacy commit.autoCommit key is no longer read — wallAutoApprove ignores it entirely
+  assert.deepStrictEqual(wallAutoApprove(repoWith({ commit: { autoCommit: false } })), {});
+  assert.deepStrictEqual(wallAutoApprove(repoWith({ commit: { autoCommit: true } })), {});
+  assert.deepStrictEqual(wallAutoApprove(repoWith({ wall: { autoApprove: { commit: false } } })), { commit: false });
 });
 
 test('suppressAsk: nullifies an ASK whose gate is auto-approved; keeps DENY, a non-matching ASK, and an untagged ASK', () => {
@@ -88,8 +92,8 @@ test('decide: push ASK auto-approves via push flag; the outward push and the gat
   assert.strictEqual(decide('Bash', { command: 'git push origin x' }, ...H, { shipUnverified: true, push: true }), null);
 });
 
-test('wallAutoApprove: reads EXPLICIT config only; this repo sets commit.autoCommit → maps to { commit: true }', () => {
-  // MBI-108 set commit.autoCommit=true in this repo's project.json; wallAutoApprove maps it to the commit gate.
-  // It does NOT fold in AUTO_APPROVE_DEFAULTS (that layering happens in decide()), so trackerWrite isn't here.
-  assert.deepStrictEqual(wallAutoApprove(process.cwd()), { commit: true });
+test('wallAutoApprove: reads ONLY explicit wall.autoApprove config; this repo sets none → {}', () => {
+  // The harness repo sets no wall.autoApprove; the legacy commit.autoCommit key is no longer read (MBI-118).
+  // Defaults (trackerWrite/commit) are layered in decide(), not here.
+  assert.deepStrictEqual(wallAutoApprove(process.cwd()), {});
 });

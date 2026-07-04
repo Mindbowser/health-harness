@@ -39,8 +39,7 @@
   },
   "commit": {
     "conventional": true,
-    "requireTicket": true,
-    "autoCommit": true
+    "requireTicket": true
   },
   "productDoc": "CONTEXT.md",
   "notes": "This IS the harness plugin/marketplace source. main is the release channel — every push to main cuts a release (npm run release; tag health-harness--v<version>). Version must agree across plugin.json, marketplace.json, package.json."

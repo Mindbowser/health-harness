@@ -142,8 +142,8 @@ function commitPolicy(dir) {
 // ── per-gate auto-approve (skip the ASK, never the gate/DENY) — MBI-110 ────────
 // `wall.autoApprove.<gate>=true` in project.json silences that gate's ASK for trusted/unattended contexts.
 // It NEVER suppresses a DENY and NEVER skips the gate's underlying check (gate-evidence still fingerprints,
-// criteria are still computed) — only the human prompt is skipped. Back-compat: `commit.autoCommit` maps to
-// the `commit` gate.
+// criteria are still computed) — only the human prompt is skipped. Every gate (incl. `commit`) is tuned the
+// same one way here; there is no separate commit.autoCommit key (MBI-118).
 //
 // DEFAULT-ON set (MBI-110, chosen posture): the two pure-friction gates — `trackerWrite` (Jira/Linear
 // create/edit; redaction still blocks PHI in the write) and `commit` (the per-commit review) — are
@@ -152,15 +152,14 @@ function commitPolicy(dir) {
 // nagging on the routine writes but keeps its shipping + quality + compliance prompts.
 const AUTO_APPROVE_DEFAULTS = { trackerWrite: true, commit: true };
 
-// Pure config reader — the values EXPLICITLY set in project.json (no defaults folded in, so callers can tell
-// "unset" from "set false"). decide() layers AUTO_APPROVE_DEFAULTS under this.
+// Pure config reader — the per-gate flags EXPLICITLY set in project.json under `wall.autoApprove` (no
+// defaults folded in, so callers can tell "unset" from "set false"). decide() layers AUTO_APPROVE_DEFAULTS
+// under this. This is the ONE place gates (incl. `commit`) are tuned — there is no separate commit.autoCommit.
 function wallAutoApprove(dir) {
   try {
     const fs = require('fs'), path = require('path');
     const j = JSON.parse(fs.readFileSync(path.join(dir || process.cwd(), '.health-harness', 'project.json'), 'utf8'));
-    const map = { ...((j.wall && j.wall.autoApprove) || {}) };
-    if (j.commit && typeof j.commit.autoCommit === 'boolean' && map.commit === undefined) map.commit = j.commit.autoCommit;
-    return map;
+    return { ...((j.wall && j.wall.autoApprove) || {}) };
   } catch { return {}; }
 }
 
@@ -173,15 +172,13 @@ function suppressAsk(decision, auto) {
 }
 
 // ── commit-review gate → ASK before a commit lands (dev reviews the diff) ──────
-// The agent shouldn't auto-commit without a human seeing the diff (MBI-108). Opt out per project with
-// commit.autoCommit=true (or commit.review=false), OR via the `commit` auto-approve gate — which is
-// **default-ON** (MBI-110), so out of the box this defers unless a repo sets `wall.autoApprove.commit=false`.
-// Runs after the base-branch + message guards in decide(); the catch-all "did a human see this?" step.
-function decideCommitReview(command, policy) {
+// One of the wall's auto-approve gates (gate:'commit'). Like push/pr/trackerWrite, it's tuned in ONE place —
+// `wall.autoApprove.commit`. It's **default-ON** (MBI-110), so out of the box a commit doesn't prompt; a repo
+// that wants the agent to pause for review sets `wall.autoApprove.commit: false`. This always returns the ASK;
+// decide() suppresses it when the gate is auto-approved. (There is no separate commit.autoCommit key — MBI-118.)
+function decideCommitReview(command) {
   if (!COMMIT_RE.test(String(command || ''))) return null;
-  const p = policy !== undefined ? policy : commitPolicy();
-  if (p.autoCommit === true || p.review === false) return null; // explicit opt-in to auto-commit → silent
-  return { action: 'ask', why: 'commit_review', gate: 'commit', reason: 'health-harness wall: commit review — review the staged diff before this commit lands. Approve to commit, or set commit.autoCommit=true / wall.autoApprove.commit to let the agent commit without asking.' };
+  return { action: 'ask', why: 'commit_review', gate: 'commit', reason: 'health-harness wall: commit review — review the staged diff before this commit lands. Approve to commit, or set wall.autoApprove.commit=true (the default) to let the agent commit without asking.' };
 }
 
 function decideCommitMessage(command, policy, branch) {
