@@ -222,11 +222,12 @@ test('commit on a base branch ASKs; feature branch / initial commit defer', () =
   assert.strictEqual(decideCommitGuard('git commit -m x', null), null);
   // non-commit command → defer even on a base branch
   assert.strictEqual(decideCommitGuard('git status', onMain), null);
-  // wired through decide() with injected state
+  // wired through decide() with injected state. onMain → ASK from the base-branch guard, independent of the
+  // commit-review flag. onFeature → this repo sets commit.autoCommit=true in its OWN project.json (MBI-108
+  // opt-out), so the per-commit review defers here. The default-ASK behavior is covered hermetically by the
+  // decideCommitReview test below (explicit policy), so this integration line doesn't hard-code disk config.
   assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onMain)), 'ask');
-  // MBI-108: even on a feature branch, a commit now ASKs by default (dev-review checkpoint) — the harness's
-  // own project.json sets no commit.autoCommit, so the default-ask applies.
-  assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onFeature)), 'ask');
+  assert.strictEqual(decide('Bash', { command: 'git commit -m x' }, onFeature), null);
 });
 
 test('decideCommitReview (MBI-108): default asks for a dev review before committing; autoCommit opts out', () => {
