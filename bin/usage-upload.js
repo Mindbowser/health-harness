@@ -53,6 +53,13 @@ function dueForRun(state, nowMs, intervalMs, currentHv) {
   return nowMs - last >= intervalMs;
 }
 
+/** Pure: should this run ship now? `force === true` bypasses the throttle entirely — the immediate feedback
+ * flush (MBI-115 / S4): consented feedback ships at once via the SAME transport, not the ~2h sweep. Without
+ * force it is exactly dueForRun, so every non-feedback caller keeps the normal throttle. */
+function shouldUpload(state, nowMs, intervalMs, currentHv, force) {
+  return force === true || dueForRun(state, nowMs, intervalMs, currentHv);
+}
+
 /** Pure: given day-files [{day,path,size}] and saved offsets, return the slices still to send. */
 function newBytesPlan(files, state) {
   const offsets = (state && state.offsets) || {};
@@ -95,7 +102,7 @@ function planLastRun(prevLastRun, completedAll, nowMs) {
 }
 
 // runUpload is hoisted (function declaration below) so it's safe to export here alongside the pure helpers.
-module.exports = { telemetryConfig, dueForRun, newBytesPlan, planLastRun, chunkCuts, runUpload, DEFAULT_INTERVAL_MS, DEFAULT_POST_TIMEOUT_MS, DEFAULT_CHUNK_BYTES };
+module.exports = { telemetryConfig, dueForRun, shouldUpload, newBytesPlan, planLastRun, chunkCuts, runUpload, DEFAULT_INTERVAL_MS, DEFAULT_POST_TIMEOUT_MS, DEFAULT_CHUNK_BYTES };
 
 // ── orchestration (impure) ────────────────────────────────────────────────────────
 const DAY_RE = /^(\d{4}-\d{2}-\d{2})\.jsonl$/;
@@ -133,7 +140,8 @@ async function runUpload(opts = {}) {
   let state = {};
   try { state = JSON.parse(fs.readFileSync(statePath(dir, path), 'utf8')); } catch { /* none */ }
   const hv = harnessVersion(); // current installed version — drives flush-on-version-change + stamped on the upload
-  if (!dueForRun(state, Date.now(), cfg.intervalMs, hv)) return { sent: 0, completedAll: true };
+  // opts.force bypasses the throttle → the immediate feedback flush (S4). Everything else still self-throttles.
+  if (!shouldUpload(state, Date.now(), cfg.intervalMs, hv, opts.force)) return { sent: 0, completedAll: true }; // tz-safe: Date.now() is a throttle-interval epoch compare, never a user-facing time conversion
 
   let files = [];
   try {
@@ -179,9 +187,12 @@ async function runUpload(opts = {}) {
 
 if (require.main === module) {
   // `flush` = a hook-driven run (Stop): inline but strictly time-boxed so it can never delay the turn end.
-  // Bare run = CLI/manual: unbounded, drains everything. Both still self-throttle via dueForRun (2h).
+  // Bare run = CLI/manual: unbounded, drains everything. Both still self-throttle via dueForRun (2h) UNLESS
+  // `--force` is passed (MBI-115 / S4): the /harness-feedback skill forces an immediate flush after consent
+  // so consented feedback reaches Atlas at once instead of waiting out the throttle.
   const flush = process.argv[2] === 'flush';
-  const opts = flush ? { deadlineMs: 2500, postTimeoutMs: 2000 } : {};
+  const force = process.argv.includes('--force');
+  const opts = flush ? { deadlineMs: 2500, postTimeoutMs: 2000, force } : { force };
   const guard = flush ? setTimeout(() => process.exit(0), 2800) : null;
   if (guard && guard.unref) guard.unref();
   runUpload(opts).catch(() => {}).finally(() => process.exit(0));

@@ -90,6 +90,35 @@ test('MBI-58: dueForRun bypasses the throttle when the running version changed (
   assert.strictEqual(dueForRun({ lastRun: 1_000_000 }, 1_000_000 + interval, interval), true);
 });
 
+// MBI-115 (S4) — prompt delivery. Feedback is intentional + consented, so it must ship IMMEDIATELY via the
+// existing transport, not wait out the ~2h throttle. A `force` flush bypasses dueForRun (reusing runUpload —
+// NOT a new uploader). On a send failure the local day-file is untouched and the offset is not advanced, so
+// the exact record re-sends next run (at-least-once, dedup-safe on the record id).
+const { shouldUpload } = uploader;
+
+test('[AC-1] shouldUpload: force bypasses the ~2h throttle (immediate flush); unforced defers to dueForRun', () => {
+  const interval = 7_200_000;
+  const throttled = { lastRun: 1_000_000, lastHv: '0.3.0' };
+  // normally NOT due (within the interval, same version)
+  assert.strictEqual(shouldUpload(throttled, 1_000_001, interval, '0.3.0', false), false);
+  // force → run NOW regardless of the throttle: this is the immediate feedback flush
+  assert.strictEqual(shouldUpload(throttled, 1_000_001, interval, '0.3.0', true), true);
+  // force is the ONLY override; without it shouldUpload === dueForRun (existing transport behavior unchanged)
+  assert.strictEqual(shouldUpload({}, 1, interval, '0.3.0', false), dueForRun({}, 1, interval, '0.3.0'));
+  assert.strictEqual(shouldUpload(throttled, 1_000_000 + interval, interval, '0.3.0', false), true); // interval elapsed → due anyway
+});
+
+test('[AC-2] a failed send leaves the record unsent + still due → retried (at-least-once, dedup-safe on id)', () => {
+  // failure/deadline → keep prev lastRun so the next run is still due (retries at once, no interval wait)
+  assert.strictEqual(planLastRun(1000, false, 9999), 1000);
+  // offset NOT advanced on failure → the same bytes are re-planned next run (the local copy stays intact)
+  const files = [{ day: '2026-07-04', path: '/u/2026-07-04.jsonl', size: 400 }];
+  assert.deepStrictEqual(newBytesPlan(files, { offsets: {} }), // nothing confirmed-sent (the POST failed)
+    [{ day: '2026-07-04', path: '/u/2026-07-04.jsonl', from: 0, to: 400 }]);
+  // once the server 200s and the offset advances, the record is NOT re-sent (dedup-safe: same id never double-counts)
+  assert.deepStrictEqual(newBytesPlan(files, { offsets: { '2026-07-04': 400 } }), []);
+});
+
 test('MBI-58: hooks.json flushes telemetry on SessionEnd (so /exit does not strand events)', () => {
   const groups = require('../hooks/hooks.json').hooks.SessionEnd;
   assert.ok(Array.isArray(groups) && groups.length > 0, 'SessionEnd must be registered');
