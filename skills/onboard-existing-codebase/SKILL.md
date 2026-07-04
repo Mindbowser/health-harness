@@ -43,8 +43,13 @@ it — their conventions, their architecture, their IP.
    not committed). `project.json` + `compliance.json` + `CLAUDE.md` ARE committed (durable config). The
    PRD/align notes live only locally; their durable form is the Jira ticket.
 3. **Establish the feedback loop — HARD GATE.** Find the existing gate (tests / typecheck / lint /
-   build). Run it.
+   build). Run it. The gate is **tests + typecheck + lint** — a linter that exists but isn't *in the
+   gate* is not enforced, so **make lint part of the one-command gate** (a lint failure must fail the gate).
    - If a working one-command gate exists and passes → record it in `CLAUDE.md`.
+   - **Detect the linter deterministically** (don't eyeball it): `node "…/bin/lint-detect.js" --gate "<your gate cmd>"`
+     reports `{present, command, inGate}`. `present:true, inGate:false` = the repo lints but the gate
+     doesn't run it → **add it to the gate**. `present:false` = no linter → establish one (or record a
+     conscious opt-out). The result feeds the `lint` convention below.
    - If it's missing, broken, or thin → **write characterization tests** that pin the *current*
      behavior around where you'll work, and assemble a one-command gate. **Do not change any behavior
      until this gate is green.** No feedback loop ⇒ no AFK build (Matt: no loop = no quality ceiling).

@@ -40,8 +40,10 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/boilerplate-registry.js" resolve "<stack>"   # �
 2. **Clone read-only.** `git clone --depth 1` the boilerplate(s) into the new project; remove their
    `.git`; re-init a fresh repo. **Never push back to the boilerplate repos — they are clone-only.**
 3. **Wire the gate.** Ensure a single one-command gate exists and passes on the empty project
-   (typecheck + build + tests, e.g. `pnpm verify`), with a coverage ratchet if the stack supports it.
-   *Feedback loops are the quality ceiling — the project is not ready without this.*
+   (**lint + typecheck + build + tests**, e.g. `pnpm verify`), with a coverage ratchet if the stack
+   supports it. **Lint must be in the gate** (a lint failure fails the gate) — confirm with
+   `node "…/bin/lint-detect.js" --gate "<gate cmd>"` (`inGate:true`). *Feedback loops are the quality
+   ceiling — the project is not ready without this.*
 4. **Set the compliance profile.** Run `/compliance-profile` to write `.health-harness/compliance.json`.
    **Default to `hipaa`** (the MB fail-safe); only set a lighter profile if the user confirms the repo
    handles no PHI.
