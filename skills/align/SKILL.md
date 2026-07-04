@@ -106,6 +106,12 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    each triggered concern with a design prompt + whether it needs a test. For each hit, **author a
    Given/When/Then criterion** (this generalizes the healthcare check above and the timezone check in `/tdd`).
    Registry is extensible — add a concern in `bin/concerns.js`. `/tdd` re-checks and nudges for the tests.
+4a2. **Write every acceptance criterion so QA can test it (MBI-106).** Each AC must have a **plain-language,
+   behavior-oriented** statement a non-dev QA can execute — "**Given** a logged-in user, **When** they click
+   Save, **Then** the appointment appears in the list" — NOT a code/file reference as the primary phrasing.
+   Code/symbol references are fine **as a secondary technical note** for the dev, but the AC itself must read
+   as observable behavior. Check the drafted criteria: `printf '%s\n' "<AC>" … | node "…/bin/ac-readability.js"`
+   flags any AC that's only code refs → rewrite it in plain language (keep the code ref as an annex).
 4b. **Breaking-change + schema-safety check → confirm, then write criteria.** Before finalizing, ask: does
    this change an **existing contract** — a public API signature, an endpoint/route, a response shape, a
    removed/renamed field, an event payload, or a **DB schema**?
