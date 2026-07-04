@@ -45,6 +45,13 @@ it — their conventions, their architecture, their IP.
 3. **Establish the feedback loop — HARD GATE.** Find the existing gate (tests / typecheck / lint /
    build). Run it. The gate is **tests + typecheck + lint** — a linter that exists but isn't *in the
    gate* is not enforced, so **make lint part of the one-command gate** (a lint failure must fail the gate).
+   - **Detect the test config deterministically:** `node "…/bin/test-detect.js"` → `{framework, gateCommand,
+     runnable, stubScript}`. `runnable:false` (framework `none`, or only the npm default stub) → **no TDD
+     loop exists**, so establishing one (characterization tests) is the first blocking task before any build.
+   - **PROVE the loop works — the red→green smoke (don't assume).** Once a gate is found: write a throwaway
+     failing test (`assert(false)`), run the gate → **see it RED**, flip it to pass, run again → **see it
+     GREEN**, then delete it. A config that can't complete this cycle is not a gate. Record the proven
+     `gate` command + `testFramework` in `.health-harness/project.json` so later skills don't re-derive them.
    - If a working one-command gate exists and passes → record it in `CLAUDE.md`.
    - **Detect the linter deterministically** (don't eyeball it): `node "…/bin/lint-detect.js" --gate "<your gate cmd>"`
      reports `{present, command, inGate}`. `present:true, inGate:false` = the repo lints but the gate
