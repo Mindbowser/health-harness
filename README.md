@@ -156,6 +156,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   convention** (sets `commit.conventional:false` if they consistently use a different style) but **elevates the
   absence of one** — inconsistent/low-quality history keeps the gate on and is flagged as an improvement, not
   mirrored.
+- **ASK → a commit (dev-review checkpoint)**: by **default the agent asks before every commit** so a human
+  reviews the staged diff — the AI shouldn't auto-commit unseen. Approving commits; opt a repo into
+  auto-commit with **`commit.autoCommit:true`** in `.health-harness/project.json` (`/start` records the
+  choice; default is ask). Base-branch + message guards run first, so this is the catch-all "did a human
+  see this?" step. (`hooks/outward-guard.js` `decideCommitReview`.)
 - **ASK → a commit with no linked Jira ticket** (overridable per commit): `commit.requireTicket` is **ON by
   default** — a commit whose ticket isn't resolvable from the **branch or the message** ASKs ("commit
   anyway?") rather than DENYing (the agent can't invent a ticket). Approving proceeds for that commit; set
