@@ -439,6 +439,23 @@ Records also carry the git company email (`userId`) and harness version (`hv`); 
 `harness-telemetry/<email>/<date>.jsonl`. Identified employee telemetry should be backed by a written
 monitoring policy (+ EU DPIA) — see `docs/usage-coaching-prd.md`.
 
+### Feedback about the harness (`/harness-feedback`)
+
+Devs report harness bugs / friction / ideas with **`/harness-feedback`** — the one **intentional free-text**
+channel (every other event above stays metadata-only). It captures categorized feedback, enriches it
+(version · git/Jira identity · usage context), PHI-scans it, and **reflects back the exact enriched payload for
+the dev to confirm or edit** — *nothing is stored or sent until they agree* (they can edit any field, go
+anonymous, or cancel). On agreement it writes a local record and delivers it promptly via the existing
+uploader (a forced flush, not the ~2h throttle); a failed send stays retryable.
+
+It lands as a distinct **`feedback`** record. **The metadata-only guarantee for every other telemetry event is
+unchanged** — `feedback` is the sole, consented, free-text record type, which is exactly why it is PHI-scanned
+(blocked on any hit, with a message that names the hit count + class but never the matched value) before it can
+be written or sent. Records are **queryable by version (`hv`), user (`userId`), and type (`event`)**, and are
+joinable to the surrounding usage-event stream via **`sessionId`**. Delivery is at-least-once and dedup-safe on
+the record `id` — **note:** server-side dedup on `id` is **not yet** enforced by the Atlas appender (a known
+gap), so a retried send can currently double-write until that lands.
+
 **Per-ticket attribution (recompute-complete).** Work events (`session_start`, `commit`, `gate_run`,
 `prompt`, …) carry the branch-derived `issueKey`, so metrics roll up by **ticket**, not by session (sessions
 are churned for context hygiene and are the wrong denominator). The issue's **relation** (parent / epic /
