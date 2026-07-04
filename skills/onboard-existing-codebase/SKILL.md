@@ -11,9 +11,14 @@ it — their conventions, their architecture, their IP.
 
 ## Process
 
-1. **Comprehend the repo.** Read the README + run/setup docs, the package manifest(s), entry points,
-   and the main modules. Map: the stack, how to run it, how to test it, the high-level architecture,
-   the key seams (where you'd safely make a change), and the conventions in use.
+1. **Comprehend the repo FROM ITS OWN DOCS FIRST — before proposing any change.** Discover the project's
+   documentation deterministically (don't just skim the README and miss the rest):
+   `node "…/bin/doc-scan.js"` → a ranked list (README → existing `CLAUDE.md`/`AGENTS.md`/`.cursorrules` →
+   ARCHITECTURE → CONTRIBUTING/SETUP → `/docs` → ADRs). **Read them top-down**, plus the package
+   manifest(s), entry points, and main modules. If the repo references an external **wiki/Confluence/Notion**
+   (a link in the README or docs), note it and fetch what's accessible rather than ignoring it. Map: the
+   stack, how to run it, how to test it, the high-level architecture, the key seams, and the conventions in
+   use. **Produce a short project-understanding summary** — it seeds the repo `CLAUDE.md` in step 2.
 2. **Create OR augment the repo `CLAUDE.md` — never clobber.** If a `CLAUDE.md` (or `ARCHITECTURE.md`,
    `AiRules.md`) **already exists**, READ it and **add only what's missing** (e.g. a short harness
    section: the gate command, compliance profile, seams) — do not overwrite a rich existing doc. If none
@@ -38,7 +43,8 @@ it — their conventions, their architecture, their IP.
    not committed). `project.json` + `compliance.json` + `CLAUDE.md` ARE committed (durable config). The
    PRD/align notes live only locally; their durable form is the Jira ticket.
 3. **Establish the feedback loop — HARD GATE.** Find the existing gate (tests / typecheck / lint /
-   build). Run it.
+   build). Run it. The gate is **tests + typecheck + lint** — a linter that exists but isn't *in the
+   gate* is not enforced, so **make lint part of the one-command gate** (a lint failure must fail the gate).
    - **Detect the test config deterministically:** `node "…/bin/test-detect.js"` → `{framework, gateCommand,
      runnable, stubScript}`. `runnable:false` (framework `none`, or only the npm default stub) → **no TDD
      loop exists**, so establishing one (characterization tests) is the first blocking task before any build.
@@ -47,6 +53,10 @@ it — their conventions, their architecture, their IP.
      GREEN**, then delete it. A config that can't complete this cycle is not a gate. Record the proven
      `gate` command + `testFramework` in `.health-harness/project.json` so later skills don't re-derive them.
    - If a working one-command gate exists and passes → record it in `CLAUDE.md`.
+   - **Detect the linter deterministically** (don't eyeball it): `node "…/bin/lint-detect.js" --gate "<your gate cmd>"`
+     reports `{present, command, inGate}`. `present:true, inGate:false` = the repo lints but the gate
+     doesn't run it → **add it to the gate**. `present:false` = no linter → establish one (or record a
+     conscious opt-out). The result feeds the `lint` convention below.
    - If it's missing, broken, or thin → **write characterization tests** that pin the *current*
      behavior around where you'll work, and assemble a one-command gate. **Do not change any behavior
      until this gate is green.** No feedback loop ⇒ no AFK build (Matt: no loop = no quality ceiling).

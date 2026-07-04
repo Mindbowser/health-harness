@@ -35,6 +35,13 @@ catch (e) { logger.error(e); }              // stack args may embed PHI
    the **stack**, the **correlationId**, and **safe operation context** (which operation, which
    `recordId`) — enough to reproduce and locate the failure. Do NOT log the input payload that caused
    it when it may contain PHI; log its id/shape instead.
+4b. **Never leak error internals to the USER (MBI-109).** The stack, the raw error object, and internal
+   `err.message` go to the **logs** (rule 4), NOT to the response. The user gets a **clean, friendly
+   message + a reference id** (the `correlationId` from the log) — never a stack trace, framework error, or
+   DB message (under HIPAA a trace can leak PHI/internals). Deterministic check:
+   `node "…/bin/error-safety.js" <changed files>` flags `res.send(err.stack)`, `res.json(err)`,
+   `res.json({error: err})`, `res.json({message: err.message})` and exits non-zero. Add a `/tdd` test on the
+   failure path asserting the user-facing body has **no** stack/internal detail (just the clean message + ref).
 5. **One logging path.** No raw `console.log`/`print` of objects in app code — they bypass the scrubber.
    Route everything through the configured logger.
 6. **Levels don't excuse PHI.** "Just for debug" still ships to log sinks. Debug logs follow the same rules.
