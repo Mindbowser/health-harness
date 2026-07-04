@@ -84,6 +84,11 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    branches one question at a time, each with a recommended answer.
 3. **Surface only genuine forks** — real decisions with a trade-off the user must own. Route a
    **product/security/policy** fork to the right owner (architect/PM), not just the dev.
+3b. **Scale expectations — capture them for any collection feature (MBI-96).** If the item involves a list /
+   pagination / search / feed / table, ask/record the **realistic and max item count + page size** and write
+   them into the criteria (e.g. "handles ≥1000 items; paginates at 25"). This is what lets `/tdd` test at
+   volume instead of N=3 (`bin/scale-hints.js` turns it into the boundary cases). Don't force it on
+   non-collection work.
 4. **Healthcare check → write the compliance criteria.** Note any PHI/PII the item touches + the repo
    `compliance-profile`. **If it touches ePHI (`hipaa`), the acceptance criteria MUST include the logging
    NFRs as Given/When/Then** — author them here so `/tdd` just builds-and-verifies them like any other

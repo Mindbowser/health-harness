@@ -327,6 +327,7 @@ bin/gen-sounds.js            # generates the cross-platform fallback chime .wav 
 bin/session-context.js       # SessionStart hook — injects status + runs the daily coach (+ test/)
 bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/; `emit` CLI for hygiene signals (+ test/)
 bin/issue-switch-nudge.js    # smart-zone reminder: UNRELATED new ticket in a heavy session → suggest a clean one (+ test/)
+bin/scale-hints.js           # boundary + volume test cases (empty/single/page-boundary/large-N) for collection features (+ test/)
 bin/contract-guard.js        # keeps red/green honest when BE/FE split — a slice on an unbuilt API needs a contract test or a block (+ test/)
 bin/behavior-count.js        # counts When→Then behaviors in a task's criteria → one task = one behavior = one test (+ test/)
 bin/slice-size.js            # flags an oversized/clubbed issue at slice time (1 behavior / ≤5 ACs / ≤400 diff) → split it (+ test/)
