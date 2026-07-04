@@ -1,0 +1,9 @@
+{
+  "issueKey": "MBI-116",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given a dev runs /harness-feedback and describes an issue, When they are ready, Then the agent reflects back its structured interpretation + the exact enriched payload and asks to confirm or edit; nothing is stored or sent until the dev agrees; the dev can edit any field, choose anonymous, or cancel (storing/sending nothing)."
+    }
+  ]
+}

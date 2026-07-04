@@ -433,6 +433,45 @@ test('[AC-2] appendFeedback PASSES clean text — the record is written and retu
   } finally { process.env.HOME = oldHome; }
 });
 
+// MBI-116 (S5) — /harness-feedback command. To reflect back "the exact enriched payload that WOULD be stored"
+// without storing anything, previewFeedback builds the scanned+enriched record but writes NOTHING. The skill
+// previews (reflect back) → gets consent (agree / edit / anonymous / cancel) → only THEN emit-feedback writes +
+// usage-upload flush --force delivers. Nothing is stored or sent until the dev agrees.
+const { previewFeedback } = require('../bin/usage-log.js');
+
+test('[AC-1] previewFeedback builds the exact enriched payload but writes NOTHING (reflect-back, no store)', () => {
+  const home = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'hh-s5-'));
+  const oldHome = process.env.HOME; process.env.HOME = home;
+  try {
+    const res = previewFeedback({ type: 'idea', summary: 'add dark mode', feedbackId: 'fb-prev' }, { cfg: HIPAA_CFG });
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.record.event, 'feedback');
+    assert.strictEqual(res.record.id, 'fb-prev');
+    assert.strictEqual(res.record.type, 'idea');
+    assert.ok('platform' in res.record, 'the preview IS the enriched payload');
+    const dir = path2.join(home, '.health-harness', 'usage');   // nothing persisted — reflect-back must not store
+    assert.ok(!fs2.existsSync(dir) || fs2.readdirSync(dir).filter((f) => f.endsWith('.jsonl')).length === 0, 'preview writes no record');
+  } finally { process.env.HOME = oldHome; }
+});
+
+test('[AC-1] previewFeedback blocks a PHI payload too — the dev sees the block before consent', () => {
+  const res = previewFeedback({ type: 'bug', summary: `SSN ${FAKE_SSN}` }, { cfg: HIPAA_CFG });
+  assert.strictEqual(res.ok, false);
+  assert.strictEqual(res.blocked, true);
+  assert.ok(res.hits.length >= 1);
+});
+
+test('[AC-1] the /harness-feedback skill wires preview → consent → emit + force-deliver, with the consent gate', () => {
+  const src = fs2.readFileSync(path2.join(__dirname, '..', 'skills', 'harness-feedback', 'SKILL.md'), 'utf8');
+  assert.match(src, /^---[\s\S]*name:\s*harness-feedback[\s\S]*?---/, 'valid skill frontmatter registers the command');
+  assert.match(src, /preview-feedback/, 'reflects back via preview (build without store)');
+  assert.match(src, /emit-feedback/, 'writes via emit-feedback only after consent');
+  assert.match(src, /flush\s+--force/, 'delivers via the forced flush');
+  assert.match(src, /anonymous/i, 'offers anonymous mode');
+  assert.match(src, /cancel/i, 'offers cancel');
+  assert.match(src, /nothing is (stored|sent|stored or sent)/i, 'states the nothing-until-consent guarantee');
+});
+
 // MBI-114 (S3) — enrichment + graceful degradation. A feedback record is auto-populated with context:
 // tool-derived fields (git name, branch-derived ticket, branch kind, platform) get filled from the env;
 // agent-supplied fields (accountId, ccVersion, model, sessionId, command, phase) ride the payload and are

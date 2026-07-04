@@ -452,7 +452,7 @@ module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, gateResultTrustwort
   graphMetaFor, emitIssueMeta, fingerprintUnits, commitFingerprint, hash16,
   ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions,
   statusCatFromJira, mergeStatusCategories, transitionsFromIssue, emitTransitionsFromJira,
-  buildFeedbackRecord, enrichFeedback, feedbackRedactionHits, feedbackBlockMessage, appendFeedback, gitName };
+  buildFeedbackRecord, enrichFeedback, feedbackRedactionHits, feedbackBlockMessage, previewFeedback, appendFeedback, gitName };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -509,31 +509,41 @@ function repoId() {
  * appendEvent — deliberately NOT metadata-only (feedback IS the consented text channel; PHI is scanned out
  * upstream in S2). A missing feedbackId is minted here so the dev can quote it and a later resend reuses it
  * (same id → dedup-safe). Best-effort: returns null and never throws on any failure. */
+/** Impure (git/os, no FS write): scan → enrich → build the feedback record and return it WITHOUT storing it
+ * (MBI-116 / S5). This is the reflect-back seam: the /harness-feedback skill previews the EXACT enriched
+ * payload for the dev to confirm/edit before anything is persisted or sent. Returns {ok:false, blocked, hits}
+ * when the PHI-scan (S2) trips — so a hit is shown BEFORE consent, not after storing. Clean → {ok:true, record}. */
+function previewFeedback(data, opts) {
+  const d = data || {};
+  const hits = feedbackRedactionHits(d, (opts || {}).cfg); // PHI-scan gate (S2) runs at preview time too
+  if (hits.length) return { ok: false, blocked: true, hits };
+  const anon = d.anonymous === true;
+  // resolve the tool-derivable context (git/os) once, then enrich; agent/runtime fields (accountId,
+  // ccVersion, model, sessionId, command, phase) ride the payload from the /harness-feedback skill.
+  const branch = (() => { try { return require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim(); } catch { return ''; } })();
+  const ctx = {
+    userName: anon ? null : gitName(),
+    issueKey: issueKey(branch),
+    branchKind: branch ? (/^(main|master|develop|release.*)$/i.test(branch) ? 'base' : 'feature') : '',
+    platform: process.platform,
+  };
+  const enriched = enrichFeedback(d, ctx);
+  const feedbackId = d.feedbackId || require('crypto').randomUUID();
+  const rec = buildFeedbackRecord(enriched, { id: feedbackId, ts: new Date().toISOString(), userId: anon ? null : gitEmail(), repoId: repoId(), hv: harnessVersion() }); // tz-safe: internal UTC log stamp (toISOString), never a user-facing time conversion
+  return { ok: true, record: rec };
+}
+
 function appendFeedback(data, opts) {
   try {
-    const d = data || {};
-    // PHI-scan gate (S2): scan the free text BEFORE any write, so a PHI/PII/secret hit blocks the record from
-    // being persisted locally OR queued for upload (the local day-file IS the upload queue). Clean → write.
-    const hits = feedbackRedactionHits(d, (opts || {}).cfg);
-    if (hits.length) return { ok: false, blocked: true, hits };
+    // append = preview (scan+enrich+build, no write) THEN persist — so the stored record is exactly the one
+    // the skill reflected back at preview time. A blocked/errored preview is returned as-is (nothing written).
+    const res = previewFeedback(data, opts);
+    if (!res.ok) return res;
     const fs = require('fs'), path = require('path');
-    const anon = d.anonymous === true;
-    // resolve the tool-derivable context (git/os) once, then enrich; agent/runtime fields (accountId,
-    // ccVersion, model, sessionId, command, phase) ride the payload from the /harness-feedback skill (S5).
-    const branch = (() => { try { return require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim(); } catch { return ''; } })();
-    const ctx = {
-      userName: anon ? null : gitName(),
-      issueKey: issueKey(branch),
-      branchKind: branch ? (/^(main|master|develop|release.*)$/i.test(branch) ? 'base' : 'feature') : '',
-      platform: process.platform,
-    };
-    const enriched = enrichFeedback(d, ctx);
-    const feedbackId = d.feedbackId || require('crypto').randomUUID();
-    const rec = buildFeedbackRecord(enriched, { id: feedbackId, ts: new Date().toISOString(), userId: anon ? null : gitEmail(), repoId: repoId(), hv: harnessVersion() }); // tz-safe: internal UTC log stamp (toISOString), never a user-facing time conversion
     const dir = usageDir();
     fs.mkdirSync(dir, { recursive: true });
-    fs.appendFileSync(path.join(dir, `${rec.ts.slice(0, 10)}.jsonl`), JSON.stringify(rec) + '\n');
-    return { ok: true, record: rec };
+    fs.appendFileSync(path.join(dir, `${res.record.ts.slice(0, 10)}.jsonl`), JSON.stringify(res.record) + '\n');
+    return { ok: true, record: res.record };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 }
 
@@ -586,6 +596,20 @@ if (require.main === module) {
   // `emit-feedback` (MBI-111 / S1) — the intentional free-text channel. The /harness-feedback skill hands over
   // a JSON payload (already PHI-scanned in S2); we write it as an uncapped `feedback` record and echo the stable
   // feedbackId the dev can quote (a resend of the same id is dedup-safe): usage-log.js emit-feedback <feedback.json>
+  // `preview-feedback` (MBI-116 / S5) — the reflect-back seam: build the EXACT enriched record (PHI-scanned)
+  // WITHOUT writing it, so /harness-feedback can show the dev what would be stored and get consent first:
+  //   usage-log.js preview-feedback <feedback.json>   → { ok, preview } | { ok:false, blocked, redactionHits, ... }
+  if (hookType === 'preview-feedback') {
+    try {
+      const fs = require('fs');
+      const payload = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+      const res = previewFeedback(payload);
+      if (res.blocked) process.stdout.write(JSON.stringify(feedbackBlockMessage(res.hits)));
+      else if (!res.ok) throw new Error(res.error || 'feedback preview failed');
+      else process.stdout.write(JSON.stringify({ ok: true, preview: res.record }));
+    } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
+    process.exit(0);
+  }
   if (hookType === 'emit-feedback') {
     try {
       const fs = require('fs');
