@@ -27,9 +27,18 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
    BA/PM-authored stories, **reshape** them; don't re-elicit work the BA already did.
 2. **Explore the codebase** (when one exists) to ground slices in the real architecture and spot
    prefactoring that should happen first.
-3. **Draft vertical slices.** Each slice is a thin, complete path through *every* layer it touches
-   (schema → API → UI → tests), independently demoable or verifiable. Split horizontal stories ("build
-   the whole API") into vertical ones ("award points on lesson-complete, visible on the dashboard").
+3. **Draft vertical slices — one behavior, one small PR each.** Each slice is a thin, complete path through
+   *every* layer it touches (schema → API → UI → tests), independently demoable or verifiable. Split
+   horizontal stories ("build the whole API") into vertical ones ("award points on lesson-complete, visible
+   on the dashboard"). **Don't club multiple stories/behaviors into one issue** — that makes the PR
+   unreviewable. Size-check each candidate against the documented heuristic:
+   `node "…/bin/slice-size.js" --behaviors <n> --acs <n> --diff <est>` → `oversized` + the reasons (limits:
+   **1 behavior**, **≤5 acceptance criteria**, **≤400 diff lines**). If oversized, **split it** into smaller
+   slices and carry the blocking order (step 4) — schema before API before UI. One slice = one behavior = one
+   small PR. **Keep the balance — split only when a candidate genuinely exceeds the limits.** Don't
+   over-fragment into many tiny tasks: each extra issue is coordination + token overhead, and a cohesive small
+   behavior stays **one** slice. The heuristic only flags a candidate that's actually too big (absent/
+   under-limit signals are never "oversized"); the goal is reviewable PRs, not maximal task count.
 4. **Order with blockers.** Give each issue a **blocked-by** list. The result is a DAG, not a sequence
    — unblocked issues can run in parallel. Put genuine prefactoring first.
 5. **Quiz the user** on the breakdown before publishing: titles, what each builds end-to-end, the
