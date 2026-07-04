@@ -157,7 +157,7 @@ function decideGateEvidence(command, cwd, stateOverride) {
   if (!st) { try { st = require('../bin/gate-evidence.js').currentState(cwd || process.cwd()); } catch { return null; } }
   if (!st || st.state === 'verified') return null; // real passing gate for this commit → no extra prompt
   if (st.state === 'no-gate') return { action: 'ask', reason: 'health-harness wall: no automated gate in this repo — this push is UNVERIFIED. Establish a gate (characterization tests) or approve to ship unverified.' };
-  return { action: 'ask', reason: `health-harness wall: no captured PASSING gate run for this commit (${String(st.sha).slice(0, 12)}) — run the gate green first, or approve to ship unverified. (Blocks a hallucinated "it's green".)` };
+  return { action: 'ask', reason: `health-harness wall: no captured PASSING gate run for this commit (${String(st.sha).slice(0, 12)}) — run the gate green first (as its OWN command, not buried in a \`;\`/\`|\` chain, so its exit code is captured; a green run just before committing carries over to the commit), or approve to ship unverified. (Blocks a hallucinated "it's green".)` };
 }
 
 // ── criterion-coverage gate → DENY an acceptance criterion with no test (agent self-corrects); defer→ASK ─

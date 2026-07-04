@@ -70,6 +70,16 @@ function sanitize(event, data) {
 }
 
 const GATE_RE = /\b(npm (run )?(test|lint|build|typecheck)|yarn (test|lint)|pnpm (test|lint)|jest|vitest|pytest|go test|gradle|mvn|tsc|eslint|make( test| ci)?)\b/i;
+/** Pure: does the Bash command's aggregate exit code faithfully reflect the GATE's result? Only when the gate
+ * is the LAST command in the pipeline/chain — otherwise the exit code belongs to a later `tail`/`tee`/… and a
+ * pass/fail would be recorded against the wrong outcome. Redirects (`>`, `2>&1`) don't change the exit code, so
+ * a redirected single gate stays trustworthy (MBI-97 AC-1). Best-effort split — ignores quotes/subshells. */
+function gateResultTrustworthy(cmd) {
+  const s = String(cmd || '');
+  if (!GATE_RE.test(s)) return false;
+  const last = s.split(/\|\||&&|[;|]/).pop(); // last top-level segment
+  return GATE_RE.test(last);
+}
 // committing AI work (small-steps signal) vs reverting it (an "objecting" / hard-harnessing signal)
 const COMMIT_RE = /\bgit\s+commit\b/i;
 const REVERT_RE = /\bgit\s+(revert\b|reset\s+--hard\b|checkout\s+(--?|HEAD|[0-9a-f]{7,})|restore\b|clean\s+-[a-z]*f)/i;
@@ -109,7 +119,7 @@ function eventsFromHook(hookType, input) {
     }
     if (tool === 'Bash') {
       const cmd = String((inp.tool_input || {}).command || '');
-      if (GATE_RE.test(cmd)) out.push({ event: 'gate_run', data: { result: ok ? 'pass' : 'fail' } });
+      if (gateResultTrustworthy(cmd)) out.push({ event: 'gate_run', data: { result: ok ? 'pass' : 'fail' } });
       if (ok && COMMIT_RE.test(cmd)) out.push({ event: 'commit', data: {} }); // branchKind/sizeBucket enriched in entry
       if (ok && REVERT_RE.test(cmd)) out.push({ event: 'revert', data: {} });
     }
@@ -369,7 +379,7 @@ function emitTransitionsFromJira(issueResp, transitionsResp) {
   } catch { return 0; }
 }
 
-module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, appendEvent, gitEmail, usageDir,
+module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, gateResultTrustworthy, appendEvent, gitEmail, usageDir,
   commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey, parseKv,
   graphMetaFor, emitIssueMeta, fingerprintUnits, commitFingerprint, hash16,
   ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions,
@@ -479,6 +489,11 @@ if (require.main === module) {
         // Record DETERMINISTIC gate evidence keyed to the current commit — the wall/ship read this so a
         // hallucinated "tests pass" can't get past publish (only a real passing run leaves the fingerprint).
         if (e.event === 'gate_run') { try { const ge = require('./gate-evidence.js'); ge.record(process.cwd(), ge.headSha(), e.data.result); } catch { /* best-effort */ } }
+        // A source edit moves the tree on, so a later commit can't inherit an earlier green (MBI-97 AC-2).
+        if (e.event === 'edit') { try { require('./gate-evidence.js').touchEdit(process.cwd()); } catch { /* best-effort */ } }
+        // A commit right after a clean green inherits that green for the NEW sha — no redundant re-run, no
+        // false "unverified for this commit" (MBI-97 AC-2). Propagates only when nothing changed since green.
+        if (e.event === 'commit') { try { const ge = require('./gate-evidence.js'); ge.propagateOnCommit(process.cwd(), ge.headSha()); } catch { /* best-effort */ } }
       }
       // On `git push`, emit the per-slice quality signals (deterministic, hook-driven — NOT agent narration),
       // attributed to the ticket: did this slice add tests, and did it ship gate-verified?
