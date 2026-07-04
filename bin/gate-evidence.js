@@ -30,21 +30,76 @@ function evidencePath(cwd) {
   return path.join(os.tmpdir(), `mb-harness-gate-evidence-${key}.json`);
 }
 
-/** Impure: record a gate result for a commit sha. */
-function record(cwd, sha, result) {
+// The evidence file is `{ runs: { sha → {result,ts} }, green: {sha,ts}|null, editTs: number }`. Older files
+// were a flat `{ sha → {result,ts} }` map — load() migrates those transparently (markers just start empty).
+function load(cwd) {
+  let raw = {};
+  try { raw = JSON.parse(require('fs').readFileSync(evidencePath(cwd), 'utf8')) || {}; } catch { /* none */ }
+  if (raw && raw.runs && typeof raw.runs === 'object') {
+    return { runs: raw.runs, green: raw.green || null, editTs: raw.editTs || 0 };
+  }
+  return { runs: raw && typeof raw === 'object' ? raw : {}, green: null, editTs: 0 }; // legacy flat schema
+}
+
+function save(cwd, model) {
+  const keep = Object.keys(model.runs).sort((a, b) => (model.runs[b].ts || 0) - (model.runs[a].ts || 0)).slice(0, KEEP);
+  const runs = {}; for (const k of keep) runs[k] = model.runs[k];
+  try { require('fs').writeFileSync(evidencePath(cwd), JSON.stringify({ runs, green: model.green || null, editTs: model.editTs || 0 })); } catch { /* ignore */ }
+}
+
+/**
+ * Pure: should the most-recent green run be inherited by the commit now being made? Only when a green marker
+ * exists AND no source edit happened after it — i.e. the tree that went green is the tree being committed.
+ * (Conservative by design: any later edit → false → the wall asks for a fresh run. Never a false 'verified'.)
+ */
+function shouldPropagate(green, editTs) {
+  if (!green || !green.ts) return false;
+  return (editTs || 0) <= green.ts;
+}
+
+/** Impure: record a gate result for a commit sha. A PASS arms the green marker (for commit-time inheritance);
+ * a FAIL disarms it. `ts` is injectable for deterministic tests. */
+function record(cwd, sha, result, ts) {
   if (!sha) return;
-  const fs = require('fs');
-  let e = {}; try { e = JSON.parse(fs.readFileSync(evidencePath(cwd), 'utf8')); } catch { /* none */ }
-  e[sha] = { result: result === 'fail' ? 'fail' : 'pass', ts: Date.now() };
-  const keep = Object.keys(e).sort((a, b) => (e[b].ts || 0) - (e[a].ts || 0)).slice(0, KEEP);
-  const trimmed = {}; for (const k of keep) trimmed[k] = e[k];
-  try { fs.writeFileSync(evidencePath(cwd), JSON.stringify(trimmed)); } catch { /* ignore */ }
+  const when = ts == null ? Date.now() : ts;
+  const m = load(cwd);
+  const pass = result !== 'fail';
+  m.runs[sha] = { result: pass ? 'pass' : 'fail', ts: when };
+  m.green = pass ? { sha, ts: when } : null;
+  save(cwd, m);
+}
+
+/** Impure: note that source code changed at `ts` (invalidates any armed green — the tree moved on). */
+function touchEdit(cwd, ts) {
+  const m = load(cwd);
+  m.editTs = Math.max(m.editTs || 0, ts == null ? Date.now() : ts);
+  save(cwd, m);
+}
+
+/** Impure: the armed green marker (or null). Exposed for tests/debug. */
+function greenMarker(cwd) { return load(cwd).green; }
+
+/**
+ * Impure: called right after a `git commit` succeeds (HEAD is now the new commit). If the green run that
+ * preceded the commit is still clean (no edits since), record a PASS for the new sha so the freshly-created
+ * commit is `verified` without a redundant re-run. The marker is consumed (one commit inherits, not many).
+ * Returns whether it propagated. This is the fix for the "green, then commit → unverified" class (AC-2).
+ */
+function propagateOnCommit(cwd, newSha, ts) {
+  if (!newSha) return false;
+  const m = load(cwd);
+  if (!shouldPropagate(m.green, m.editTs)) return false;
+  m.runs[newSha] = { result: 'pass', ts: ts == null ? Date.now() : ts };
+  m.green = null; // consumed — a later commit must earn its own green
+  save(cwd, m);
+  return true;
 }
 
 /** Impure: is there a recorded PASSING run for this sha? */
 function hasPassFor(cwd, sha) {
   if (!sha) return false;
-  try { const e = JSON.parse(require('fs').readFileSync(evidencePath(cwd), 'utf8')); return !!(e[sha] && e[sha].result === 'pass'); } catch { return false; }
+  const r = load(cwd).runs[sha];
+  return !!(r && r.result === 'pass');
 }
 
 /** Impure: does this repo have a REAL gate? (onboarded gate command, or a non-stub package.json test). */
@@ -66,13 +121,17 @@ function currentState(cwd) {
   return { state: evidenceState(repoHasGate(dir), hasPassFor(dir, sha)), sha };
 }
 
-module.exports = { evidenceState, record, hasPassFor, repoHasGate, headSha, currentState, evidencePath };
+module.exports = { evidenceState, record, hasPassFor, repoHasGate, headSha, currentState, evidencePath,
+  shouldPropagate, touchEdit, greenMarker, propagateOnCommit };
 
-// CLI: `record pass|fail` (from the PostToolUse gate_run path) · `state` (debug).
+// CLI: `record pass|fail` (gate_run path) · `commit` (propagate a clean green to the new HEAD) · `edit`
+// (mark the tree dirty) · `state` (debug).
 if (require.main === module) {
   const sub = process.argv[2];
   if (sub === 'record') { record(process.cwd(), headSha(), process.argv[3] === 'fail' ? 'fail' : 'pass'); process.stdout.write(JSON.stringify({ ok: true })); }
+  else if (sub === 'commit') { const ok = propagateOnCommit(process.cwd(), headSha()); process.stdout.write(JSON.stringify({ ok: true, propagated: ok })); }
+  else if (sub === 'edit') { touchEdit(process.cwd()); process.stdout.write(JSON.stringify({ ok: true })); }
   else if (sub === 'state') { const c = currentState(process.cwd()); process.stdout.write(JSON.stringify({ state: c.state, sha: String(c.sha).slice(0, 12) })); }
-  else process.stdout.write('usage: gate-evidence.js record pass|fail | state\n');
+  else process.stdout.write('usage: gate-evidence.js record pass|fail | commit | edit | state\n');
   process.exit(0);
 }

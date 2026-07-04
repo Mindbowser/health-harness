@@ -13,6 +13,11 @@ This skill is the harness's **fundamentals in practice** — the same ones AI sp
 mocks), **small reversible steps** (one behavior at a time, small commits, on a branch), **deep modules**
 (the refactor step), and **human review** (the PR proof). `/tdd` enforces them so going fast stays safe.
 
+**Planning is test-first too.** If you plan the slice first (plan mode), the plan itself must be
+structured red→green→refactor — each step names the **failing test** it starts from, not "implement X then
+add tests." The wall backstops this: on `ExitPlanMode`, a build plan with no test-first structure gets a
+one-line reminder before it's accepted (`bin/plan-tdd-check.js`). Fix the plan, don't backfill tests.
+
 ## Prerequisite: a feedback loop must exist
 
 You cannot do AFK work without a one-command **gate** (tests + typecheck + lint). If the repo has none
@@ -28,6 +33,12 @@ tests** that pin current behavior before changing anything. **Hard gate: no loop
 
 Don't stop at the first passing test — work through all the criteria. You're done only when the whole
 slice is demoable end-to-end and the gate is green. Track which criteria are covered so you don't quit early.
+
+**Re-check the cross-cutting concerns for this slice** (they should already be criteria from `/align`):
+`node "…/bin/concerns.js" "<slice description>" --profile <profile>` lists the concerns it triggers
+(timezone/DST, audit, PHI-safe logging, error handling, scale/pagination, authz, i18n). Any `needsTest`
+concern without a test is a gap — write the test (a DST-matrix test, a no-stack-trace error test, a
+realistic-volume pagination test, …) before you call the slice done. If `/align` missed one, add it now.
 
 **Bind each test to its criterion — coverage is enforced deterministically, not on trust.** When the ticket
 has a committed criteria manifest (`.health-harness/criteria/<KEY>.json`, written by `/align`), name the
