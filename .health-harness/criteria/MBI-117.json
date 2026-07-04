@@ -1,0 +1,13 @@
+{
+  "issueKey": "MBI-117",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given the docs, When a dev reads them, Then the command and the reflect-back/agree step are described, and the feedback record schema is documented (records queryable by version/user/type, joinable via sessionId)."
+    },
+    {
+      "id": "AC-2",
+      "text": "Given the docs, When a dev reads the telemetry section, Then the metadata-only privacy guarantee for all other telemetry is explicitly stated as unchanged, and the current no-server-dedup gap is noted."
+    }
+  ]
+}
