@@ -99,13 +99,17 @@ test('redaction egress gate: PHI in an outbound payload → DENY; clean → defe
 
 test('redaction gate wins over the outward ASK (decide routes PHI write to deny, clean write to ask)', () => {
   assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'DOB: 1980-04-02' } }, ...HERMETIC)), 'deny');
-  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'synthetic ticket' } }, ...HERMETIC)), 'ask');
+  // clean tracker write: pass an explicit all-off auto-approve override, since trackerWrite is default-ON
+  // (MBI-110) — this asserts the ASK path when NOT auto-approved. (Redaction still DENYs the PHI case above.)
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'synthetic ticket' } }, ...HERMETIC, {})), 'ask');
 });
 
 test('ship grant suppresses the outward ASK (one approval covers the batch) but NEVER DENY/redaction', () => {
-  // clean outward CONTENT write (editJiraIssue still ASKs; comments now defer per MBI-67): no grant → ASK; grant → defer
-  assert.strictEqual(action(decide('mcp__atlassian__editJiraIssue', { fields: { description: 'PR #42 up' } }, undefined, false)), 'ask');
-  assert.strictEqual(decide('mcp__atlassian__editJiraIssue', { fields: { description: 'PR #42 up' } }, undefined, true), null);
+  // clean outward CONTENT write that still ASKs by default — use a NON-tracker MCP write (a GitHub MCP
+  // create), since tracker writes now auto-approve by default (MBI-110) and comments defer (MBI-67):
+  // no grant → ASK; grant → defer.
+  assert.strictEqual(action(decide('mcp__github__create_issue', { title: 'x', body: 'PR #42 up' }, undefined, false)), 'ask');
+  assert.strictEqual(decide('mcp__github__create_issue', { title: 'x', body: 'PR #42 up' }, undefined, true), null);
   // gh pr create (outward ASK, NOT gate-gated) under a grant → defer; without → ASK
   assert.strictEqual(action(decide('Bash', { command: 'gh pr create --title x --body "clean summary"' }, undefined, false)), 'ask');
   assert.strictEqual(decide('Bash', { command: 'gh pr create --title x --body "clean summary"' }, undefined, true), null);
@@ -240,7 +244,7 @@ test('decideCommitReview (MBI-108): default asks for a dev review before committ
 
 test('decide() routes by tool_name; unknown tools defer', () => {
   assert.strictEqual(action(decide('Bash', { command: 'git push' }, ...HERMETIC)), 'ask');
-  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', {}, ...HERMETIC)), 'ask');
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', {}, ...HERMETIC, {})), 'ask'); // {} = all-off override (trackerWrite is default-ON)
   assert.strictEqual(decide('Read', { file_path: '/x' }, ...HERMETIC), null);
   assert.strictEqual(decide('Edit', {}, ...HERMETIC), null);
 });
