@@ -108,8 +108,9 @@ decide — **never auto-log, never argue the number up or down.**
 - **Also shown: ELAPSED span** (first→last commit) for reference.
 - **Fallbacks:** thin history → floor to the lead-in, or use the ticket's *In Progress* transition timestamp
   as `started`. No git → suggest manually.
-- **Configurable** in `.health-harness/project.json` `timeTracking`: `logWork`, `roundTo` (15m), `idleGapMins`
-  (90), `leadInMins` (30), `maxPerDay` (8h).
+- **Configurable** in `.health-harness/project.json` `timeTracking`: `logWork`, `roundTo` (**5m** — worklog
+  time is rounded to the nearest 5 minutes and never coarser; a bigger `roundTo` is clamped to 5m so logged
+  time isn't inflated to 15/30/60-min buckets), `idleGapMins` (90), `leadInMins` (30), `maxPerDay` (8h).
 
 ## Publish path — auto-detect, prefer in this order (never hard-block)
 1. **Working `git push` → use it (preserves your real commits).** If push works (SSH key, HTTPS helper, or
