@@ -159,7 +159,7 @@ function wallAutoApprove(dir) {
     const fs = require('fs'), path = require('path');
     const j = JSON.parse(fs.readFileSync(path.join(dir || process.cwd(), '.health-harness', 'project.json'), 'utf8'));
     const map = { ...((j.wall && j.wall.autoApprove) || {}) };
-    if (j.commit && j.commit.autoCommit === true && map.commit === undefined) map.commit = true;
+    if (j.commit && typeof j.commit.autoCommit === 'boolean' && map.commit === undefined) map.commit = j.commit.autoCommit;
     return map;
   } catch { return {}; }
 }

@@ -206,7 +206,9 @@ set (the two pure-friction gates): `trackerWrite`** (Jira/Linear **create/edit/l
 PHI in the write; transitions/comments/worklogs already defer) **and `commit`** (the per-commit review, also
 via `commit.autoCommit`). Everything else still **ASKs** until a repo opts in: `push` · `pr` · `infra` ·
 `shipUnverified` (the gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `baseBranchCommit`. Any
-default-on gate can be turned back **off** per repo (`wall.autoApprove.trackerWrite: false`). **Auto-approve
+default-on gate can be turned back **off** per repo (`wall.autoApprove.trackerWrite: false`); for commit review
+the intuitive **`commit.autoCommit: false`** also works — set it to make the agent **ask before every commit**
+(and `true`/unset = auto). **Auto-approve
 suppresses only the human prompt — it never skips the gate's check** (gate-evidence still fingerprints
 pass/fail, criteria are still computed and *recorded*) and it **never** silences a **DENY**: catastrophic
 commands, PHI/secret **redaction**, and the commit-message **format** block still fire regardless.

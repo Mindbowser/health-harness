@@ -3,9 +3,30 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { decide, decideBash, decideMcp, suppressAsk, wallAutoApprove, isTrackerWrite } = require('../hooks/outward-guard.js');
 
+const fs = require('fs'), os = require('os'), path = require('path');
 const action = (d) => (d ? d.action : null);
 // gitState, shipGrant, covOverride, detectOverride, gateOverride — spread after (toolName, toolInput).
 const HERMETIC = [undefined, false, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }];
+
+// write a project.json into a temp repo and return its dir (for wallAutoApprove disk-read tests)
+function repoWith(cfg) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-cfg-'));
+  fs.mkdirSync(path.join(dir, '.health-harness'));
+  fs.writeFileSync(path.join(dir, '.health-harness', 'project.json'), JSON.stringify(cfg));
+  return dir;
+}
+
+test('commit.autoCommit maps BOTH ways (MBI-118): false → review-before-commit, true → auto; wall.autoApprove.commit wins', () => {
+  // false must turn the commit gate OFF (was a no-op before the fix)
+  assert.deepStrictEqual(wallAutoApprove(repoWith({ commit: { autoCommit: false } })), { commit: false });
+  // true keeps it auto (same as the default)
+  assert.deepStrictEqual(wallAutoApprove(repoWith({ commit: { autoCommit: true } })), { commit: true });
+  // an explicit wall.autoApprove.commit wins over the back-compat key
+  assert.deepStrictEqual(wallAutoApprove(repoWith({ commit: { autoCommit: false }, wall: { autoApprove: { commit: true } } })), { commit: true });
+  // and the end-to-end effect: with autoCommit:false a normal commit ASKs (via the default-merge in decide)
+  const auto = { trackerWrite: true, commit: true, ...wallAutoApprove(repoWith({ commit: { autoCommit: false } })) };
+  assert.strictEqual(auto.commit, false, 'commit gate must be OFF (ask) when commit.autoCommit=false');
+});
 
 test('suppressAsk: nullifies an ASK whose gate is auto-approved; keeps DENY, a non-matching ASK, and an untagged ASK', () => {
   assert.strictEqual(suppressAsk({ action: 'ask', gate: 'push' }, { push: true }), null);
