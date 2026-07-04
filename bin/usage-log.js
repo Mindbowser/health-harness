@@ -456,6 +456,7 @@ function appendFeedback(data) {
   try {
     const fs = require('fs'), path = require('path');
     const feedbackId = (data && data.feedbackId) || require('crypto').randomUUID();
+    // tz-safe: record timestamp is internal + always UTC (toISOString) — a log stamp, never a user-facing time conversion
     const rec = buildFeedbackRecord(data, { id: feedbackId, ts: new Date().toISOString(), userId: gitEmail(), repoId: repoId(), hv: harnessVersion() });
     const dir = usageDir();
     fs.mkdirSync(dir, { recursive: true });
