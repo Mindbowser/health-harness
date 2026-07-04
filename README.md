@@ -191,9 +191,21 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 - **DEFER** (untouched): reads, local/reversible work (a well-formed `git commit` on a feature branch,
   branch, tests, the scanner).
 
+**Per-gate auto-approve — skip the *asking*, never the *gate* (`wall.autoApprove`, MBI-110).** For trusted /
+unattended contexts, each gate's ASK can be silenced with a flag in `.health-harness/project.json` →
+`wall.autoApprove.<gate>: true` (default all **off**, so no behavior change until you opt in):
+`push` · `pr` · `infra` · `trackerWrite` (Jira/Linear **create/edit/link**; transitions/comments/worklogs
+already defer) · `shipUnverified` (the gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `commit`
+(also via `commit.autoCommit`) · `baseBranchCommit`. **This suppresses only the human prompt — it never skips
+the gate's check** (gate-evidence still fingerprints pass/fail, criteria are still computed and *recorded*)
+and it **never** silences a **DENY**: catastrophic commands, PHI/secret **redaction**, and the commit-message
+**format** block still fire regardless. Destructive-local deletes (`rm -rf`, `reset --hard`) are deliberately
+**not** auto-approvable. (`hooks/outward-guard.js` `wallAutoApprove`/`suppressAsk`.)
+
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
-your approval, the catastrophic ones are blocked outright, commit messages are format-gated, and PHI/secret
-literals are blocked at egress — all deterministically. Tested in `test/outward-guard.test.js`.
+your approval (unless you've consciously auto-approved that gate), the catastrophic ones are blocked
+outright, commit messages are format-gated, and PHI/secret literals are blocked at egress — all
+deterministically. Tested in `test/outward-guard.test.js` + `test/wall-autoapprove.test.js`.
 
 **One approval per publish, not one per step.** `/ship` shows a single **verbatim outbound preview** (PR
 title+body, status from→to, the exact comment, the worklog + how it was derived); on your approval it sets a
