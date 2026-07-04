@@ -325,6 +325,59 @@ test('MBI-46: mergeStatusCategories accumulates across reads (fresh wins)', () =
   assert.deepStrictEqual(mergeStatusCategories(null, null), {});
 });
 
+// MBI-112 (S1) — the `feedback` record type. Unlike every OTHER event (metadata-only, allowlisted, string
+// fields capped at 40 chars), `feedback` carries INTENTIONAL free text the dev consented to (PHI-scanned
+// upstream in S2), so its string fields are NOT length-capped. The scoped bypass must leave every other
+// event's metadata-only guarantee untouched. The record's dedup `id` IS the feedbackId → resend-idempotent.
+const { buildFeedbackRecord } = require('../bin/usage-log.js');
+
+test('[AC-1] sanitize(feedback) keeps only allowlisted fields but does NOT cap the free text', () => {
+  const longSummary = 'S'.repeat(200);
+  const out = sanitize('feedback', {
+    type: 'bug', summary: longSummary, detail: 'D'.repeat(100),
+    expected: 'e', actual: 'a', severity: 'high', feedbackId: 'fb-1',
+    secret: 'not allowlisted', nested: { code: 'x' },
+  });
+  assert.strictEqual(out.summary, longSummary);   // free text preserved verbatim (200 chars, uncapped)
+  assert.strictEqual(out.detail.length, 100);     // uncapped
+  assert.strictEqual(out.type, 'bug');
+  assert.strictEqual(out.severity, 'high');
+  assert.strictEqual(out.feedbackId, 'fb-1');
+  assert.ok(!('secret' in out), 'non-allowlisted field dropped');
+  assert.ok(!('nested' in out), 'nested objects still dropped');
+});
+
+test('[AC-1] buildFeedbackRecord assembles a feedback record with normalized fields + feedbackId', () => {
+  const rec = buildFeedbackRecord(
+    { type: 'friction', summary: 'x'.repeat(80), detail: 'why', junk: { a: 1 } },
+    { id: 'fb-2', ts: '2026-07-04T00:00:00.000Z', userId: 'dev@mb', repoId: 'mb-harness', hv: '0.3.0' });
+  assert.strictEqual(rec.event, 'feedback');
+  assert.strictEqual(rec.v, 1);
+  assert.strictEqual(rec.type, 'friction');
+  assert.strictEqual(rec.summary.length, 80);     // uncapped
+  assert.strictEqual(rec.feedbackId, 'fb-2');     // defaulted from env id when the payload omits it
+  assert.strictEqual(rec.ts, '2026-07-04T00:00:00.000Z');
+  assert.strictEqual(rec.userId, 'dev@mb');
+  assert.ok(!('junk' in rec), 'objects dropped from the payload');
+});
+
+test('[AC-2] non-feedback events still allowlist + 40-char cap + object-drop (regression: bypass is scoped to feedback)', () => {
+  const out = sanitize('tool', { tool: 'B'.repeat(100), ok: true, command: 'rm -rf', nested: { a: 1 } });
+  assert.strictEqual(out.tool.length, 40);        // still capped
+  assert.strictEqual(out.ok, true);
+  assert.ok(!('command' in out), 'still allowlist-only');
+  assert.ok(!('nested' in out), 'objects still dropped');
+  assert.strictEqual(sanitize('command', { name: 'a'.repeat(60) }).name.length, 40); // another event still capped
+});
+
+test('[AC-3] the feedback record dedup id IS the feedbackId → a resend is idempotent', () => {
+  const env = { ts: '2026-07-04T00:00:00.000Z', userId: 'u', repoId: 'r', hv: '0.3.0' };
+  const first  = buildFeedbackRecord({ type: 'bug', summary: 's', feedbackId: 'fb-7' }, { ...env, id: 'fb-7' });
+  const resend = buildFeedbackRecord({ type: 'bug', summary: 's', feedbackId: 'fb-7' }, { ...env, id: 'fb-7' });
+  assert.strictEqual(first.id, 'fb-7');           // record id == feedbackId (the Atlas dedup key)
+  assert.strictEqual(resend.id, first.id);        // same submission → same id → server drops the duplicate
+});
+
 test('MBI-46: transitionsFromIssue maps a real getJiraIssue(expand=changelog) shape via the category map', () => {
   const issueResp = { key: 'MBI-43', changelog: { histories: [
     { created: 't1', items: [{ field: 'status', from: '10225', fromString: 'Idea', to: '10227', toString: 'In Progress' }] },

@@ -53,20 +53,39 @@ const ALLOW = {
   // clusterKey (epic ?? parent ?? key) is a rebuildable cache; parent/epic/links are the immutable facts.
   // type/priority are captured at /align (the engineer's own Jira — Atlas can't reach it) for the dashboard filter.
   issue_meta: ['key', 'parent', 'epic', 'links', 'clusterKey', 'type', 'priority'],
+  // feedback (MBI-111 / S1): the ONE record type that carries INTENTIONAL free text — a dev's consented,
+  // PHI-scanned (S2) bug/idea/friction report. Its string fields are therefore NOT length-capped (see the
+  // `feedback` branch in sanitize). The metadata-only guarantee for every OTHER event above is unchanged.
+  // The record's dedup `id` IS the feedbackId (set in buildFeedbackRecord), so a resend is idempotent.
+  feedback: ['type', 'summary', 'detail', 'expected', 'actual', 'severity', 'feedbackId'],
 };
 
 // keep only allowlisted, scalar fields (no nested objects/content)
 function sanitize(event, data) {
   const allow = ALLOW[event];
   if (!allow) return null; // unknown event → drop entirely
+  // `feedback` is the one intentional free-text channel (dev-consented, PHI-scanned) → its strings are NOT
+  // capped. Every other event stays metadata-only with the defensive 40-char cap. The bypass is scoped by name.
+  const cap = event !== 'feedback';
   const out = {};
   for (const k of allow) {
     const v = (data || {})[k];
     if (v === undefined || v === null) continue;
     if (typeof v === 'object') continue; // never store structured content
-    out[k] = typeof v === 'string' ? v.slice(0, 40) : v; // cap string length defensively
+    out[k] = (cap && typeof v === 'string') ? v.slice(0, 40) : v; // cap string length defensively (except feedback)
   }
   return out;
+}
+
+/** Pure: assemble a `feedback` record from a raw submission + env stamps. Feedback is the one record type
+ * that carries INTENTIONAL free text (PHI-scanned upstream in S2), so `sanitize('feedback', …)` does NOT cap
+ * its strings. The dedup `id` IS the feedbackId (the payload's, else the env fallback), so a resend of the
+ * same submission is idempotent — the Atlas ingest drops the duplicate on `id`. env = {id, ts, userId, repoId, hv}. */
+function buildFeedbackRecord(data, env) {
+  const e = env || {};
+  const feedbackId = (data && data.feedbackId) || e.id;
+  const clean = sanitize('feedback', { ...(data || {}), feedbackId });
+  return { v: 1, id: feedbackId, ts: e.ts, userId: e.userId ?? null, repoId: e.repoId ?? null, hv: e.hv ?? null, event: 'feedback', ...clean };
 }
 
 const GATE_RE = /\b(npm (run )?(test|lint|build|typecheck)|yarn (test|lint)|pnpm (test|lint)|jest|vitest|pytest|go test|gradle|mvn|tsc|eslint|make( test| ci)?)\b/i;
@@ -383,7 +402,8 @@ module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, gateResultTrustwort
   commandName, lenBucket, hasContextMarkers, enrichCommit, harnessVersion, issueKey, parseKv,
   graphMetaFor, emitIssueMeta, fingerprintUnits, commitFingerprint, hash16,
   ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions,
-  statusCatFromJira, mergeStatusCategories, transitionsFromIssue, emitTransitionsFromJira };
+  statusCatFromJira, mergeStatusCategories, transitionsFromIssue, emitTransitionsFromJira,
+  buildFeedbackRecord, appendFeedback };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -425,6 +445,22 @@ function repoId() {
   try {
     const top = require('child_process').execSync('git rev-parse --show-toplevel', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
     return top ? require('path').basename(top) : null;
+  } catch { return null; }
+}
+
+/** Impure: write one `feedback` record to the local usage day-file and return it. Free-text sibling of
+ * appendEvent — deliberately NOT metadata-only (feedback IS the consented text channel; PHI is scanned out
+ * upstream in S2). A missing feedbackId is minted here so the dev can quote it and a later resend reuses it
+ * (same id → dedup-safe). Best-effort: returns null and never throws on any failure. */
+function appendFeedback(data) {
+  try {
+    const fs = require('fs'), path = require('path');
+    const feedbackId = (data && data.feedbackId) || require('crypto').randomUUID();
+    const rec = buildFeedbackRecord(data, { id: feedbackId, ts: new Date().toISOString(), userId: gitEmail(), repoId: repoId(), hv: harnessVersion() });
+    const dir = usageDir();
+    fs.mkdirSync(dir, { recursive: true });
+    fs.appendFileSync(path.join(dir, `${rec.ts.slice(0, 10)}.jsonl`), JSON.stringify(rec) + '\n');
+    return rec;
   } catch { return null; }
 }
 
@@ -471,6 +507,19 @@ if (require.main === module) {
       const transitionsResp = process.argv[4] ? JSON.parse(fs.readFileSync(process.argv[4], 'utf8')) : null;
       const n = emitTransitionsFromJira(issueResp, transitionsResp);
       process.stdout.write(JSON.stringify({ ok: true, fresh: n }));
+    } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
+    process.exit(0);
+  }
+  // `emit-feedback` (MBI-111 / S1) — the intentional free-text channel. The /harness-feedback skill hands over
+  // a JSON payload (already PHI-scanned in S2); we write it as an uncapped `feedback` record and echo the stable
+  // feedbackId the dev can quote (a resend of the same id is dedup-safe): usage-log.js emit-feedback <feedback.json>
+  if (hookType === 'emit-feedback') {
+    try {
+      const fs = require('fs');
+      const payload = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+      const rec = appendFeedback(payload);
+      if (!rec) throw new Error('feedback write failed');
+      process.stdout.write(JSON.stringify({ ok: true, feedbackId: rec.feedbackId, id: rec.id }));
     } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
     process.exit(0);
   }

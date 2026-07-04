@@ -1,0 +1,17 @@
+{
+  "issueKey": "MBI-112",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given a valid feedback JSON, When emit-feedback runs, Then a feedback record is appended locally with type/summary/detail/expected/actual/severity + a stable feedbackId, and the text is stored uncapped."
+    },
+    {
+      "id": "AC-2",
+      "text": "Given any non-feedback event, When it is sanitized, Then the strict allowlist + 40-char cap + object-drop still apply unchanged (regression)."
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a resend, When the same record is emitted again, Then it carries the same stable id (dedup-ready)."
+    }
+  ]
+}
