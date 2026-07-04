@@ -109,6 +109,34 @@ function enrichFeedback(data, ctx) {
   return out;
 }
 
+const FEEDBACK_TEXT_FIELDS = ['summary', 'detail', 'expected', 'actual'];
+/** Pure-ish: scan the free-text fields of a feedback submission for PHI/PII/secret patterns, returning the
+ * redaction hits (MBI-113 / S2). `feedback` is the one intentional free-text channel, so it MUST be scanned
+ * before it is persisted or queued. cfg defaults to the repo's compliance profile via redaction-scan.loadConfig(). */
+function feedbackRedactionHits(data, cfg) {
+  const rs = require('./redaction-scan.js');
+  const c = cfg || rs.loadConfig();
+  const opts = { classes: c.classes, allow: c.allow, deny: c.deny };
+  const hits = [];
+  for (const k of FEEDBACK_TEXT_FIELDS) {
+    const v = (data || {})[k];
+    if (typeof v === 'string' && v) for (const h of rs.scanText(v, opts, k)) hits.push(h);
+  }
+  return hits;
+}
+
+/** Pure: the PHI-safe user-facing result for a blocked feedback submission (MBI-113 / S2). Reports ONLY the
+ * hit COUNT + the class names (phi/pii/secrets) — NEVER the matched snippet, which would echo the very PHI we
+ * are protecting back out to the terminal / logs. safe-logging: log references, not values. */
+function feedbackBlockMessage(hits) {
+  const list = hits || [];
+  const classes = [...new Set(list.map((h) => h.class))].sort();
+  return {
+    ok: false, blocked: true, redactionHits: list.length, classes,
+    message: `Feedback blocked: ${list.length} potential ${classes.join('/')} hit(s) in the text. Edit it and retry — nothing was stored or sent.`,
+  };
+}
+
 const GATE_RE = /\b(npm (run )?(test|lint|build|typecheck)|yarn (test|lint)|pnpm (test|lint)|jest|vitest|pytest|go test|gradle|mvn|tsc|eslint|make( test| ci)?)\b/i;
 /** Pure: does the Bash command's aggregate exit code faithfully reflect the GATE's result? Only when the gate
  * is the LAST command in the pipeline/chain — otherwise the exit code belongs to a later `tail`/`tee`/… and a
@@ -424,7 +452,7 @@ module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, gateResultTrustwort
   graphMetaFor, emitIssueMeta, fingerprintUnits, commitFingerprint, hash16,
   ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions,
   statusCatFromJira, mergeStatusCategories, transitionsFromIssue, emitTransitionsFromJira,
-  buildFeedbackRecord, enrichFeedback, appendFeedback, gitName };
+  buildFeedbackRecord, enrichFeedback, feedbackRedactionHits, feedbackBlockMessage, appendFeedback, gitName };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -481,10 +509,14 @@ function repoId() {
  * appendEvent — deliberately NOT metadata-only (feedback IS the consented text channel; PHI is scanned out
  * upstream in S2). A missing feedbackId is minted here so the dev can quote it and a later resend reuses it
  * (same id → dedup-safe). Best-effort: returns null and never throws on any failure. */
-function appendFeedback(data) {
+function appendFeedback(data, opts) {
   try {
-    const fs = require('fs'), path = require('path');
     const d = data || {};
+    // PHI-scan gate (S2): scan the free text BEFORE any write, so a PHI/PII/secret hit blocks the record from
+    // being persisted locally OR queued for upload (the local day-file IS the upload queue). Clean → write.
+    const hits = feedbackRedactionHits(d, (opts || {}).cfg);
+    if (hits.length) return { ok: false, blocked: true, hits };
+    const fs = require('fs'), path = require('path');
     const anon = d.anonymous === true;
     // resolve the tool-derivable context (git/os) once, then enrich; agent/runtime fields (accountId,
     // ccVersion, model, sessionId, command, phase) ride the payload from the /harness-feedback skill (S5).
@@ -501,8 +533,8 @@ function appendFeedback(data) {
     const dir = usageDir();
     fs.mkdirSync(dir, { recursive: true });
     fs.appendFileSync(path.join(dir, `${rec.ts.slice(0, 10)}.jsonl`), JSON.stringify(rec) + '\n');
-    return rec;
-  } catch { return null; }
+    return { ok: true, record: rec };
+  } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 }
 
 /** Pure: parse `k=v` CLI args into a data object, coercing true/false and plain numbers. */
@@ -558,9 +590,11 @@ if (require.main === module) {
     try {
       const fs = require('fs');
       const payload = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
-      const rec = appendFeedback(payload);
-      if (!rec) throw new Error('feedback write failed');
-      process.stdout.write(JSON.stringify({ ok: true, feedbackId: rec.feedbackId, id: rec.id }));
+      const res = appendFeedback(payload);
+      if (res.blocked) {
+        process.stdout.write(JSON.stringify(feedbackBlockMessage(res.hits))); // PHI-safe: count + classes only
+      } else if (!res.ok) { throw new Error(res.error || 'feedback write failed'); }
+      else { process.stdout.write(JSON.stringify({ ok: true, feedbackId: res.record.feedbackId, id: res.record.id })); }
     } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
     process.exit(0);
   }

@@ -378,6 +378,61 @@ test('[AC-3] the feedback record dedup id IS the feedbackId → a resend is idem
   assert.strictEqual(resend.id, first.id);        // same submission → same id → server drops the duplicate
 });
 
+// MBI-113 (S2) — PHI-scan gate. `feedback` is the one INTENTIONAL free-text channel, so BEFORE it is
+// persisted or queued the text is scanned; a PHI/PII/secret hit BLOCKS the write (nothing lands locally or in
+// the upload queue) and returns a PHI-free result (hit count/classes, never the matched text). Clean passes.
+const { feedbackRedactionHits, feedbackBlockMessage, appendFeedback } = require('../bin/usage-log.js');
+const os2 = require('node:os'), fs2 = require('node:fs'), path2 = require('node:path');
+const HIPAA_CFG = { classes: ['phi', 'pii', 'secrets'], allow: [], deny: [] };
+// synthetic fixtures split so the SOURCE never carries a detectable pattern (redaction-scan won't self-flag);
+// concatenated at runtime they ARE the full pattern feedbackRedactionHits must catch.
+const FAKE_AWS_KEY = 'AKIA' + 'IOSFODNN7EXAMPLE';   // AWS docs example key (synthetic)
+const FAKE_SSN = '123-' + '45-' + '6789';           // synthetic SSN
+
+test('[AC-1] feedbackRedactionHits flags a secret/PII pattern in the free-text fields; clean text has none', () => {
+  const hits = feedbackRedactionHits({ type: 'bug', summary: `creds ${FAKE_AWS_KEY} leaked`, detail: 'ok' }, HIPAA_CFG);
+  assert.ok(hits.length >= 1 && hits.some((h) => h.class === 'secrets'), 'a secret in the summary is detected');
+  assert.deepStrictEqual(feedbackRedactionHits({ summary: 'the sprint popup re-asked me', detail: 'minor nit' }, HIPAA_CFG), []);
+});
+
+test('[AC-1] the blocked result is PHI-safe — reports the count + classes, NEVER the matched snippet (safe-logging)', () => {
+  const hits = feedbackRedactionHits({ type: 'bug', summary: `patient SSN ${FAKE_SSN}` }, HIPAA_CFG);
+  const out = feedbackBlockMessage(hits);
+  assert.strictEqual(out.blocked, true);
+  assert.ok(out.redactionHits >= 1);
+  assert.deepStrictEqual(out.classes, ['pii']);
+  assert.ok(!out.message.includes(FAKE_SSN), 'the user-facing message must NOT echo the PHI value');
+  assert.ok(out.message.includes('pii'), 'the class name is safe to surface');
+});
+
+test('[AC-1] appendFeedback BLOCKS a PHI/secret payload — nothing written locally or queued', () => {
+  const home = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'hh-s2-'));
+  const oldHome = process.env.HOME; process.env.HOME = home;
+  try {
+    const res = appendFeedback({ type: 'bug', summary: `SSN ${FAKE_SSN} in the trace`, detail: 'x', feedbackId: 'fb-blk' }, { cfg: HIPAA_CFG });
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.blocked, true);
+    assert.ok(res.hits.length >= 1);
+    const dir = path2.join(home, '.health-harness', 'usage');
+    const files = fs2.existsSync(dir) ? fs2.readdirSync(dir).filter((f) => f.endsWith('.jsonl')) : [];
+    assert.strictEqual(files.length, 0, 'blocked feedback must not be written to disk (not queued for upload)');
+  } finally { process.env.HOME = oldHome; }
+});
+
+test('[AC-2] appendFeedback PASSES clean text — the record is written and returned', () => {
+  const home = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'hh-s2ok-'));
+  const oldHome = process.env.HOME; process.env.HOME = home;
+  try {
+    const res = appendFeedback({ type: 'idea', summary: 'add a dark mode toggle', detail: 'nice to have', feedbackId: 'fb-ok' }, { cfg: HIPAA_CFG });
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(res.record.event, 'feedback');
+    assert.strictEqual(res.record.id, 'fb-ok');
+    const dir = path2.join(home, '.health-harness', 'usage');
+    const lines = fs2.readFileSync(path2.join(dir, fs2.readdirSync(dir).find((f) => f.endsWith('.jsonl'))), 'utf8').trim().split('\n');
+    assert.strictEqual(lines.length, 1, 'clean feedback is persisted');
+  } finally { process.env.HOME = oldHome; }
+});
+
 // MBI-114 (S3) — enrichment + graceful degradation. A feedback record is auto-populated with context:
 // tool-derived fields (git name, branch-derived ticket, branch kind, platform) get filled from the env;
 // agent-supplied fields (accountId, ccVersion, model, sessionId, command, phase) ride the payload and are
