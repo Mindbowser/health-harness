@@ -16,13 +16,24 @@
  *   node bin/worklog-suggest.js --json          # machine output only
  *
  * Config (optional) — .health-harness/project.json "timeTracking":
- *   { "logWork": true, "roundTo": "15m", "idleGapMins": 90, "leadInMins": 30, "maxPerDay": "8h" }
+ *   { "logWork": true, "roundTo": "5m", "idleGapMins": 90, "leadInMins": 30, "maxPerDay": "8h" }
+ * roundTo is rounded to nearest and CAPPED at 5m — a coarser value is clamped down, so logged time never
+ * inflates to 15/30/60-min buckets (MBI-104).
  */
 'use strict';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const DEFAULTS = { idleGapMins: 90, leadInMins: 30, roundToMins: 15, maxPerDayMins: 8 * 60 };
+// Worklog time is rounded to 5-minute granularity — fine enough to reflect actual effort, never the coarse
+// 15/30/60-min buckets that inflate logged time (MBI-104). MAX_ROUND caps any per-project override.
+const MAX_ROUND_MINS = 5;
+const DEFAULTS = { idleGapMins: 90, leadInMins: 30, roundToMins: 5, maxPerDayMins: 8 * 60 };
+
+/** Pure: round minutes to the nearest `granularity` (round, not floor/ceil). */
+function roundMinutes(mins, granularity) {
+  const g = granularity > 0 ? granularity : MAX_ROUND_MINS;
+  return Math.round(mins / g) * g;
+}
 
 /** Parse a Jira-style duration ("2h 30m", "90m", "1d 4h", "0.5h") to minutes. Returns null if unparseable. */
 function parseDuration(s) {
@@ -55,7 +66,7 @@ function resolveOpts(cfg) {
   return {
     idleGapMins: parseDuration(c.idleGap || c.idleGapMins) ?? DEFAULTS.idleGapMins,
     leadInMins: parseDuration(c.leadIn || c.leadInMins) ?? DEFAULTS.leadInMins,
-    roundToMins: parseDuration(c.roundTo || c.roundToMins) ?? DEFAULTS.roundToMins,
+    roundToMins: (() => { const r = parseDuration(c.roundTo || c.roundToMins); return r && r > 0 ? Math.min(r, MAX_ROUND_MINS) : DEFAULTS.roundToMins; })(), // capped at 5m — never coarser (MBI-104)
     maxPerDayMins: parseDuration(c.maxPerDay || c.maxPerDayMins) ?? DEFAULTS.maxPerDayMins,
   };
 }
@@ -82,13 +93,13 @@ function suggestFromTimestamps(commitTimesMs, opts) {
   // cap to a sane ceiling: maxPerDay × calendar days the work spans
   const spanDays = Math.max(1, Math.ceil((times[times.length - 1] - times[0]) / DAY_MS) || 1);
   active = Math.min(active, o.maxPerDayMins * spanDays);
-  // round to the team unit, floor at one unit
-  let mins = Math.round(active / o.roundToMins) * o.roundToMins;
+  // round to 5-min granularity, floor at one unit
+  let mins = roundMinutes(active, o.roundToMins);
   if (mins < o.roundToMins) mins = o.roundToMins;
   // elapsed = raw first→last span + lead-in (the upper-bound context; commits-only, so it omits any
   // post-last-commit testing — the human still tops it up on override).
   const elapsedRaw = o.leadInMins + (times[times.length - 1] - times[0]) / 60000;
-  const elapsedMinutes = Math.round(elapsedRaw / o.roundToMins) * o.roundToMins;
+  const elapsedMinutes = roundMinutes(elapsedRaw, o.roundToMins);
   return {
     minutes: mins,
     timeSpent: formatDuration(mins),
@@ -100,7 +111,7 @@ function suggestFromTimestamps(commitTimesMs, opts) {
   };
 }
 
-module.exports = { suggestFromTimestamps, parseDuration, formatDuration, resolveOpts, DEFAULTS };
+module.exports = { suggestFromTimestamps, parseDuration, formatDuration, resolveOpts, roundMinutes, DEFAULTS, MAX_ROUND_MINS };
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 if (require.main === module) {
