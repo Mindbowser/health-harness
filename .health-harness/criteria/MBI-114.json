@@ -1,0 +1,13 @@
+{
+  "issueKey": "MBI-114",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given a feedback record is built, When enrichment runs, Then all derivable fields (version, git email+name, ticket, branch kind, repo id, timestamp UTC, platform) are auto-filled with no manual entry."
+    },
+    {
+      "id": "AC-2",
+      "text": "Given fields that cannot be resolved by the tool (Jira accountId, Claude Code version, model, sessionId), When they are unavailable, Then they are omitted and the record is still built; anonymous mode omits all identity fields."
+    }
+  ]
+}
