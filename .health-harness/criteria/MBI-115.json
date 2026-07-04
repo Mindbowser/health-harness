@@ -1,0 +1,13 @@
+{
+  "issueKey": "MBI-115",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given the record is written and the dev agreed, When delivery runs, Then it is flushed immediately via the existing usage-upload transport to Atlas as a distinct feedback record (not a new uploader)."
+    },
+    {
+      "id": "AC-2",
+      "text": "Given a send failure, When delivery is attempted, Then the local copy remains intact and is retryable (at-least-once)."
+    }
+  ]
+}
