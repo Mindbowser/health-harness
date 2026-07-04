@@ -141,7 +141,10 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
        outward write), `/phi-redaction-check` first, clean markdown (`contentFormat:"markdown"`). This is
        the same write AUTHOR mode does — being the engineer doesn't exempt you from recording the spec.
      - **A PM already AUTHORed business criteria** → append/confirm your **technical** criteria on the same ticket.
-     Save `align.md` as the working note; `/to-issues` if multi-part. **Record the criteria in Jira FIRST
+     Save `align.md` as the working note **under `.health-harness/sprints/` — it is dev-local and gitignored,
+     NOT committed** (the kept record is Jira; only the criteria *manifest* at `.health-harness/criteria/<KEY>.json`
+     is committed). Run `node "…/bin/local-ignores.js"` once so `.gitignore` excludes these working files (it's
+     idempotent; `/start` also does it). `/to-issues` if multi-part. **Record the criteria in Jira FIRST
      (the popup above), and only THEN offer `/tdd` — as its own `AskUserQuestion`** ("Run /tdd" first /
      "Not yet"), never shown before the write is confirmed and never as an equal alternative to recording
      the spec. No criteria in the ticket ⇒ not ready to build.

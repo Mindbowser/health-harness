@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect } = require('../hooks/outward-guard.js');
 
 const action = (d) => (d ? d.action : null);
 
@@ -99,13 +99,17 @@ test('redaction egress gate: PHI in an outbound payload → DENY; clean → defe
 
 test('redaction gate wins over the outward ASK (decide routes PHI write to deny, clean write to ask)', () => {
   assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'DOB: 1980-04-02' } }, ...HERMETIC)), 'deny');
-  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'synthetic ticket' } }, ...HERMETIC)), 'ask');
+  // clean tracker write: pass an explicit all-off auto-approve override, since trackerWrite is default-ON
+  // (MBI-110) — this asserts the ASK path when NOT auto-approved. (Redaction still DENYs the PHI case above.)
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', { fields: { description: 'synthetic ticket' } }, ...HERMETIC, {})), 'ask');
 });
 
 test('ship grant suppresses the outward ASK (one approval covers the batch) but NEVER DENY/redaction', () => {
-  // clean outward CONTENT write (editJiraIssue still ASKs; comments now defer per MBI-67): no grant → ASK; grant → defer
-  assert.strictEqual(action(decide('mcp__atlassian__editJiraIssue', { fields: { description: 'PR #42 up' } }, undefined, false)), 'ask');
-  assert.strictEqual(decide('mcp__atlassian__editJiraIssue', { fields: { description: 'PR #42 up' } }, undefined, true), null);
+  // clean outward CONTENT write that still ASKs by default — use a NON-tracker MCP write (a GitHub MCP
+  // create), since tracker writes now auto-approve by default (MBI-110) and comments defer (MBI-67):
+  // no grant → ASK; grant → defer.
+  assert.strictEqual(action(decide('mcp__github__create_issue', { title: 'x', body: 'PR #42 up' }, undefined, false)), 'ask');
+  assert.strictEqual(decide('mcp__github__create_issue', { title: 'x', body: 'PR #42 up' }, undefined, true), null);
   // gh pr create (outward ASK, NOT gate-gated) under a grant → defer; without → ASK
   assert.strictEqual(action(decide('Bash', { command: 'gh pr create --title x --body "clean summary"' }, undefined, false)), 'ask');
   assert.strictEqual(decide('Bash', { command: 'gh pr create --title x --body "clean summary"' }, undefined, true), null);
@@ -222,14 +226,25 @@ test('commit on a base branch ASKs; feature branch / initial commit defer', () =
   assert.strictEqual(decideCommitGuard('git commit -m x', null), null);
   // non-commit command → defer even on a base branch
   assert.strictEqual(decideCommitGuard('git status', onMain), null);
-  // wired through decide() with injected state
+  // wired through decide() with injected state. onMain → ASK from the base-branch guard, independent of the
+  // commit-review flag. onFeature → this repo sets commit.autoCommit=true in its OWN project.json (MBI-108
+  // opt-out), so the per-commit review defers here. The default-ASK behavior is covered hermetically by the
+  // decideCommitReview test below (explicit policy), so this integration line doesn't hard-code disk config.
   assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onMain)), 'ask');
   assert.strictEqual(decide('Bash', { command: 'git commit -m x' }, onFeature), null);
 });
 
+test('decideCommitReview (MBI-108): default asks for a dev review before committing; autoCommit opts out', () => {
+  assert.strictEqual(action(decideCommitReview('git commit -m "feat: x"', {})), 'ask');           // default = ask
+  assert.strictEqual(decideCommitReview('git commit -m "feat: x"', { autoCommit: true }), null);   // opt out → silent
+  assert.strictEqual(decideCommitReview('git commit -m "feat: x"', { review: false }), null);      // alias opt out
+  assert.strictEqual(decideCommitReview('git status', {}), null);                                  // not a commit → defer
+  assert.strictEqual(decideCommitReview('echo hi', {}), null);
+});
+
 test('decide() routes by tool_name; unknown tools defer', () => {
   assert.strictEqual(action(decide('Bash', { command: 'git push' }, ...HERMETIC)), 'ask');
-  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', {}, ...HERMETIC)), 'ask');
+  assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', {}, ...HERMETIC, {})), 'ask'); // {} = all-off override (trackerWrite is default-ON)
   assert.strictEqual(decide('Read', { file_path: '/x' }, ...HERMETIC), null);
   assert.strictEqual(decide('Edit', {}, ...HERMETIC), null);
 });

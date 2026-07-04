@@ -156,6 +156,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   convention** (sets `commit.conventional:false` if they consistently use a different style) but **elevates the
   absence of one** — inconsistent/low-quality history keeps the gate on and is flagged as an improvement, not
   mirrored.
+- **ASK → a commit (dev-review checkpoint)**: by **default the agent asks before every commit** so a human
+  reviews the staged diff — the AI shouldn't auto-commit unseen. Approving commits; opt a repo into
+  auto-commit with **`commit.autoCommit:true`** in `.health-harness/project.json` (`/start` records the
+  choice; default is ask). Base-branch + message guards run first, so this is the catch-all "did a human
+  see this?" step. (`hooks/outward-guard.js` `decideCommitReview`.)
 - **ASK → a commit with no linked Jira ticket** (overridable per commit): `commit.requireTicket` is **ON by
   default** — a commit whose ticket isn't resolvable from the **branch or the message** ASKs ("commit
   anyway?") rather than DENYing (the agent can't invent a ticket). Approving proceeds for that commit; set
@@ -166,7 +171,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 - **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
   **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
   has no fingerprint, so you run the gate green or *consciously* approve an UNVERIFIED ship. No gate at all →
-  ASK + flagged unverified (never a silent skip). NOT suppressed by the ship grant. (`bin/gate-evidence.js`.)
+  ASK + flagged unverified (never a silent skip). NOT suppressed by the ship grant. A green run captured **just
+  before a commit carries over to the new commit** (the tree is unchanged), so the normal *green → commit* flow
+  ships verified without a redundant re-run; any source edit after the green invalidates that carry-over. Only a
+  gate whose **exit code actually reflects the gate** is recorded — a gate buried mid-chain (`npm test; tail …`)
+  or piped (`… | tee`) is not, so run it as its own command. (`bin/gate-evidence.js`.)
 - **DENY → redaction egress gate** (no human): the **outbound content** of a text egress (a `gh pr`/`issue`
   body, a Jira/Linear MCP write) is scanned with the deterministic profile-driven scanner *before* it leaves.
   A **PHI/PII/secret literal** → hard-blocked with the offending **classes** (never the value) so the agent
@@ -191,9 +200,23 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 - **DEFER** (untouched): reads, local/reversible work (a well-formed `git commit` on a feature branch,
   branch, tests, the scanner).
 
+**Per-gate auto-approve — skip the *asking*, never the *gate* (`wall.autoApprove`, MBI-110).** Each gate's
+ASK can be silenced with a flag in `.health-harness/project.json` → `wall.autoApprove.<gate>`. **Default-on
+set (the two pure-friction gates): `trackerWrite`** (Jira/Linear **create/edit/link** — redaction still blocks
+PHI in the write; transitions/comments/worklogs already defer) **and `commit`** (the per-commit review, also
+via `commit.autoCommit`). Everything else still **ASKs** until a repo opts in: `push` · `pr` · `infra` ·
+`shipUnverified` (the gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `baseBranchCommit`. Any
+default-on gate can be turned back **off** per repo (`wall.autoApprove.trackerWrite: false`). **Auto-approve
+suppresses only the human prompt — it never skips the gate's check** (gate-evidence still fingerprints
+pass/fail, criteria are still computed and *recorded*) and it **never** silences a **DENY**: catastrophic
+commands, PHI/secret **redaction**, and the commit-message **format** block still fire regardless.
+Destructive-local deletes (`rm -rf`, `reset --hard`) are deliberately **not** auto-approvable.
+(`hooks/outward-guard.js` `wallAutoApprove`/`suppressAsk`.)
+
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
-your approval, the catastrophic ones are blocked outright, commit messages are format-gated, and PHI/secret
-literals are blocked at egress — all deterministically. Tested in `test/outward-guard.test.js`.
+your approval (unless you've consciously auto-approved that gate), the catastrophic ones are blocked
+outright, commit messages are format-gated, and PHI/secret literals are blocked at egress — all
+deterministically. Tested in `test/outward-guard.test.js` + `test/wall-autoapprove.test.js`.
 
 **One approval per publish, not one per step.** `/ship` shows a single **verbatim outbound preview** (PR
 title+body, status from→to, the exact comment, the worklog + how it was derived); on your approval it sets a
@@ -305,6 +328,7 @@ bin/session-context.js       # SessionStart hook — injects status + runs the d
 bin/usage-log.js             # metadata-only usage events → ~/.health-harness/usage/; `emit` CLI for hygiene signals (+ test/)
 bin/issue-switch-nudge.js    # smart-zone reminder: UNRELATED new ticket in a heavy session → suggest a clean one (+ test/)
 bin/error-safety.js          # flags stack traces / raw errors / err.message leaked to the USER (send/json) — logs, not responses (+ test/)
+bin/local-ignores.js         # ensures .gitignore excludes align/prd dev-local working notes (criteria manifest stays tracked) (+ test/)
 bin/ticketless-nudge.js      # soft once/session reminder when work starts with no linked Jira ticket (+ test/)
 bin/issue-graph.js           # deterministic Jira relatedness (parent/epic/links) so related work keeps context (+ test/)
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
