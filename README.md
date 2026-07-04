@@ -156,6 +156,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   convention** (sets `commit.conventional:false` if they consistently use a different style) but **elevates the
   absence of one** — inconsistent/low-quality history keeps the gate on and is flagged as an improvement, not
   mirrored.
+- **ASK → a commit (dev-review checkpoint)**: by **default the agent asks before every commit** so a human
+  reviews the staged diff — the AI shouldn't auto-commit unseen. Approving commits; opt a repo into
+  auto-commit with **`commit.autoCommit:true`** in `.health-harness/project.json` (`/start` records the
+  choice; default is ask). Base-branch + message guards run first, so this is the catch-all "did a human
+  see this?" step. (`hooks/outward-guard.js` `decideCommitReview`.)
 - **ASK → a commit with no linked Jira ticket** (overridable per commit): `commit.requireTicket` is **ON by
   default** — a commit whose ticket isn't resolvable from the **branch or the message** ASKs ("commit
   anyway?") rather than DENYing (the agent can't invent a ticket). Approving proceeds for that commit; set
@@ -166,7 +171,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 - **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
   **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
   has no fingerprint, so you run the gate green or *consciously* approve an UNVERIFIED ship. No gate at all →
-  ASK + flagged unverified (never a silent skip). NOT suppressed by the ship grant. (`bin/gate-evidence.js`.)
+  ASK + flagged unverified (never a silent skip). NOT suppressed by the ship grant. A green run captured **just
+  before a commit carries over to the new commit** (the tree is unchanged), so the normal *green → commit* flow
+  ships verified without a redundant re-run; any source edit after the green invalidates that carry-over. Only a
+  gate whose **exit code actually reflects the gate** is recorded — a gate buried mid-chain (`npm test; tail …`)
+  or piped (`… | tee`) is not, so run it as its own command. (`bin/gate-evidence.js`.)
 - **DENY → redaction egress gate** (no human): the **outbound content** of a text egress (a `gh pr`/`issue`
   body, a Jira/Linear MCP write) is scanned with the deterministic profile-driven scanner *before* it leaves.
   A **PHI/PII/secret literal** → hard-blocked with the offending **classes** (never the value) so the agent

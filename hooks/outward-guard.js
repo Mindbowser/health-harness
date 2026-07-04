@@ -172,6 +172,18 @@ function suppressAsk(decision, auto) {
   return decision;
 }
 
+// ── commit-review gate → ASK before a commit lands (dev reviews the diff) ──────
+// The agent shouldn't auto-commit without a human seeing the diff (MBI-108). Opt out per project with
+// commit.autoCommit=true (or commit.review=false), OR via the `commit` auto-approve gate — which is
+// **default-ON** (MBI-110), so out of the box this defers unless a repo sets `wall.autoApprove.commit=false`.
+// Runs after the base-branch + message guards in decide(); the catch-all "did a human see this?" step.
+function decideCommitReview(command, policy) {
+  if (!COMMIT_RE.test(String(command || ''))) return null;
+  const p = policy !== undefined ? policy : commitPolicy();
+  if (p.autoCommit === true || p.review === false) return null; // explicit opt-in to auto-commit → silent
+  return { action: 'ask', why: 'commit_review', gate: 'commit', reason: 'health-harness wall: commit review — review the staged diff before this commit lands. Approve to commit, or set commit.autoCommit=true / wall.autoApprove.commit to let the agent commit without asking.' };
+}
+
 function decideCommitMessage(command, policy, branch) {
   const bad = checkCommitMessage(extractCommitMessage(command), policy !== undefined ? policy : commitPolicy(), branch);
   if (!bad) return null;
@@ -193,7 +205,7 @@ function decideGateEvidence(command, cwd, stateOverride) {
   if (!st) { try { st = require('../bin/gate-evidence.js').currentState(cwd || process.cwd()); } catch { return null; } }
   if (!st || st.state === 'verified') return null; // real passing gate for this commit → no extra prompt
   if (st.state === 'no-gate') return { action: 'ask', gate: 'shipUnverified', reason: 'health-harness wall: no automated gate in this repo — this push is UNVERIFIED. Establish a gate (characterization tests) or approve to ship unverified.' };
-  return { action: 'ask', gate: 'shipUnverified', reason: `health-harness wall: no captured PASSING gate run for this commit (${String(st.sha).slice(0, 12)}) — run the gate green first, or approve to ship unverified. (Blocks a hallucinated "it's green".)` };
+  return { action: 'ask', gate: 'shipUnverified', reason: `health-harness wall: no captured PASSING gate run for this commit (${String(st.sha).slice(0, 12)}) — run the gate green first (as its OWN command, not buried in a \`;\`/\`|\` chain, so its exit code is captured; a green run just before committing carries over to the commit), or approve to ship unverified. (Blocks a hallucinated "it's green".)` };
 }
 
 // ── criterion-coverage gate → DENY an acceptance criterion with no test (agent self-corrects); defer→ASK ─
@@ -350,7 +362,8 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       const gs = gitState !== undefined ? gitState : gitProbe();
       return sa(dropAsk(bash))                          // outward ASK: grant- and gate-flag-suppressible
         || sa(decideCommitGuard(cmd, gs))              // base-branch commit → ASK (baseBranchCommit)
-        || sa(decideCommitMessage(cmd, undefined, gs && gs.branch)); // format DENY kept; no-ticket ASK (commitTicket)
+        || sa(decideCommitMessage(cmd, undefined, gs && gs.branch)) // format DENY kept; no-ticket ASK (commitTicket)
+        || sa(decideCommitReview(cmd));                // per-commit review → ASK (commit gate, default-ON) — MBI-108/110
     }
     if (String(toolName).startsWith('mcp__')) {
       const red = decideRedactionMcp(toolName, toolInput, cwd); // PHI → DENY, NEVER suppressed (no sa)
@@ -361,7 +374,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, gitProbe, baseBranches, wallAutoApprove, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, gitProbe, baseBranches, wallAutoApprove, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

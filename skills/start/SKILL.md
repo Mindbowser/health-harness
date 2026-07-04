@@ -64,6 +64,11 @@ ingest a handover. It also makes sure the compliance profile is set, which every
        it with zero input; `/ship` self-heals it if the workflow ever changes.
    - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
      commits, PRs, and the harness usage metrics); set it if it's missing or personal.
+   - **Commit-review mode (MBI-108) — settle it once.** By default the wall **ASKs before every commit** so a
+     dev reviews the diff (the agent shouldn't auto-commit unseen). Confirm the team's preference: keep the
+     default (ask), or opt into unattended auto-commit with **`commit.autoCommit:true`** in
+     `.health-harness/project.json`. Record the choice here so `/tdd` behaves as the team expects; it's
+     committed, so teammates inherit it. Changeable later.
    - **Publish path (get commits to the remote + open the PR) — settle it here so `/ship` is one command
      later.** `/ship` **auto-detects**: it prefers a real `git push` (keeps your commit history) and falls
      back to a credential-free GitHub MCP. Make sure one is ready:

@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { eventsFromHook, sanitize, fingerprintUnits, commitFingerprint, ticketTransitions, inferStageRoles, dedupeTransitions } = require('../bin/usage-log.js');
+const { eventsFromHook, sanitize, fingerprintUnits, commitFingerprint, ticketTransitions, inferStageRoles, dedupeTransitions, gateResultTrustworthy } = require('../bin/usage-log.js');
 
 test('sanitize keeps only allowlisted scalar fields (metadata-only guarantee)', () => {
   // 'tool' allows tool, ok — drop everything else, incl. any content/object
@@ -29,6 +29,22 @@ test('PostToolUseFailure on a gate command → gate_run fail', () => {
   const f = eventsFromHook('posttoolfail', { tool_name: 'Bash', tool_input: { command: 'npm test' } });
   assert.deepStrictEqual(f[0], { event: 'tool', data: { tool: 'Bash', ok: false } });
   assert.deepStrictEqual(f[1], { event: 'gate_run', data: { result: 'fail' } });
+});
+
+test('gateResultTrustworthy (MBI-97): exit code reflects the gate only when the gate is the last command', () => {
+  assert.ok(gateResultTrustworthy('npm test'));                          // plain
+  assert.ok(gateResultTrustworthy('npm test > /tmp/gate.log 2>&1'));      // AC-1: redirect keeps the gate's exit code
+  assert.ok(gateResultTrustworthy('cd app && npm test'));                 // gate is the LAST link → exit reflects it
+  assert.ok(!gateResultTrustworthy('npm test; tail -4 /tmp/gate.log'));   // gate not last → aggregate exit is tail's
+  assert.ok(!gateResultTrustworthy('npm test 2>&1 | tee /tmp/gate.log')); // piped → exit is tee's, masks failures
+  assert.ok(!gateResultTrustworthy('echo hi'));                          // not a gate at all
+});
+
+test('eventsFromHook (MBI-97): a redirected gate still records; a mid-chain gate does not (untrustworthy exit)', () => {
+  const red = eventsFromHook('posttooluse', { tool_name: 'Bash', tool_input: { command: 'npm test > /tmp/g.log 2>&1' } });
+  assert.ok(red.some((e) => e.event === 'gate_run' && e.data.result === 'pass'));
+  const chain = eventsFromHook('posttooluse', { tool_name: 'Bash', tool_input: { command: 'npm test; tail -4 /tmp/g.log' } });
+  assert.ok(!chain.some((e) => e.event === 'gate_run'));
 });
 
 test('command hook → command name (no content)', () => {

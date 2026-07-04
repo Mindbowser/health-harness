@@ -67,6 +67,8 @@ test('decide: push ASK auto-approves via push flag; the outward push and the gat
   assert.strictEqual(decide('Bash', { command: 'git push origin x' }, ...H, { shipUnverified: true, push: true }), null);
 });
 
-test('wallAutoApprove: empty when unset; a live grant/override never comes from this repo main config', () => {
-  assert.deepStrictEqual(wallAutoApprove(process.cwd()), {}); // this repo (main) sets no wall.autoApprove / autoCommit
+test('wallAutoApprove: reads EXPLICIT config only; this repo sets commit.autoCommit → maps to { commit: true }', () => {
+  // MBI-108 set commit.autoCommit=true in this repo's project.json; wallAutoApprove maps it to the commit gate.
+  // It does NOT fold in AUTO_APPROVE_DEFAULTS (that layering happens in decide()), so trackerWrite isn't here.
+  assert.deepStrictEqual(wallAutoApprove(process.cwd()), { commit: true });
 });
