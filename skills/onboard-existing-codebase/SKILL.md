@@ -11,9 +11,14 @@ it — their conventions, their architecture, their IP.
 
 ## Process
 
-1. **Comprehend the repo.** Read the README + run/setup docs, the package manifest(s), entry points,
-   and the main modules. Map: the stack, how to run it, how to test it, the high-level architecture,
-   the key seams (where you'd safely make a change), and the conventions in use.
+1. **Comprehend the repo FROM ITS OWN DOCS FIRST — before proposing any change.** Discover the project's
+   documentation deterministically (don't just skim the README and miss the rest):
+   `node "…/bin/doc-scan.js"` → a ranked list (README → existing `CLAUDE.md`/`AGENTS.md`/`.cursorrules` →
+   ARCHITECTURE → CONTRIBUTING/SETUP → `/docs` → ADRs). **Read them top-down**, plus the package
+   manifest(s), entry points, and main modules. If the repo references an external **wiki/Confluence/Notion**
+   (a link in the README or docs), note it and fetch what's accessible rather than ignoring it. Map: the
+   stack, how to run it, how to test it, the high-level architecture, the key seams, and the conventions in
+   use. **Produce a short project-understanding summary** — it seeds the repo `CLAUDE.md` in step 2.
 2. **Create OR augment the repo `CLAUDE.md` — never clobber.** If a `CLAUDE.md` (or `ARCHITECTURE.md`,
    `AiRules.md`) **already exists**, READ it and **add only what's missing** (e.g. a short harness
    section: the gate command, compliance profile, seams) — do not overwrite a rich existing doc. If none
