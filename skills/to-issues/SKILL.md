@@ -49,6 +49,11 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
      double as the `/tdd` behavior list) + **links to the spec** (`prd.md`, `api-contract.md`).
    - **Create the vertical slices as sub-tasks**, tagged per repo (FE/BE/infra), each with "what to
      build" (end-to-end behavior), its acceptance criteria, and **blocked-by** links (incl. cross-repo).
+     **One sub-task = one behavior = one deterministic test.** Each sub-task's criteria should describe a
+     *single* observable behavior, stated as one testable Given/When/Then, so a single pass/fail
+     deterministically confirms it. Check it: `node "…/bin/behavior-count.js" "<the criteria text>"` counts
+     the When→Then pairs — **>1 means multiple behaviors are bundled → split the sub-task** (that count also
+     feeds the `behaviors` signal for the size heuristic). Don't over-split a genuinely single behavior.
    - Tag with the sprint id; mark that it went through the harness.
    - **Idempotent:** match existing issues by key and *update* them — never create duplicates on a re-run.
    - If no tracker MCP is connected, write `issues.md` and print the issues for manual entry instead.
