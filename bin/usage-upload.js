@@ -141,7 +141,7 @@ async function runUpload(opts = {}) {
   try { state = JSON.parse(fs.readFileSync(statePath(dir, path), 'utf8')); } catch { /* none */ }
   const hv = harnessVersion(); // current installed version — drives flush-on-version-change + stamped on the upload
   // opts.force bypasses the throttle → the immediate feedback flush (S4). Everything else still self-throttles.
-  if (!shouldUpload(state, Date.now(), cfg.intervalMs, hv, opts.force)) return { sent: 0, completedAll: true };
+  if (!shouldUpload(state, Date.now(), cfg.intervalMs, hv, opts.force)) return { sent: 0, completedAll: true }; // tz-safe: Date.now() is a throttle-interval epoch compare, never a user-facing time conversion
 
   let files = [];
   try {
