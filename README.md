@@ -447,8 +447,10 @@ Devs report harness bugs / friction / ideas with **`/harness-feedback`** — the
 channel (every other event above stays metadata-only). It captures categorized feedback, enriches it
 (version · git/Jira identity · usage context), PHI-scans it, and **reflects back the exact enriched payload for
 the dev to confirm or edit** — *nothing is stored or sent until they agree* (they can edit any field, go
-anonymous, or cancel). On agreement it writes a local record and delivers it promptly via the existing
-uploader (a forced flush, not the ~2h throttle); a failed send stays retryable.
+anonymous, or cancel). **If git identity can't be resolved** (run outside a configured git repo), it won't
+send unattributed — the dev confirms an email or explicitly goes anonymous, never a silent null. On
+agreement it writes a local record and delivers it promptly via the existing uploader (a forced flush, not
+the ~2h throttle); a failed send stays retryable.
 
 It lands as a distinct **`feedback`** record. **The metadata-only guarantee for every other telemetry event is
 unchanged** — `feedback` is the sole, consented, free-text record type, which is exactly why it is PHI-scanned

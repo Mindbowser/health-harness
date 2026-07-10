@@ -452,7 +452,7 @@ module.exports = { eventsFromHook, sanitize, ALLOW, GATE_RE, gateResultTrustwort
   graphMetaFor, emitIssueMeta, fingerprintUnits, commitFingerprint, hash16,
   ticketTransitions, dedupeTransitions, inferStageRoles, emitTicketTransitions,
   statusCatFromJira, mergeStatusCategories, transitionsFromIssue, emitTransitionsFromJira,
-  buildFeedbackRecord, enrichFeedback, feedbackRedactionHits, feedbackBlockMessage, previewFeedback, appendFeedback, gitName };
+  buildFeedbackRecord, enrichFeedback, feedbackRedactionHits, feedbackBlockMessage, previewFeedback, appendFeedback, gitName, resolveFeedbackIdentity };
 
 // ── writer ────────────────────────────────────────────────────────────────────
 function usageDir() {
@@ -509,15 +509,30 @@ function repoId() {
  * appendEvent — deliberately NOT metadata-only (feedback IS the consented text channel; PHI is scanned out
  * upstream in S2). A missing feedbackId is minted here so the dev can quote it and a later resend reuses it
  * (same id → dedup-safe). Best-effort: returns null and never throws on any failure. */
+/** Pure: resolve a feedback record's identity (MBI-125). An explicit dev-confirmed `data.userId` (email)
+ * wins; else the git email via `gitEmailFn`. `anonymous:true` → deliberately null (a chosen state).
+ * `unresolved` = not anonymous AND no email anywhere → the caller MUST confirm an email or choose anonymous
+ * before sending, so feedback is never stored/shipped silently unattributed (which filed it under `unknown/`). */
+function resolveFeedbackIdentity(data, gitEmailFn) {
+  const d = data || {};
+  if (d.anonymous === true) return { userId: null, unresolved: false };
+  const explicit = typeof d.userId === 'string' ? d.userId.trim() : '';
+  const email = explicit || (gitEmailFn ? gitEmailFn() : gitEmail()) || '';
+  return { userId: email || null, unresolved: !email };
+}
+
 /** Impure (git/os, no FS write): scan → enrich → build the feedback record and return it WITHOUT storing it
  * (MBI-116 / S5). This is the reflect-back seam: the /harness-feedback skill previews the EXACT enriched
  * payload for the dev to confirm/edit before anything is persisted or sent. Returns {ok:false, blocked, hits}
- * when the PHI-scan (S2) trips — so a hit is shown BEFORE consent, not after storing. Clean → {ok:true, record}. */
+ * when the PHI-scan (S2) trips — so a hit is shown BEFORE consent, not after storing. Clean → {ok:true, record,
+ * identityUnresolved} — `identityUnresolved` tells the skill to confirm an email / anonymous first (MBI-125). */
 function previewFeedback(data, opts) {
   const d = data || {};
   const hits = feedbackRedactionHits(d, (opts || {}).cfg); // PHI-scan gate (S2) runs at preview time too
   if (hits.length) return { ok: false, blocked: true, hits };
   const anon = d.anonymous === true;
+  const emailFn = (opts || {}).gitEmail || gitEmail;      // injectable for tests
+  const identity = resolveFeedbackIdentity(d, emailFn);   // MBI-125: explicit email > git email; flags unresolved
   // resolve the tool-derivable context (git/os) once, then enrich; agent/runtime fields (accountId,
   // ccVersion, model, sessionId, command, phase) ride the payload from the /harness-feedback skill.
   const branch = (() => { try { return require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim(); } catch { return ''; } })();
@@ -529,8 +544,8 @@ function previewFeedback(data, opts) {
   };
   const enriched = enrichFeedback(d, ctx);
   const feedbackId = d.feedbackId || require('crypto').randomUUID();
-  const rec = buildFeedbackRecord(enriched, { id: feedbackId, ts: new Date().toISOString(), userId: anon ? null : gitEmail(), repoId: repoId(), hv: harnessVersion() }); // tz-safe: internal UTC log stamp (toISOString), never a user-facing time conversion
-  return { ok: true, record: rec };
+  const rec = buildFeedbackRecord(enriched, { id: feedbackId, ts: new Date().toISOString(), userId: identity.userId, repoId: repoId(), hv: harnessVersion() }); // tz-safe: internal UTC log stamp (toISOString), never a user-facing time conversion
+  return { ok: true, record: rec, identityUnresolved: identity.unresolved };
 }
 
 function appendFeedback(data, opts) {
@@ -539,6 +554,11 @@ function appendFeedback(data, opts) {
     // the skill reflected back at preview time. A blocked/errored preview is returned as-is (nothing written).
     const res = previewFeedback(data, opts);
     if (!res.ok) return res;
+    // MBI-125: never persist/ship an unattributed record silently. If identity is unresolved and the dev
+    // didn't explicitly choose anonymous, refuse — the skill must confirm an email or set anonymous first.
+    if (res.identityUnresolved && (data || {}).anonymous !== true) {
+      return { ok: false, identityUnresolved: true, message: 'feedback identity unresolved — confirm an email (pass userId) or set anonymous:true' };
+    }
     const fs = require('fs'), path = require('path');
     const dir = usageDir();
     fs.mkdirSync(dir, { recursive: true });
@@ -606,7 +626,7 @@ if (require.main === module) {
       const res = previewFeedback(payload);
       if (res.blocked) process.stdout.write(JSON.stringify(feedbackBlockMessage(res.hits)));
       else if (!res.ok) throw new Error(res.error || 'feedback preview failed');
-      else process.stdout.write(JSON.stringify({ ok: true, preview: res.record }));
+      else process.stdout.write(JSON.stringify({ ok: true, preview: res.record, identityUnresolved: !!res.identityUnresolved }));
     } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
     process.exit(0);
   }
@@ -617,6 +637,9 @@ if (require.main === module) {
       const res = appendFeedback(payload);
       if (res.blocked) {
         process.stdout.write(JSON.stringify(feedbackBlockMessage(res.hits))); // PHI-safe: count + classes only
+      } else if (res.identityUnresolved) {
+        // MBI-125: refused because identity is unresolved — the skill must confirm an email or set anonymous.
+        process.stdout.write(JSON.stringify({ ok: false, identityUnresolved: true, message: res.message }));
       } else if (!res.ok) { throw new Error(res.error || 'feedback write failed'); }
       else { process.stdout.write(JSON.stringify({ ok: true, feedbackId: res.record.feedbackId, id: res.record.id })); }
     } catch (e) { process.stdout.write(JSON.stringify({ ok: false, error: String((e && e.message) || e) })); }
