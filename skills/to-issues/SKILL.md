@@ -61,6 +61,10 @@ Wait for a yes/redirect; if the sprint is unset, have the user run `/sprint set 
      feeds the `behaviors` signal for the size heuristic). Don't over-split a genuinely single behavior.
    - Tag with the sprint id; mark that it went through the harness.
    - **Idempotent:** match existing issues by key and *update* them — never create duplicates on a re-run.
+   - **Honor an existing human breakdown (MBI-120):** if the story **already has sub-tasks** (a PM/human sliced
+     it), do **not** create a parallel set — map criteria **1:1 onto the existing sub-tasks** and reconcile
+     (check with `bin/subtask-coverage.js`). Only *create* sub-tasks when there are none. If the existing
+     sub-tasks look wrong, propose a change to them (Scope fork) rather than silently adding alongside.
    - If no tracker MCP is connected, write `issues.md` and print the issues for manual entry instead.
    - **Formatting:** write **clean Markdown with `contentFormat:"markdown"`, never Jira wiki markup**
      (`h2.`/`{{}}`); keep it ticket-sized (bold labels + bullets, not big `#` headings). See

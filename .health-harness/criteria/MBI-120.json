@@ -1,0 +1,25 @@
+{
+  "issueKey": "MBI-120",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given a Story that already has sub-tasks, When /align (BUILD-PREP) runs, Then it authors acceptance criteria mapped 1:1 onto those existing sub-tasks (each sub-task its own Given/When/Then) and does not create a broader independent story-level set or duplicate sub-tasks."
+    },
+    {
+      "id": "AC-2",
+      "text": "Given existing sub-tasks that look out-of-order, wrong, or incomplete, When /align runs, Then it surfaces a Scope judgment-fork proposing the specific change and confirms with the human before proceeding, never silently overriding."
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a Story with no sub-tasks, When /align runs, Then today's behavior is unchanged (criteria on the story; /to-issues slices if multi-part)."
+    },
+    {
+      "id": "AC-4",
+      "text": "Given sub-task keys plus criteria tagged by sub-task, When bin/subtask-coverage.js runs, Then it returns uncovered sub-tasks (no criterion) and stray criteria (mapped to no sub-task); /align is wired to call it and nudge."
+    },
+    {
+      "id": "AC-5",
+      "text": "/align and /to-issues and README synced; bin/subtask-coverage.js has a sibling test; gate green."
+    }
+  ]
+}
