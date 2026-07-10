@@ -16,7 +16,7 @@ model-invocable). Drive off the **item type** (it's in Jira); there's no logged-
 | Item type | What `/align` does (calls, in order) | Output |
 |---|---|---|
 | **Epic** | understand the feature → `/to-prd` (writes the PRD to the **epic**) → propose **child user stories** with criteria → on confirm, create them in Jira | epic PRD + stories |
-| **Story** | understand → write criteria to the **story**; if multi-part, `/to-issues` to slice into sub-tasks | story criteria (+ sub-tasks) |
+| **Story** | understand → write criteria to the **story**. **Already has sub-tasks?** map ACs **1:1 onto them** (step 3c) — don't invent a broader set. Else if multi-part, `/to-issues` to slice into sub-tasks | story criteria (+ sub-tasks) |
 | **Bug / Task** | light, proportional understanding → write criteria to the **ticket** → "ready for `/tdd`" | ticket criteria; no PRD/slicing |
 
 So one entry handles everything: epic gets the full PRD→stories breakdown; a bug gets just criteria.
@@ -89,6 +89,17 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    them into the criteria (e.g. "handles ≥1000 items; paginates at 25"). This is what lets `/tdd` test at
    volume instead of N=3 (`bin/scale-hints.js` turns it into the boundary cases). Don't force it on
    non-collection work.
+3c. **Existing sub-tasks → map ACs 1:1 onto them, don't invent a broader set (MBI-120).** If the Story
+   **already has sub-tasks** (a human/PM breakdown — read them from Jira; you have the issue open), **honor
+   that breakdown**: ground each sub-task in the code and author its **own** Given/When/Then, so every AC maps
+   to exactly one sub-task. Do **NOT** generate a separate, broader story-level set or create duplicate
+   sub-tasks (`/to-issues` slicing is for stories with *no* sub-tasks — step 4b of this table). Check the
+   mapping deterministically: `node "…/bin/subtask-coverage.js" '{"subtasks":[<keys>],"criteria":[{"subtask":"<KEY>","text":"<AC>"}, …]}'`
+   → **`uncovered`** = sub-tasks still owed a criterion; **`stray`** = ACs mapping to nothing valid (the
+   broader-set smell). Resolve both before writing. **If the sub-tasks themselves look wrong** — out of order,
+   mis-scoped, or missing one — do **not** silently work around them: surface a **judgment-point fork (Scope)**
+   (`Your call —`), propose the specific sub-task change, and confirm with the human before proceeding. A Story
+   with **no** sub-tasks is unchanged (criteria on the story; `/to-issues` if multi-part).
 4. **Healthcare check → write the compliance criteria.** Note any PHI/PII the item touches + the repo
    `compliance-profile`. **If it touches ePHI (`hipaa`), the acceptance criteria MUST include the logging
    NFRs as Given/When/Then** — author them here so `/tdd` just builds-and-verifies them like any other

@@ -334,6 +334,7 @@ bin/scale-hints.js           # boundary + volume test cases (empty/single/page-b
 bin/contract-guard.js        # keeps red/green honest when BE/FE split — a slice on an unbuilt API needs a contract test or a block (+ test/)
 bin/behavior-count.js        # counts When→Then behaviors in a task's criteria → one task = one behavior = one test (+ test/)
 bin/slice-size.js            # flags an oversized/clubbed issue at slice time (1 behavior / ≤5 ACs / ≤400 diff) → split it (+ test/)
+bin/subtask-coverage.js      # story already has sub-tasks? checks /align maps ACs 1:1 onto them (uncovered/stray), not a broader set (+ test/)
 bin/concerns.js              # extensible cross-cutting-concern registry (timezone/audit/errors/scale/…) surfaced at /align + /tdd (+ test/)
 bin/test-detect.js           # detects the test framework + gate command so onboard/scaffold can prove a red→green loop (+ test/)
 bin/doc-scan.js              # ranks a repo's own docs (README/CLAUDE.md/ARCHITECTURE/docs) so onboard reads them first (+ test/)
