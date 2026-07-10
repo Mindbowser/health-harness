@@ -35,12 +35,20 @@ before anything is stored or sent. Nothing leaves the machine without an explici
    - **PHI/PII/secret hit →** it returns `{ ok:false, blocked:true, redactionHits, classes, message }` — the
      message names only the count + class, never the matched value. Surface it, tell the dev to edit the text,
      and re-preview. **Nothing is stored or sent.**
+   - **Identity unresolved →** when `git config user.email` is unset (the dev ran this outside a configured
+     git repo), the preview returns `identityUnresolved: true` and a null `userId`. **Do NOT send it silently
+     unattributed** (it would file under `unknown` and lose the reporter). In step 3, make the dev choose:
+     **confirm their email** (add it as `userId` in the payload, then re-preview) or **explicitly send
+     anonymously**. `emit-feedback` will **refuse** an unresolved, non-anonymous record as a backstop.
 
 3. **Get consent — a structured decision, not free text.** Present an `AskUserQuestion` with **"Approve &
    send" first**, then **"Edit"** (change any field — type/summary/detail/severity — via *Other*, then
    re-preview and re-ask), **"Send anonymously"** (set `anonymous:true` → drops git identity + Jira account,
    re-preview so they see the anonymized payload), and **"Cancel"** (store and send **nothing**). Nothing is
    stored or sent until the dev agrees to the final record.
+   - **If `identityUnresolved`:** don't offer plain "Approve & send" — the record has no attribution. Offer
+     **"Add my email"** (dev provides it via *Other* → set as `userId` → re-preview; the flag clears) and
+     **"Send anonymously"** (deliberate `anonymous:true`) so the null is always a *choice*, never an accident.
 
 4. **On agreement — write, then deliver promptly.** Use the SAME payload (same `feedbackId`) so the stored
    record is exactly what was reflected back:

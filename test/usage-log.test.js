@@ -423,7 +423,8 @@ test('[AC-2] appendFeedback PASSES clean text — the record is written and retu
   const home = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'hh-s2ok-'));
   const oldHome = process.env.HOME; process.env.HOME = home;
   try {
-    const res = appendFeedback({ type: 'idea', summary: 'add a dark mode toggle', detail: 'nice to have', feedbackId: 'fb-ok' }, { cfg: HIPAA_CFG });
+    // inject gitEmail — this test isolates HOME (drops the global gitconfig), so resolve identity deterministically
+    const res = appendFeedback({ type: 'idea', summary: 'add a dark mode toggle', detail: 'nice to have', feedbackId: 'fb-ok' }, { cfg: HIPAA_CFG, gitEmail: () => 'dev@mindbowser.com' });
     assert.strictEqual(res.ok, true);
     assert.strictEqual(res.record.event, 'feedback');
     assert.strictEqual(res.record.id, 'fb-ok');
