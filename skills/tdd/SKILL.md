@@ -59,6 +59,12 @@ cost of each side, and recommend. Everything reversible/low-stakes: just decide 
 is a signal the alignment was thin; note it for the next `/align`, don't drip-feed questions now. (This is
 about *decisions*; the next rule is about being *blocked*.)
 
+**Stay inside the ticket's module boundaries (MBI-124).** If `/align` declared boundaries on the ticket,
+the wall **ASKs before any edit/delete outside them** (including a subagent's). Treat that prompt as a real
+**Scope** interrupt: if the out-of-bounds change is genuinely needed, approve it (the file is added to the
+boundary list and won't ask again) — but prefer keeping the slice inside scope. Don't reach for unrelated
+files "while you're here." Check what's fenced with `node "…/bin/boundary-check.js" list`.
+
 ## When stuck — stop and surface, never flail or cheat
 
 If a step won't go green after **~2–3 genuine attempts**, or you're thrashing, **STOP and surface to the

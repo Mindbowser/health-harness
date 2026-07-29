@@ -168,6 +168,14 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   code edit** of a session with no linked ticket (once/session, non-blocking) so work lands on-board before
   the commit. "Off-board work" needs no new telemetry — it's the **absence of `issueKey`** on the existing
   commit/gate events. (`bin/ticketless-nudge.js`.)
+- **ASK → an edit/delete outside the ticket's module boundaries** (MBI-124, opt-in): a ticket can declare the
+  files it may touch (`/align` writes `boundaries: [globs]` onto its criteria manifest). The wall then ASKs
+  before an **Edit/Write/MultiEdit — or a mutating Bash (`rm`/`mv`/`sed -i`/redirect/`git rm`)** — lands on a
+  path **outside** that list, so an agent (or a subagent) can't silently modify/delete an unrelated file.
+  Approving **promotes the file into the boundary list** (a *living list*, via a PostToolUse record) so it
+  isn't re-asked; the manifest ends up an accurate record of everything the ticket touched. **Dormant unless
+  boundaries are declared** (behaviour unchanged). Auto-approvable per repo with `wall.autoApprove.boundary`.
+  (`bin/boundary-check.js`, `hooks/outward-guard.js` `decideBoundary`.)
 - **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
   **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
   has no fingerprint, so you run the gate green or *consciously* approve an UNVERIFIED ship. No gate at all →
@@ -205,7 +213,8 @@ ASK can be silenced with a flag in `.health-harness/project.json` → `wall.auto
 set (the two pure-friction gates): `trackerWrite`** (Jira/Linear **create/edit/link** — redaction still blocks
 PHI in the write; transitions/comments/worklogs already defer) **and `commit`** (the per-commit review).
 Everything else still **ASKs** until a repo opts in: `push` · `pr` · `infra` · `shipUnverified` (the
-gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `baseBranchCommit`. Any default-on gate can be
+gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `baseBranchCommit` · `boundary` (the
+module-boundary guard). Any default-on gate can be
 turned back **off** per repo — e.g. `wall.autoApprove.commit: false` makes the agent **ask before every
 commit**, `wall.autoApprove.trackerWrite: false` re-enables the Jira-write prompt. Every gate is tuned the
 same one way (`wall.autoApprove.<gate>`) — there is no separate `commit.autoCommit`. **Auto-approve
@@ -335,6 +344,7 @@ bin/contract-guard.js        # keeps red/green honest when BE/FE split — a sli
 bin/behavior-count.js        # counts When→Then behaviors in a task's criteria → one task = one behavior = one test (+ test/)
 bin/slice-size.js            # flags an oversized/clubbed issue at slice time (1 behavior / ≤5 ACs / ≤400 diff) → split it (+ test/)
 bin/subtask-coverage.js      # story already has sub-tasks? checks /align maps ACs 1:1 onto them (uncovered/stray), not a broader set (+ test/)
+bin/boundary-check.js        # module-boundary guard — ASK before an edit/delete outside the ticket's declared boundaries; approve → living list grows (+ test/)
 bin/concerns.js              # extensible cross-cutting-concern registry (timezone/audit/errors/scale/…) surfaced at /align + /tdd (+ test/)
 bin/test-detect.js           # detects the test framework + gate command so onboard/scaffold can prove a red→green loop (+ test/)
 bin/doc-scan.js              # ranks a repo's own docs (README/CLAUDE.md/ARCHITECTURE/docs) so onboard reads them first (+ test/)
