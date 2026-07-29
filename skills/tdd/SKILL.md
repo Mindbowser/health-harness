@@ -65,6 +65,23 @@ the wall **ASKs before any edit/delete outside them** (including a subagent's). 
 boundary list and won't ask again) — but prefer keeping the slice inside scope. Don't reach for unrelated
 files "while you're here." Check what's fenced with `node "…/bin/boundary-check.js" list`.
 
+**Log guesses, don't bury them — the open-questions ledger (MBI-129).** The interrupt gate says *proceed*
+on a decision that's reversible/inferable — but if that decision is one **the acceptance criteria don't
+determine** (a genuine gap, not routine latitude), proceeding on your best guess and saying nothing bakes an
+unratified assumption into the code. Instead:
+- **For each AC, ask "what did I have to assume that the criteria don't answer?"** — a quick pass up front for
+  the obvious ones, plus log-as-you-go for what surfaces while building.
+- **Attended + load-bearing right now** → raise it as an interrupt (`Your call —`) and resolve on the spot.
+- **Non-blocking, or you're AFK** → **proceed on your best recommendation AND log it**, don't silently guess:
+  `node "…/bin/open-questions.js" add <KEY> --ac AC-N --q "<the question>" --options "a|b" --rec "<your pick>" --files "<files you built on this assumption>"`.
+  The entry stays **open** = a guess awaiting the human's ratification.
+- **The bar is genuine under-specification** — the criteria truly don't decide it (case-sensitivity a spec
+  omitted, an unstated timeout, two valid readings of an AC). **Do NOT log routine choices** (variable names,
+  obvious idioms) — that's the over-asking failure the interrupt gate exists to prevent.
+- At **push**, the wall ASKs you to **ratify every open entry** (the openQuestions gate) — so a guess is never
+  shipped silently, and the build is never stopped for it. Record `--files` so that if your answer differs
+  from the recommendation, the reconcile step can revise exactly those files. Check yours: `open-questions.js list`.
+
 ## When stuck — stop and surface, never flail or cheat
 
 If a step won't go green after **~2–3 genuine attempts**, or you're thrashing, **STOP and surface to the
