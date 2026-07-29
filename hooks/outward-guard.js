@@ -379,7 +379,19 @@ function decideBoundary(toolName, toolInput, cwd, override) {
   return null;
 }
 
-function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOverride, gateOverride, autoApproveOverride, boundsOverride) {
+// ── open-questions gate → ASK at push to ratify unresolved guesses (MBI-129/134) ─────────────────────────
+// During /tdd the agent logs decisions the criteria didn't determine and proceeds on its recommendation,
+// leaving them `open`. At push, any open entry ASKs (gate:'openQuestions') so a human consciously ratifies
+// the guesses before they ship. Deterministic: it's a file/status check, no judgment. Dormant when the
+// ledger is empty/absent. `override` = a ledger object for hermetic tests; else read for the branch's ticket.
+function decideOpenQuestions(command, cwd, override) {
+  if (!PUBLISH_RE.test(String(command || ''))) return null; // only gates a push
+  const oq = require('../bin/open-questions.js');
+  const ledger = override !== undefined ? override : oq.currentLedger(cwd || process.cwd()).ledger;
+  return oq.gateDecision(ledger);
+}
+
+function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOverride, gateOverride, autoApproveOverride, boundsOverride, oqOverride) {
   try {
     const cwd = process.cwd();
     // A live ship grant means the user already approved this publish batch on /ship's verbatim preview — so
@@ -401,6 +413,8 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       if (bound) return bound;
       const gate = sa(decideGateEvidence(cmd, cwd, gateOverride)); // ship-without-passing-gate → ASK (shipUnverified), NOT grant-suppressed
       if (gate) return gate;
+      const oq = sa(decideOpenQuestions(cmd, cwd, oqOverride)); // unresolved guesses at push → ASK (openQuestions)
+      if (oq) return oq;
       const cov = sa(decideCriteriaCoverage(cmd, cwd, covOverride)); // uncovered → DENY (kept) / defer → ASK (criteriaDefer)
       if (cov) return cov;
       const det = sa(decideCriteriaDetect(cmd, cwd, detectOverride)); // compliance backstop → ASK (complianceBackstop) / recorded-convention DENY (kept)
@@ -423,7 +437,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
