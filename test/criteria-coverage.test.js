@@ -1,7 +1,21 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { parseCriteriaIds, referencedIds, coverage, buildManifest } = require('../bin/criteria-coverage.js');
+const { parseCriteriaIds, referencedIds, coverage, buildManifest, writeManifest } = require('../bin/criteria-coverage.js');
+
+test('MBI-124: writeManifest preserves a separately-authored boundaries list when rewriting criteria', () => {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-bound-'));
+  const p = path.join(root, '.health-harness', 'criteria', 'MBI-124.json');
+  // seed a manifest that already carries boundaries
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify({ issueKey: 'MBI-124', criteria: [], boundaries: ['src/router/**'] }));
+  // rewriting criteria must NOT wipe the boundaries
+  writeManifest(root, 'MBI-124', [{ text: 'AC one' }]);
+  const after = JSON.parse(fs.readFileSync(p, 'utf8'));
+  assert.deepEqual(after.boundaries, ['src/router/**']);
+  assert.equal(after.criteria.length, 1);
+});
 const { ALLOW, sanitize } = require('../bin/usage-log.js');
 
 test('parseCriteriaIds: pulls deduped criterion ids from a manifest (object or JSON string)', () => {
