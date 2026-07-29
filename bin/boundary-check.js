@@ -72,8 +72,12 @@ function bashTargets(command) {
   // git mv / mv / cp — path-looking args
   m = cmd.match(/\b(?:git\s+)?(?:mv|cp)\b([^\n|&;]*)/i);
   if (m) m[1].trim().split(/\s+/).forEach((t) => { const u = unquote(t); if (looksPath(u)) out.add(u); });
-  // sed -i … FILE — last path-looking token
-  if (/\bsed\b[^\n]*\s-i\b/.test(cmd)) tokens.map(unquote).filter(looksPath).forEach((u) => out.add(u));
+  // sed -i … FILE — path-looking tokens, EXCLUDING the sed script itself (MBI-133). A sed substitution/
+  // transform (`s/a/b/`, `y/a/b/`) is a command letter immediately followed by a `/` or `,` delimiter — a
+  // real path never has a delimiter right after its FIRST character (`src/…` has `sr…`, `/Users/…` leads
+  // with `/` and no command letter). Requiring the leading letter keeps absolute paths as valid targets.
+  const isSedScript = (t) => /^\d*[a-z]['"]?[/,]/.test(t);
+  if (/\bsed\b[^\n]*\s-i\b/.test(cmd)) tokens.map(unquote).filter((t) => looksPath(t) && !isSedScript(t)).forEach((u) => out.add(u));
   // output redirects  > file  or  >> file
   let r; const redir = /(?:>>?|\btee\b)\s*("[^"]+"|'[^']+'|\S+)/g;
   while ((r = redir.exec(cmd))) { const u = unquote(r[1]); if (looksPath(u)) out.add(u); }

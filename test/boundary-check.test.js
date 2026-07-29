@@ -99,6 +99,13 @@ test('bashTargets: best-effort file targets from mutating commands', () => {
   assert.deepEqual(bashTargets('rm -rf src/service/old.js').sort(), ['src/service/old.js']);
   assert.deepEqual(bashTargets('mv a/one.js b/two.js').sort(), ['a/one.js', 'b/two.js']);
   assert.ok(bashTargets('sed -i "" s/x/y/ config/app.json').includes('config/app.json'));
+  // MBI-133: the sed SCRIPT (s/x/y) must NOT be mistaken for a file path — only the real file is a target
+  assert.deepEqual(bashTargets('sed -i "" s/a/b/ src/router/index.js'), ['src/router/index.js']);
+  assert.ok(!bashTargets('sed -i "" s/a/b/ config/other.json').includes('s/a/b'));
+  // …and the fix must NOT drop an ABSOLUTE-path target (the live hook passes absolute file_paths, which
+  // start with `/` like a sed address — they must still be captured, not excluded)
+  assert.deepEqual(bashTargets('sed -i "" s/a/b/ /repo/config/other.json'), ['/repo/config/other.json']);
+  assert.deepEqual(bashTargets("sed -i '' s/a/b/g /repo/src/router/index.js"), ['/repo/src/router/index.js']);
   assert.ok(bashTargets('echo hi > dist/out.txt').includes('dist/out.txt'));
   assert.ok(bashTargets('git rm src/gone.js').includes('src/gone.js'));
   // a read-only command yields no targets
