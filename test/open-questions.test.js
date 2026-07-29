@@ -3,8 +3,38 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs'), path = require('path'), os = require('os');
 const {
-  emptyLedger, addQuestion, resolveQuestion, openCount, gateDecision,
+  emptyLedger, addQuestion, resolveQuestion, openCount, gateDecision, reconcileNeeded, statusBadge,
 } = require('../bin/open-questions.js');
+
+// ── MBI-136: reconcile — resolved answers that differ from the recommendation the code was built on ──
+test('[MBI-136] reconcileNeeded: resolved+differs → flagged with builtFiles; resolved+matches / open → excluded', () => {
+  let led = emptyLedger('COH-1');
+  led = addQuestion(led, { ac: 'AC-1', question: 'case?', recommendation: 'ci', builtFiles: ['src/dedup.js'] });   // Q-1
+  led = addQuestion(led, { ac: 'AC-2', question: 'trim?', recommendation: 'yes', builtFiles: ['src/norm.js'] });   // Q-2
+  led = addQuestion(led, { ac: 'AC-3', question: 'blank?', recommendation: 'reject' });                            // Q-3 (stays open)
+  led = resolveQuestion(led, 'Q-1', { answer: 'exact' });   // differs from rec 'ci' → needs reconcile
+  led = resolveQuestion(led, 'Q-2', { answer: 'yes' });     // matches rec → no reconcile
+  const need = reconcileNeeded(led);
+  assert.equal(need.length, 1);
+  assert.equal(need[0].id, 'Q-1');
+  assert.deepEqual(need[0].builtFiles, ['src/dedup.js']);
+  assert.equal(need[0].answer, 'exact');
+  assert.equal(need[0].recommendation, 'ci');
+  // whitespace-insensitive match → not a reconcile
+  let led2 = resolveQuestion(addQuestion(emptyLedger('X'), { ac: 'AC-1', question: 'q', recommendation: ' ci ' }), 'Q-1', { answer: 'ci' });
+  assert.deepEqual(reconcileNeeded(led2), []);
+});
+
+// ── MBI-137: visibility — the statusline/session badge string ──
+test('[MBI-137] statusBadge: hidden at 0, shows the count (with a ? marker) when >0', () => {
+  assert.equal(statusBadge(0), '');            // hidden when nothing open
+  assert.equal(statusBadge(null), '');
+  const b = statusBadge(3);
+  assert.match(b, /3/);
+  assert.match(b, /\?|open/i);                 // reads as open-questions
+  // plain (no-ANSI) variant is stable for the session line
+  assert.equal(statusBadge(2, { plain: true }).includes('['), false);
+});
 
 // ── pure schema + counting ────────────────────────────────────────────────────
 test('[AC-1] addQuestion assigns Q-N ids, defaults status open; the TOOL owns the shape (not the LLM)', () => {

@@ -182,7 +182,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   **push**, any still-`open` entry ASKs, listing them, so you consciously ratify (or answer + revise) before it
   ships. Deterministic: a file/status check, resolved off the branch key — no judgment in the gate. **Dormant**
   when the ledger is empty/absent. Auto-approvable with `wall.autoApprove.openQuestions`. (`hooks/outward-guard.js`
-  `decideOpenQuestions`.)
+  `decideOpenQuestions`.) **You see them before push, too:** the SessionStart line shows `❓N open questions`
+  when you return to a repo, and an **opt-in statusline badge** keeps a live count in the CLI — add
+  `"statusLine": { "type": "command", "command": "node <plugin>/bin/open-questions.js statusline" }` to
+  `settings.json`. On resolve, `open-questions.js reconcile` lists any answer that differed from what was built
+  (with the files to revise); a matching answer is just ratified. (`bin/open-questions.js`, `bin/session-context.js`.)
 - **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
   **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
   has no fingerprint, so you run the gate green or *consciously* approve an UNVERIFIED ship. No gate at all →

@@ -70,6 +70,26 @@ function gateDecision(ledger) {
   };
 }
 
+/** Pure: resolved entries whose answer DIFFERS from the recommendation the code was built on (MBI-136).
+ * These are the ones the reconcile step must revise — each carries its `builtFiles` so the revision is
+ * precise. Whitespace-insensitive compare. Matched answers (ratified guesses) and still-open entries excluded. */
+function reconcileNeeded(ledger) {
+  if (!ledger || !Array.isArray(ledger.questions)) return [];
+  const norm = (v) => String(v == null ? '' : v).trim();
+  return ledger.questions
+    .filter((q) => q.status === 'resolved' && q.answer != null && norm(q.answer) !== norm(q.recommendation))
+    .map((q) => ({ id: q.id, ac: q.ac, answer: q.answer, recommendation: q.recommendation, builtFiles: Array.isArray(q.builtFiles) ? q.builtFiles : [] }));
+}
+
+/** Pure: the visibility badge for the statusline / session line (MBI-137). Empty when 0 (hidden). Amber
+ * ANSI by default; `{plain:true}` for the injected session line (no escape codes). */
+function statusBadge(count, opts) {
+  const n = Number(count) || 0;
+  if (n <= 0) return '';
+  const text = `❓${n} open`; // ❓N open
+  return (opts && opts.plain) ? text : `[33m${text}[0m`; // amber
+}
+
 // ── impure: file + branch resolution ──────────────────────────────────────────
 function ledgerPath(root, key) { return require('path').join(root || process.cwd(), '.health-harness', 'open-questions', `${key}.json`); }
 
@@ -103,7 +123,7 @@ function currentLedger(cwd) {
 }
 
 module.exports = {
-  emptyLedger, addQuestion, resolveQuestion, openCount, gateDecision,
+  emptyLedger, addQuestion, resolveQuestion, openCount, gateDecision, reconcileNeeded, statusBadge,
   ledgerPath, readLedger, writeLedger, addToFile, resolveInFile, branchKey, currentLedger,
 };
 
@@ -136,7 +156,16 @@ if (require.main === module) {
       : `No open questions on ${key}.`);
   } else if (mode === 'count') {
     console.log(String(openCount(currentLedger(root).ledger)));
+  } else if (mode === 'reconcile') {
+    // resolved answers that diverged from the recommendation → what /tdd must revise (with the files)
+    const { key, ledger } = currentLedger(root);
+    const need = reconcileNeeded(ledger);
+    if (!key || need.length === 0) { console.log(key ? `Nothing to reconcile on ${key} — all answers matched the recommendation.` : 'No ticket on this branch.'); process.exit(0); }
+    console.log(need.map((n) => `${n.id} [${n.ac || '?'}] answer "${n.answer}" ≠ rec "${n.recommendation}" → revise: ${n.builtFiles.join(', ') || '(no files recorded)'}`).join('\n'));
+  } else if (mode === 'statusline') {
+    // opt-in Claude Code statusline segment (settings.json statusLine → this command). Amber ❓N when >0.
+    process.stdout.write(statusBadge(openCount(currentLedger(root).ledger)));
   } else {
-    console.log('usage: open-questions add <KEY> --ac AC-1 --q "…" [--options "a|b"] [--rec "…"] [--files "f1,f2"] | resolve <Q-id> --answer "…" [--by email] | list | count');
+    console.log('usage: open-questions add <KEY> --ac AC-1 --q "…" [--options "a|b"] [--rec "…"] [--files "f1,f2"] | resolve <Q-id> --answer "…" [--by email] | list | count | reconcile | statusline');
   }
 }

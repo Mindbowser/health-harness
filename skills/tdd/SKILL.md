@@ -81,6 +81,12 @@ unratified assumption into the code. Instead:
 - At **push**, the wall ASKs you to **ratify every open entry** (the openQuestions gate) — so a guess is never
   shipped silently, and the build is never stopped for it. Record `--files` so that if your answer differs
   from the recommendation, the reconcile step can revise exactly those files. Check yours: `open-questions.js list`.
+- **Resolve & reconcile when the answers come in (MBI-136).** When the human answers (at the push prompt, or
+  earlier via `open-questions.js resolve <id> --answer "…"`), each entry flips to `resolved` with the answer
+  recorded (so it's never re-asked). Then: `open-questions.js reconcile` lists every entry whose **answer ≠
+  the recommendation you built on**, with the exact `builtFiles` to change. For each, **revise those files
+  (and their tests) to match the answer, and get the gate green** before the push clears. An answer that
+  **matches** your recommendation needs no rework — it was already built that way; the human just ratified it.
 
 ## When stuck — stop and surface, never flail or cheat
 

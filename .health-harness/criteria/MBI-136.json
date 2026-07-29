@@ -1,0 +1,9 @@
+{
+  "issueKey": "MBI-136",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given open questions, when the human answers (CLI), then the entry is resolved with the answer recorded; when the answer differs from the recommendation, reconcileNeeded flags it with the built files to revise."
+    }
+  ]
+}
