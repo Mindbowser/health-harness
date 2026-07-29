@@ -1,7 +1,34 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+
+// ── MBI-134: open-questions push gate (ASK to ratify unresolved guesses before ship) ──
+test('decideOpenQuestions: push with an open question ASKs (openQuestions gate); resolved/none/non-push defer', () => {
+  const oq = require('../bin/open-questions.js');
+  const open = oq.addQuestion(oq.emptyLedger('COH-1'), { ac: 'AC-1', question: 'case-sensitive?', recommendation: 'ci' });
+  // a push while a question is open → ASK, tagged for the openQuestions gate
+  const d = decideOpenQuestions('git push origin HEAD', '.', open);
+  assert.strictEqual(action(d), 'ask');
+  assert.strictEqual(d.gate, 'openQuestions');
+  assert.match(d.reason, /case-sensitive\?/);
+  // resolved → no block
+  assert.strictEqual(decideOpenQuestions('git push', '.', oq.resolveQuestion(open, 'Q-1', { answer: 'ci' })), null);
+  // no open questions → no block
+  assert.strictEqual(decideOpenQuestions('git push', '.', oq.emptyLedger('COH-1')), null);
+  // not a push → defer even with an open question
+  assert.strictEqual(decideOpenQuestions('git status', '.', open), null);
+});
+
+test('open-questions gate is auto-approvable via wall.autoApprove.openQuestions', () => {
+  const oq = require('../bin/open-questions.js');
+  const open = oq.addQuestion(oq.emptyLedger('COH-1'), { ac: 'AC-1', question: 'q?', recommendation: 'r' });
+  // ASKs by default (shipGrant=true drops the /ship push-redirect ASK, isolating the openQuestions gate;
+  // openQuestions is intentionally NOT grant-suppressed, like gate-evidence)…
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, { branch: 'feature/COH-1-x' }, true, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }, {}, undefined, open)), 'ask');
+  // …silenced when the gate is auto-approved
+  assert.strictEqual(decide('Bash', { command: 'git push' }, { branch: 'feature/COH-1-x' }, true, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }, { openQuestions: true }, undefined, open), null);
+});
 
 // ── MBI-124: module-boundary guard (ASK before an out-of-bounds edit / mutating bash) ──
 test('decideBoundary: out-of-bounds edit ASKs (boundary gate); in-bounds + dormant defer', () => {

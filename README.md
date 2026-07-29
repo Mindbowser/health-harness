@@ -176,6 +176,13 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   isn't re-asked; the manifest ends up an accurate record of everything the ticket touched. **Dormant unless
   boundaries are declared** (behaviour unchanged). Auto-approvable per repo with `wall.autoApprove.boundary`.
   (`bin/boundary-check.js`, `hooks/outward-guard.js` `decideBoundary`.)
+- **ASK → ship with unresolved "open questions"** (MBI-129, opt-in): during build the agent logs decisions the
+  acceptance criteria didn't determine — proceeding on its recommendation and leaving each `open` = a guess
+  awaiting your ratification (`bin/open-questions.js`, ledger `.health-harness/open-questions/<KEY>.json`). At
+  **push**, any still-`open` entry ASKs, listing them, so you consciously ratify (or answer + revise) before it
+  ships. Deterministic: a file/status check, resolved off the branch key — no judgment in the gate. **Dormant**
+  when the ledger is empty/absent. Auto-approvable with `wall.autoApprove.openQuestions`. (`hooks/outward-guard.js`
+  `decideOpenQuestions`.)
 - **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
   **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
   has no fingerprint, so you run the gate green or *consciously* approve an UNVERIFIED ship. No gate at all →
@@ -214,7 +221,7 @@ set (the two pure-friction gates): `trackerWrite`** (Jira/Linear **create/edit/l
 PHI in the write; transitions/comments/worklogs already defer) **and `commit`** (the per-commit review).
 Everything else still **ASKs** until a repo opts in: `push` · `pr` · `infra` · `shipUnverified` (the
 gate-evidence ASK) · `criteriaDefer` · `complianceBackstop` · `baseBranchCommit` · `boundary` (the
-module-boundary guard). Any default-on gate can be
+module-boundary guard) · `openQuestions` (the open-questions ratification gate). Any default-on gate can be
 turned back **off** per repo — e.g. `wall.autoApprove.commit: false` makes the agent **ask before every
 commit**, `wall.autoApprove.trackerWrite: false` re-enables the Jira-write prompt. Every gate is tuned the
 same one way (`wall.autoApprove.<gate>`) — there is no separate `commit.autoCommit`. **Auto-approve
@@ -352,6 +359,7 @@ bin/behavior-count.js        # counts When→Then behaviors in a task's criteria
 bin/slice-size.js            # flags an oversized/clubbed issue at slice time (1 behavior / ≤5 ACs / ≤400 diff) → split it (+ test/)
 bin/subtask-coverage.js      # story already has sub-tasks? checks /align maps ACs 1:1 onto them (uncovered/stray), not a broader set (+ test/)
 bin/boundary-check.js        # module-boundary guard — ASK before an edit/delete outside the ticket's declared boundaries; approve → living list grows (+ test/)
+bin/open-questions.js        # "I don't know yet" ledger + push gate — ratify unresolved guesses before ship (+ test/)
 bin/concerns.js              # extensible cross-cutting-concern registry (timezone/audit/errors/scale/…) surfaced at /align + /tdd (+ test/)
 bin/test-detect.js           # detects the test framework + gate command so onboard/scaffold can prove a red→green loop (+ test/)
 bin/doc-scan.js              # ranks a repo's own docs (README/CLAUDE.md/ARCHITECTURE/docs) so onboard reads them first (+ test/)

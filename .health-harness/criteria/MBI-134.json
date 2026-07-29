@@ -1,0 +1,9 @@
+{
+  "issueKey": "MBI-134",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given .health-harness/open-questions/<KEY>.json has an entry with status:open for the branch ticket, when a push is attempted, then the wall ASKs and lists the open questions; when all resolved or no file, push proceeds."
+    }
+  ]
+}
