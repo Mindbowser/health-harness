@@ -1,0 +1,13 @@
+{
+  "issueKey": "MBI-139",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "statusline-setup status/enable is idempotent, preserves other settings keys, and refuses to clobber a foreign statusLine (reports conflict)"
+    },
+    {
+      "id": "AC-2",
+      "text": "session start shows a throttled non-blocking nudge to enable the statusline when off + onboarded; /start offers enablement"
+    }
+  ]
+}

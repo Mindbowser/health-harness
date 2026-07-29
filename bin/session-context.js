@@ -137,6 +137,18 @@ async function updateNudge() {
   return '';
 }
 
+/** Impure: throttle the statusline-enable nudge to at most once/day (records the show on a cache file). */
+function statuslineNudgeDue() {
+  try {
+    const fs = require('fs'), path = require('path'), os = require('os');
+    const cache = path.join(os.homedir(), '.health-harness', 'usage', '.statusline-nudge.json');
+    try { const c = JSON.parse(fs.readFileSync(cache, 'utf8')); if (Date.now() - c.ts < 86400000) return false; } catch { /* none/stale */ }
+    fs.mkdirSync(path.dirname(cache), { recursive: true });
+    fs.writeFileSync(cache, JSON.stringify({ ts: Date.now() }));
+    return true;
+  } catch { return true; }
+}
+
 if (require.main === module) {
   (async () => {
     const userMsgs = [];                   // shown to the USER (systemMessage) — nudges + coaching
@@ -157,9 +169,14 @@ if (require.main === module) {
       // MBI-137: surface unresolved open questions on the current ticket (visibility for AFK builds)
       try {
         const oq = require('./open-questions.js');
-        const oqLine = openQuestionsLine(oq.openCount(oq.currentLedger(process.cwd()).ledger));
+        const openCount = oq.openCount(oq.currentLedger(process.cwd()).ledger);
+        const oqLine = openQuestionsLine(openCount);
         if (oqLine) userMsgs.push(oqLine);
-      } catch { /* open-questions optional → skip */ }
+        // MBI-139: nudge to enable the statusline (throttled once/day) when it's off + the repo is onboarded
+        const ss = require('./statusline-setup.js');
+        const nudge = ss.enablementNudge({ status: ss.currentStatus().status, onboarded: !!project, openCount });
+        if (nudge && statuslineNudgeDue()) userMsgs.push(nudge);
+      } catch { /* open-questions/statusline optional → skip */ }
       const ctx = buildContext({
         compliance: compliance && compliance.profile,
         sprint: readLine(path.join(dir, 'current-sprint')),

@@ -91,6 +91,13 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    - **Your role (once per person)** — if `~/.health-harness/role` is unset, ask whether they're **PM/BA** or
      **Engineer** and run `/role <answer>` to persist it. This sets `/align`'s default mode so it never has to
      guess. (Set once; it carries across all repos.)
+   - **Offer the open-questions statusline (once per person, MBI-139).** Check `node "…/bin/statusline-setup.js"
+     status`. If it's `disabled`, **offer to enable it** (an `AskUserQuestion` — it writes `~/.claude/
+     settings.json`, so it's consent-gated): on yes, run `node "…/bin/statusline-setup.js" enable` (creates the
+     version-stable wrapper + adds `statusLine`, idempotent, **never clobbers a user's own** — a `conflict` is
+     reported, not overwritten) and tell them to **restart** so it shows. It puts a live `❓N open` badge (+
+     ticket) in the CLI. If `enabled` → say so and skip; if `conflict` → note they already have a custom
+     statusLine and leave it. Org-managed installs may already have it via managed settings — then it's `enabled`.
 5. **Route to the front door:**
 
    | Archetype | Front door |
