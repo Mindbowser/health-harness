@@ -58,14 +58,40 @@ const REVERSIBLE_MCP = /transition|worklog|comment/i;
 // very first commit (no HEAD history yet) is allowed; not-a-git-repo defers.
 const COMMIT_RE = /\bgit\s+commit\b/i;
 
+// ── config resolution — walk UP to the repo root (MBI-130) ────────────────────
+// The wall's config (.health-harness/project.json) lives at the repo root, but a session can run from any
+// subdirectory. Reading only from the exact cwd meant a subdir session silently lost the config → the wall
+// fell back to defaults (incl. commit auto-approved) with no signal. All config readers resolve through this
+// bounded walk-up so a nested cwd still finds the root manifest.
+function findConfigPath(startDir) {
+  const fs = require('fs'), path = require('path');
+  let dir = startDir || process.cwd();
+  for (let i = 0; i < 64; i++) { // bounded — stops at the filesystem root regardless
+    const p = path.join(dir, '.health-harness', 'project.json');
+    try { if (fs.existsSync(p)) return p; } catch { /* unreadable → keep walking */ }
+    const parent = path.dirname(dir);
+    if (parent === dir) break; // reached the root
+    dir = parent;
+  }
+  return null;
+}
+
+/** Read + parse the nearest .health-harness/project.json walking up from `dir`. null if none/unreadable. */
+function readProjectConfig(dir) {
+  try {
+    const p = findConfigPath(dir);
+    if (!p) return null;
+    return JSON.parse(require('fs').readFileSync(p, 'utf8'));
+  } catch { return null; }
+}
+
 function baseBranches(dir) {
   const bases = new Set(['main', 'master']);
-  try {
-    const fs = require('fs'), path = require('path');
-    const j = JSON.parse(fs.readFileSync(path.join(dir, '.health-harness', 'project.json'), 'utf8'));
+  const j = readProjectConfig(dir);
+  if (j) {
     const b = (j.git && j.git.baseBranch) || j.defaultBranch;
     if (b) bases.add(String(b));
-  } catch { /* no project.json → just main/master */ }
+  }
   return [...bases];
 }
 
@@ -132,11 +158,8 @@ function checkCommitMessage(message, policy, branch) {
 
 /** Read project.json `commit` policy (defaults: conventional on, requireTicket off). */
 function commitPolicy(dir) {
-  try {
-    const fs = require('fs'), path = require('path');
-    const j = JSON.parse(fs.readFileSync(path.join(dir || process.cwd(), '.health-harness', 'project.json'), 'utf8'));
-    return j.commit || {};
-  } catch { return {}; }
+  const j = readProjectConfig(dir);
+  return (j && j.commit) || {};
 }
 
 // ── per-gate auto-approve (skip the ASK, never the gate/DENY) — MBI-110 ────────
@@ -156,11 +179,8 @@ const AUTO_APPROVE_DEFAULTS = { trackerWrite: true, commit: true };
 // defaults folded in, so callers can tell "unset" from "set false"). decide() layers AUTO_APPROVE_DEFAULTS
 // under this. This is the ONE place gates (incl. `commit`) are tuned — there is no separate commit.autoCommit.
 function wallAutoApprove(dir) {
-  try {
-    const fs = require('fs'), path = require('path');
-    const j = JSON.parse(fs.readFileSync(path.join(dir || process.cwd(), '.health-harness', 'project.json'), 'utf8'));
-    return { ...((j.wall && j.wall.autoApprove) || {}) };
-  } catch { return {}; }
+  const j = readProjectConfig(dir);
+  return { ...((j && j.wall && j.wall.autoApprove) || {}) };
 }
 
 /** Pure: silence an ASK whose `gate` is auto-approved. DENY, untagged ASKs, and non-matching ASKs pass
@@ -403,7 +423,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, gitProbe, baseBranches, wallAutoApprove, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

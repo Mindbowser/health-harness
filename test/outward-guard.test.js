@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
 
 // ── MBI-124: module-boundary guard (ASK before an out-of-bounds edit / mutating bash) ──
 test('decideBoundary: out-of-bounds edit ASKs (boundary gate); in-bounds + dormant defer', () => {
@@ -33,6 +33,34 @@ test('decideBoundary is auto-approvable via wall.autoApprove.boundary (suppresse
 });
 
 const action = (d) => (d ? d.action : null);
+
+// ── MBI-130: config resolution walks up to the repo root (subdir no longer silently loses the gate) ──
+test('MBI-130: the wall config resolves from a subdirectory by walking up to the root', () => {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-walkup-'));
+  fs.mkdirSync(path.join(root, '.health-harness'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.health-harness', 'project.json'), JSON.stringify({
+    wall: { autoApprove: { commit: false } },
+    commit: { conventional: true, requireTicket: true },
+    git: { baseBranch: 'develop' },
+  }));
+  const deep = path.join(root, 'services', 'api', 'src');
+  fs.mkdirSync(deep, { recursive: true });
+
+  // findConfigPath: locates the root manifest from a nested dir
+  assert.equal(findConfigPath(deep), path.join(root, '.health-harness', 'project.json'));
+
+  // all three readers resolve the ROOT config from the subdir (previously they returned defaults)
+  assert.equal(wallAutoApprove(deep).commit, false, 'commit gate flag must resolve from subdir');
+  assert.equal(commitPolicy(deep).requireTicket, true, 'commit policy must resolve from subdir');
+  assert.ok(baseBranches(deep).includes('develop'), 'base branch must resolve from subdir');
+
+  // no config anywhere up the tree → readers fall back to defaults, findConfigPath returns null (terminates)
+  const orphan = fs.mkdtempSync(path.join(os.tmpdir(), 'hh-noconf-'));
+  assert.equal(findConfigPath(orphan), null);
+  assert.deepEqual(wallAutoApprove(orphan), {});
+  assert.deepEqual(commitPolicy(orphan), {});
+});
 
 // Hermetic override args for decide() routing tests (MBI-72): gitState=undefined, shipGrant=false,
 // covOverride=no-manifest, detectOverride=no-triggers, gateOverride=verified — so routing assertions don't

@@ -222,7 +222,10 @@ suppresses only the human prompt — it never skips the gate's check** (gate-evi
 pass/fail, criteria are still computed and *recorded*) and it **never** silences a **DENY**: catastrophic
 commands, PHI/secret **redaction**, and the commit-message **format** block still fire regardless.
 Destructive-local deletes (`rm -rf`, `reset --hard`) are deliberately **not** auto-approvable.
-(`hooks/outward-guard.js` `wallAutoApprove`/`suppressAsk`.)
+(`hooks/outward-guard.js` `wallAutoApprove`/`suppressAsk`.) The config is resolved by **walking up to the repo
+root** (MBI-130), so a session started in a subdirectory still honours the repo's flags — and if no
+`.health-harness/project.json` is found anywhere up the tree, the session start says so (the wall is running
+on defaults) rather than silently falling back.
 
 So every **outward** action — anything that leaves your machine or mutates a shared system — stops for
 your approval (unless you've consciously auto-approved that gate), the catastrophic ones are blocked

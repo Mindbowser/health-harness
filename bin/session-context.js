@@ -38,6 +38,29 @@ function buildContext(s) {
   return ctx;
 }
 
+/** Impure: the `.health-harness` dir holding project.json, found by walking UP from startDir (MBI-130), or
+ * null. Keeps the session context (and its notices) correct when a session starts in a subdirectory. */
+function harnessConfigDir(startDir) {
+  const fs = require('fs'), path = require('path');
+  let dir = startDir || process.cwd();
+  for (let i = 0; i < 64; i++) { // bounded — terminates at the filesystem root
+    const hh = path.join(dir, '.health-harness');
+    try { if (fs.existsSync(path.join(hh, 'project.json'))) return hh; } catch { /* keep walking */ }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+/** Pure: a one-line USER notice when no project.json was found anywhere up the tree — so "the wall is running
+ * on defaults" is visible rather than silent (MBI-130 AC-3). Returns null when config WAS found. */
+function wallConfigNotice(noConfigFound) {
+  if (!noConfigFound) return null;
+  return '⚠️ Health Harness: no .health-harness/project.json found up the tree — the wall is running on '
+    + 'defaults (commit auto-approved). Run /start to onboard this repo, or add the config at the repo root.';
+}
+
 /** Pure: 1 if a>b, -1 if a<b, 0 equal (semver-ish, three parts). */
 function cmpVersion(a, b) {
   const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0);
@@ -46,7 +69,7 @@ function cmpVersion(a, b) {
   return 0;
 }
 
-module.exports = { buildContext, cmpVersion, CONFIDENTIALITY };
+module.exports = { buildContext, cmpVersion, CONFIDENTIALITY, harnessConfigDir, wallConfigNotice };
 
 // fetch the latest version of the plugin.json on `main`. The repo is PRIVATE, so the unauthenticated
 // raw.githubusercontent URL 403s — try authenticated `gh` first (uses the dev's gh login), then fall back
@@ -92,13 +115,14 @@ async function updateNudge() {
     if (latest) { try { fs.mkdirSync(path.dirname(cacheFile), { recursive: true }); fs.writeFileSync(cacheFile, JSON.stringify({ ts: Date.now(), latest })); } catch { /* ignore */ } }
   }
   if (latest && cmpVersion(latest, installed) > 0) {
-    // Scope-aware: a managed/auto-update install (the MDM/Fleet norm) updates on RESTART — telling those
-    // users to run `/harness-update`/`claude plugin update` fails ("not installed at scope user"). Manual
-    // installs get the explicit command.
+    // Scope-aware: a managed/auto-update install (the MDM/Fleet norm) updates on RESTART. Never tell those
+    // users to run the RAW `claude plugin update` — it fails ("not installed at scope user"). `/harness-update`
+    // (the skill) is safe either way: it detects a managed install and just refreshes the marketplace + restart,
+    // so it's offered as the "pull it now" option in both branches. Manual installs also get the raw command.
     let autoManaged = false;
     try { const vg = require('./version-gate.js'); autoManaged = vg.isAutoManaged(vg.autoManagedSignals()); } catch { /* treat as manual */ }
     const how = autoManaged
-      ? 'Just **restart Claude Code** — auto-update will pick it up.'
+      ? 'Just **restart Claude Code** — auto-update will pick it up (or run `/harness-update` to pull it now).'
       : 'Run `/harness-update`, then restart Claude Code. (Auto-update also catches up on its own, on a delay.)';
     return `⬆️ Update available: Mindbowser Health Harness ${latest} (you're on ${installed}). ${how}`;
   }
@@ -112,12 +136,16 @@ if (require.main === module) {
     try {
       const fs = require('fs');
       const path = require('path');
-      const dir = path.join(process.cwd(), '.health-harness');
+      // Resolve the config dir by walking up (MBI-130): a session started in a subdirectory still finds the
+      // repo-root config, so the injected status + the wall are consistent. Falls back to cwd for the notice.
+      const dir = harnessConfigDir(process.cwd()) || path.join(process.cwd(), '.health-harness');
       const readJSON = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
       const readLine = (p) => { try { return fs.readFileSync(p, 'utf8').split('\n')[0].trim() || null; } catch { return null; } };
 
       const compliance = readJSON(path.join(dir, 'compliance.json'));
       const project = readJSON(path.join(dir, 'project.json'));
+      const notice = wallConfigNotice(!project); // no project.json anywhere → tell the user the wall is on defaults
+      if (notice) userMsgs.push(notice);
       const ctx = buildContext({
         compliance: compliance && compliance.profile,
         sprint: readLine(path.join(dir, 'current-sprint')),
