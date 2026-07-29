@@ -61,6 +61,14 @@ function wallConfigNotice(noConfigFound) {
     + 'defaults (commit auto-approved). Run /start to onboard this repo, or add the config at the repo root.';
 }
 
+/** Pure: a one-line USER notice of unresolved open questions on the current ticket (MBI-137), or null at 0.
+ * Ambient visibility so a dev returning from an AFK build sees pending decisions at session start. */
+function openQuestionsLine(count) {
+  const n = Number(count) || 0;
+  if (n <= 0) return null;
+  return `❓ ${n} open question${n === 1 ? '' : 's'} awaiting your answer on this ticket — \`open-questions.js list\` to see them (they gate the push).`;
+}
+
 /** Pure: 1 if a>b, -1 if a<b, 0 equal (semver-ish, three parts). */
 function cmpVersion(a, b) {
   const pa = String(a || '').split('.').map((n) => parseInt(n, 10) || 0);
@@ -69,7 +77,7 @@ function cmpVersion(a, b) {
   return 0;
 }
 
-module.exports = { buildContext, cmpVersion, CONFIDENTIALITY, harnessConfigDir, wallConfigNotice };
+module.exports = { buildContext, cmpVersion, CONFIDENTIALITY, harnessConfigDir, wallConfigNotice, openQuestionsLine };
 
 // fetch the latest version of the plugin.json on `main`. The repo is PRIVATE, so the unauthenticated
 // raw.githubusercontent URL 403s — try authenticated `gh` first (uses the dev's gh login), then fall back
@@ -146,6 +154,12 @@ if (require.main === module) {
       const project = readJSON(path.join(dir, 'project.json'));
       const notice = wallConfigNotice(!project); // no project.json anywhere → tell the user the wall is on defaults
       if (notice) userMsgs.push(notice);
+      // MBI-137: surface unresolved open questions on the current ticket (visibility for AFK builds)
+      try {
+        const oq = require('./open-questions.js');
+        const oqLine = openQuestionsLine(oq.openCount(oq.currentLedger(process.cwd()).ledger));
+        if (oqLine) userMsgs.push(oqLine);
+      } catch { /* open-questions optional → skip */ }
       const ctx = buildContext({
         compliance: compliance && compliance.profile,
         sprint: readLine(path.join(dir, 'current-sprint')),

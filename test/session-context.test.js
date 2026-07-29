@@ -16,6 +16,15 @@ test('MBI-130: harnessConfigDir walks up to the repo root from a subdirectory', 
   assert.equal(harnessConfigDir(orphan), null);
 });
 
+test('MBI-137: openQuestionsLine shows the count when >0, nothing at 0', () => {
+  const { openQuestionsLine } = require('../bin/session-context.js');
+  assert.equal(openQuestionsLine(0), null);
+  assert.equal(openQuestionsLine(null), null);
+  const l = openQuestionsLine(2);
+  assert.match(l, /2/);
+  assert.match(l, /open question/i);
+});
+
 test('MBI-130: wallConfigNotice warns (visibly) only when no project.json was found', () => {
   assert.equal(wallConfigNotice(false), null);                 // config present → no notice
   const n = wallConfigNotice(true);                            // no config found → one-line notice

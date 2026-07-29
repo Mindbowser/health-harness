@@ -1,0 +1,9 @@
+{
+  "issueKey": "MBI-137",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given open questions on the branch ticket, when a session starts the harness line shows the count, and a statusline badge shows a live count (visible when >0, hidden at 0); none open shows no badge."
+    }
+  ]
+}
