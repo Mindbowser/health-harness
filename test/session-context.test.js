@@ -1,7 +1,27 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { buildContext, cmpVersion, CONFIDENTIALITY } = require('../bin/session-context.js');
+const { buildContext, cmpVersion, CONFIDENTIALITY, harnessConfigDir, wallConfigNotice } = require('../bin/session-context.js');
+
+test('MBI-130: harnessConfigDir walks up to the repo root from a subdirectory', () => {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sc-walkup-'));
+  fs.mkdirSync(path.join(root, '.health-harness'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.health-harness', 'project.json'), '{}');
+  const deep = path.join(root, 'a', 'b', 'c');
+  fs.mkdirSync(deep, { recursive: true });
+  assert.equal(harnessConfigDir(deep), path.join(root, '.health-harness'));
+
+  const orphan = fs.mkdtempSync(path.join(os.tmpdir(), 'sc-none-'));
+  assert.equal(harnessConfigDir(orphan), null);
+});
+
+test('MBI-130: wallConfigNotice warns (visibly) only when no project.json was found', () => {
+  assert.equal(wallConfigNotice(false), null);                 // config present → no notice
+  const n = wallConfigNotice(true);                            // no config found → one-line notice
+  assert.match(n, /default/i);
+  assert.match(n, /wall/i);
+});
 
 test('confidentiality guardrail exists and covers source/internals (model-facing)', () => {
   assert.ok(CONFIDENTIALITY && CONFIDENTIALITY.length > 40);
