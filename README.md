@@ -183,9 +183,11 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   ships. Deterministic: a file/status check, resolved off the branch key — no judgment in the gate. **Dormant**
   when the ledger is empty/absent. Auto-approvable with `wall.autoApprove.openQuestions`. (`hooks/outward-guard.js`
   `decideOpenQuestions`.) **You see them before push, too:** the SessionStart line shows `❓N open questions`
-  when you return to a repo, and an **opt-in statusline badge** keeps a live count in the CLI — add
-  `"statusLine": { "type": "command", "command": "node <plugin>/bin/open-questions.js statusline" }` to
-  `settings.json`. On resolve, `open-questions.js reconcile` lists any answer that differed from what was built
+  when you return to a repo, and an **opt-in statusline** keeps `<dir> · <ticket> · ❓N open` (amber badge)
+  live in the CLI. To enable: drop a tiny version-stable wrapper at `~/.claude/health-harness-statusline.sh`
+  that execs the plugin's `bin/statusline.js` (plugins can't declare a statusline and `statusLine` doesn't
+  expand `${CLAUDE_PLUGIN_ROOT}`, so the wrapper resolves the current installed version), then set
+  `"statusLine": { "type": "command", "command": "~/.claude/health-harness-statusline.sh" }` in `settings.json`. On resolve, `open-questions.js reconcile` lists any answer that differed from what was built
   (with the files to revise); a matching answer is just ratified. (`bin/open-questions.js`, `bin/session-context.js`.)
 - **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
   **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
@@ -364,6 +366,7 @@ bin/slice-size.js            # flags an oversized/clubbed issue at slice time (1
 bin/subtask-coverage.js      # story already has sub-tasks? checks /align maps ACs 1:1 onto them (uncovered/stray), not a broader set (+ test/)
 bin/boundary-check.js        # module-boundary guard — ASK before an edit/delete outside the ticket's declared boundaries; approve → living list grows (+ test/)
 bin/open-questions.js        # "I don't know yet" ledger + push gate — ratify unresolved guesses before ship (+ test/)
+bin/statusline.js           # opt-in composed statusline — <dir> · <ticket> · amber ❓N open badge (+ test/)
 bin/concerns.js              # extensible cross-cutting-concern registry (timezone/audit/errors/scale/…) surfaced at /align + /tdd (+ test/)
 bin/test-detect.js           # detects the test framework + gate command so onboard/scaffold can prove a red→green loop (+ test/)
 bin/doc-scan.js              # ranks a repo's own docs (README/CLAUDE.md/ARCHITECTURE/docs) so onboard reads them first (+ test/)
