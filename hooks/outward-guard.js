@@ -352,7 +352,34 @@ function decideRedactionMcp(tool, toolInput, cwd) {
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
 }
 
-function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOverride, gateOverride, autoApproveOverride) {
+// ── module-boundary gate → ASK before an out-of-bounds edit / mutating bash (MBI-124) ────────────────────
+// A ticket can declare the files it's expected to touch (`boundaries: [globs]` in its criteria manifest). An
+// Edit/Write/MultiEdit — or a mutating Bash (rm/mv/sed -i/redirect/git rm) — to a path OUTSIDE that list ASKs
+// (gate:'boundary'), so an unexpected modify/delete can't land silently. Approving promotes the file into the
+// list (PostToolUse `boundary-check record`) so it isn't re-asked. Dormant when no boundaries are declared
+// (opt-in). `override` = { root, boundaries } for hermetic tests; otherwise resolved from the branch's manifest.
+function decideBoundary(toolName, toolInput, cwd, override) {
+  const bc = require('../bin/boundary-check.js');
+  const resolved = override || bc.loadBoundaries(cwd || process.cwd());
+  const boundaries = (resolved && resolved.boundaries) || [];
+  if (boundaries.length === 0) return null; // dormant → nothing declared to enforce
+  const root = (resolved && resolved.root) || cwd || process.cwd();
+  const targets = toolName === 'Bash' ? bc.bashTargets((toolInput || {}).command) : bc.editTargets(toolName, toolInput);
+  for (const t of targets) {
+    const d = bc.boundaryDecision(bc.relPath(root, t), boundaries);
+    if (d) {
+      return {
+        action: 'ask', why: 'boundary', gate: 'boundary',
+        reason: `health-harness wall: module boundary — \`${d.path}\` is outside this ticket's declared `
+          + `boundaries (${boundaries.join(', ')}). Approve to add it to the boundary list and proceed, or `
+          + `decline and keep the edit inside scope. Set wall.autoApprove.boundary=true to stop asking.`,
+      };
+    }
+  }
+  return null;
+}
+
+function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOverride, gateOverride, autoApproveOverride, boundsOverride) {
   try {
     const cwd = process.cwd();
     // A live ship grant means the user already approved this publish batch on /ship's verbatim preview — so
@@ -370,6 +397,8 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       if (red) return red;
       const bash = decideBash(cmd);
       if (bash && bash.action === 'deny') return bash; // catastrophic DENY (force-push, rm -rf …) beats all below
+      const bound = sa(decideBoundary('Bash', toolInput, cwd, boundsOverride)); // out-of-bounds mutation → ASK (boundary)
+      if (bound) return bound;
       const gate = sa(decideGateEvidence(cmd, cwd, gateOverride)); // ship-without-passing-gate → ASK (shipUnverified), NOT grant-suppressed
       if (gate) return gate;
       const cov = sa(decideCriteriaCoverage(cmd, cwd, covOverride)); // uncovered → DENY (kept) / defer → ASK (criteriaDefer)
@@ -382,6 +411,9 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
         || sa(decideCommitMessage(cmd, undefined, gs && gs.branch)) // format DENY kept; no-ticket ASK (commitTicket)
         || sa(decideCommitReview(cmd));                // per-commit review → ASK (commit gate, default-ON) — MBI-108/110
     }
+    if (/^(Edit|Write|MultiEdit)$/.test(String(toolName))) {
+      return sa(decideBoundary(toolName, toolInput, cwd, boundsOverride)); // out-of-bounds edit → ASK (boundary)
+    }
     if (String(toolName).startsWith('mcp__')) {
       const red = decideRedactionMcp(toolName, toolInput, cwd); // PHI → DENY, NEVER suppressed (no sa)
       if (red) return red;
@@ -391,7 +423,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

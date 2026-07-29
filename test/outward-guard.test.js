@@ -1,7 +1,36 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+
+// ── MBI-124: module-boundary guard (ASK before an out-of-bounds edit / mutating bash) ──
+test('decideBoundary: out-of-bounds edit ASKs (boundary gate); in-bounds + dormant defer', () => {
+  const bounds = { root: '/repo', boundaries: ['src/router/**'] };
+  // an Edit outside the declared boundary → ASK, tagged for the `boundary` gate, naming the path + the list
+  const d = decideBoundary('Edit', { file_path: '/repo/src/service/db.js' }, '/repo', bounds);
+  assert.strictEqual(action(d), 'ask');
+  assert.strictEqual(d.gate, 'boundary');
+  assert.match(d.reason, /src\/service\/db\.js/);
+  assert.match(d.reason, /boundary list/i);
+  // an Edit inside the boundary → defer (allowed)
+  assert.strictEqual(decideBoundary('Edit', { file_path: '/repo/src/router/x.js' }, '/repo', bounds), null);
+  // a mutating Bash outside the boundary → ASK
+  assert.strictEqual(action(decideBoundary('Bash', { command: 'rm -rf /repo/src/service/old.js' }, '/repo', bounds)), 'ask');
+  // dormant (no boundaries declared) → defer regardless (AC-3 opt-in)
+  assert.strictEqual(decideBoundary('Edit', { file_path: '/repo/anything.js' }, '/repo', { root: '/repo', boundaries: [] }), null);
+  // a read-only bash command touches nothing → defer
+  assert.strictEqual(decideBoundary('Bash', { command: 'cat /repo/src/service/db.js' }, '/repo', bounds), null);
+});
+
+test('decideBoundary is auto-approvable via wall.autoApprove.boundary (suppressed to defer)', () => {
+  const bounds = { root: '/repo', boundaries: ['src/router/**'] };
+  // through decide(): out-of-bounds Edit ASKs by default…
+  const asked = decide('Edit', { file_path: '/repo/src/service/db.js' }, undefined, false, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }, {}, bounds);
+  assert.strictEqual(action(asked), 'ask');
+  // …and is silenced when the boundary gate is auto-approved
+  const auto = decide('Edit', { file_path: '/repo/src/service/db.js' }, undefined, false, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }, { boundary: true }, bounds);
+  assert.strictEqual(auto, null);
+});
 
 const action = (d) => (d ? d.action : null);
 

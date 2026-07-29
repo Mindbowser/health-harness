@@ -77,7 +77,10 @@ function writeManifest(cwd, issueKey, criteria) {
   const dir = path.join(cwd || process.cwd(), '.health-harness', 'criteria');
   fs.mkdirSync(dir, { recursive: true });
   const p = path.join(dir, `${issueKey}.json`);
-  fs.writeFileSync(p, JSON.stringify(buildManifest(issueKey, criteria), null, 2) + '\n');
+  const manifest = buildManifest(issueKey, criteria);
+  // Preserve a boundaries list authored separately (MBI-124) — writing criteria must not wipe it.
+  try { const prev = JSON.parse(fs.readFileSync(p, 'utf8')); if (Array.isArray(prev.boundaries) && prev.boundaries.length) manifest.boundaries = prev.boundaries; } catch { /* new file → no prior boundaries */ }
+  fs.writeFileSync(p, JSON.stringify(manifest, null, 2) + '\n');
   return p;
 }
 

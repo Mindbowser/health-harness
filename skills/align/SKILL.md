@@ -171,6 +171,15 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
        outward write), `/phi-redaction-check` first, clean markdown (`contentFormat:"markdown"`). This is
        the same write AUTHOR mode does — being the engineer doesn't exempt you from recording the spec.
      - **A PM already AUTHORed business criteria** → append/confirm your **technical** criteria on the same ticket.
+     - **Declare the module boundaries (MBI-124) — what this ticket may touch.** After grounding in the code,
+       list the files/dirs the slice legitimately modifies as globs and record them:
+       `node "…/bin/boundary-check.js" set <KEY> "src/router/**,ui/nodered/**"` — this writes `boundaries` onto
+       the committed manifest and **echoes them back so the dev sees exactly what's fenced.** Once declared, the
+       wall **ASKs before any edit/delete (Edit/Write or `rm`/`mv`/`sed -i`) outside the list** — approving
+       promotes that file into the list (a living list; it grows only by explicit approval). This is what stops
+       an agent (or a subagent) silently modifying/deleting unrelated files. **Opt-in:** skip it and the guard
+       stays dormant (behaviour unchanged). **While grounding, if a needed change falls *outside* the intended
+       modules, that's a Scope judgment-fork** — propose adding the boundary (and say why), don't silently widen.
      Save `align.md` as the working note **under `.health-harness/sprints/` — it is dev-local and gitignored,
      NOT committed** (the kept record is Jira; only the criteria *manifest* at `.health-harness/criteria/<KEY>.json`
      is committed). Run `node "…/bin/local-ignores.js"` once so `.gitignore` excludes these working files (it's
