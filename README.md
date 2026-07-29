@@ -187,7 +187,7 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   live in the CLI. To enable: drop a tiny version-stable wrapper at `~/.claude/health-harness-statusline.sh`
   that execs the plugin's `bin/statusline.js` (plugins can't declare a statusline and `statusLine` doesn't
   expand `${CLAUDE_PLUGIN_ROOT}`, so the wrapper resolves the current installed version), then set
-  `"statusLine": { "type": "command", "command": "~/.claude/health-harness-statusline.sh" }` in `settings.json`. On resolve, `open-questions.js reconcile` lists any answer that differed from what was built
+  `"statusLine": { "type": "command", "command": "~/.claude/health-harness-statusline.sh" }` in `settings.json`. **Easiest: `/start` offers to enable it, or run `bin/statusline-setup.js enable` (idempotent, never clobbers your own statusLine); a session-start nudge reminds you when it's off.** On resolve, `open-questions.js reconcile` lists any answer that differed from what was built
   (with the files to revise); a matching answer is just ratified. (`bin/open-questions.js`, `bin/session-context.js`.)
 - **ASK → ship-without-a-passing-gate** (anti-hallucination): on `git push`, if the repo has a gate but there's
   **no captured PASSING gate run for this commit's sha**, the wall ASKs — a claimed-but-unproven "it's green"
@@ -367,6 +367,7 @@ bin/subtask-coverage.js      # story already has sub-tasks? checks /align maps A
 bin/boundary-check.js        # module-boundary guard — ASK before an edit/delete outside the ticket's declared boundaries; approve → living list grows (+ test/)
 bin/open-questions.js        # "I don't know yet" ledger + push gate — ratify unresolved guesses before ship (+ test/)
 bin/statusline.js           # opt-in composed statusline — <dir> · <ticket> · amber ❓N open badge (+ test/)
+bin/statusline-setup.js     # one-step enable for the statusline (/start offers it; session-start nudge when off) (+ test/)
 bin/concerns.js              # extensible cross-cutting-concern registry (timezone/audit/errors/scale/…) surfaced at /align + /tdd (+ test/)
 bin/test-detect.js           # detects the test framework + gate command so onboard/scaffold can prove a red→green loop (+ test/)
 bin/doc-scan.js              # ranks a repo's own docs (README/CLAUDE.md/ARCHITECTURE/docs) so onboard reads them first (+ test/)
