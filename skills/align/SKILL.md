@@ -149,6 +149,11 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    while the criteria preview stays **readable text above** the popup. Don't ask the obvious: if a step is
    inferable or reversible, just do it and say so in one line — a popup is for a genuine decision or an
    outward/irreversible action only, and the change must never *increase* the number of prompts.
+   **Editable-path guarantee (MBI-131): every structured popup must leave the user a way to give their own
+   input** — the built-in *Other* option (free text) is always available, and whenever a popup presents a
+   concrete artifact (globs, criteria, a plan), include an explicit **"Edit"** option that revises → re-shows
+   → re-confirms. Never present a popup whose only paths are the options you pre-picked; the user is never
+   boxed in.
    - **Also record the deterministic manifest (makes coverage machine-checkable, never guessed).** Give each
      Given/When/Then a stable `[AC-N]` id (keep it visible in the Jira prose too — e.g. `[AC-1] Given…`) and
      write the committed manifest with
@@ -172,14 +177,20 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
        the same write AUTHOR mode does — being the engineer doesn't exempt you from recording the spec.
      - **A PM already AUTHORed business criteria** → append/confirm your **technical** criteria on the same ticket.
      - **Declare the module boundaries (MBI-124) — what this ticket may touch.** After grounding in the code,
-       list the files/dirs the slice legitimately modifies as globs and record them:
-       `node "…/bin/boundary-check.js" set <KEY> "src/router/**,ui/nodered/**"` — this writes `boundaries` onto
-       the committed manifest and **echoes them back so the dev sees exactly what's fenced.** Once declared, the
-       wall **ASKs before any edit/delete (Edit/Write or `rm`/`mv`/`sed -i`) outside the list** — approving
-       promotes that file into the list (a living list; it grows only by explicit approval). This is what stops
-       an agent (or a subagent) silently modifying/deleting unrelated files. **Opt-in:** skip it and the guard
-       stays dormant (behaviour unchanged). **While grounding, if a needed change falls *outside* the intended
-       modules, that's a Scope judgment-fork** — propose adding the boundary (and say why), don't silently widen.
+       work out the files/dirs the slice legitimately modifies (as **path globs** — boundaries are file/path
+       level, e.g. `src/router/**`, `config/app.json`; narrow the glob for finer scope, there is no
+       intra-file/function level). **Confirm them as a structured popup** — an `AskUserQuestion` (header
+       `Boundaries`) with the proposed globs shown as **readable text above** the popup and options
+       **"Fence these"** (first — one keypress), **"Edit"** (free-text via the *Other* option → revise the
+       globs → re-show → re-confirm), and **"Skip — leave dormant"**. On confirm, record them:
+       `node "…/bin/boundary-check.js" set <KEY> "src/router/**,config/app.json"` — this writes `boundaries`
+       onto the committed manifest and echoes back exactly what's fenced. Once declared, the wall **ASKs before
+       any edit/create/delete (Edit/Write/MultiEdit or `rm`/`mv`/`sed -i`) outside the list** — approving that
+       prompt promotes the file into the list (a **living list**; it grows only by explicit approval). This is
+       what stops an agent (or a subagent) silently modifying/deleting/creating unrelated files. **Opt-in:**
+       choose Skip and the guard stays dormant (behaviour unchanged). **While grounding, if a needed change
+       falls *outside* the intended modules, that's a Scope judgment-fork** — propose adding the boundary (and
+       say why), don't silently widen.
      Save `align.md` as the working note **under `.health-harness/sprints/` — it is dev-local and gitignored,
      NOT committed** (the kept record is Jira; only the criteria *manifest* at `.health-harness/criteria/<KEY>.json`
      is committed). Run `node "…/bin/local-ignores.js"` once so `.gitignore` excludes these working files (it's
@@ -220,10 +231,13 @@ must *inherit* the criteria before coding — a clear PM-written ticket satisfie
    technical ones. Naming it explicitly never re-asks and doesn't change your persisted `/role` default.
 1. **Persisted role next.** Read `~/.health-harness/role` (set via `/role`): `pm` → default **AUTHOR**;
    `engineer` → default **BUILD-PREP**. (If role is set, don't ask — just announce it.)
-2. **Role unset → ASK once, then persist (don't guess).** If `~/.health-harness/role` is missing, **ask one
-   question** ("Author business criteria (PM/BA), or build-prep against the code (engineer)?"), use the
-   answer for this run, and **offer to persist via `/role`** so it's never asked again. Guessing the mode
-   silently is wrong — confirm it once. (Onboarding via `/start` normally sets this already.)
+2. **Role unset → ASK once (structured), then persist (don't guess).** If `~/.health-harness/role` is missing,
+   ask via an **`AskUserQuestion`** (header `Mode`) with two options — **"AUTHOR — business criteria (PM/BA)"**
+   and **"BUILD-PREP — ground in code (engineer)"** — plus **offer to persist via `/role`** so it's never
+   asked again. The built-in **Other** option lets them type anything else (e.g. "both — AUTHOR then
+   BUILD-PREP"). Use the structured popup, not a free-text question. Guessing the mode silently is wrong —
+   confirm it once. **Skip this entirely when the mode is already decided** (explicit persona in args, or
+   `/role` set) — that path must add **no** prompt. (Onboarding via `/start` normally sets this already.)
 3. **Infer only as a last resort** — if asking isn't possible (e.g. non-interactive). Then: fresh idea /
    thin story, no build intent → AUTHOR; a concrete ticket you're about to build in a repo → BUILD-PREP.
 4. **Announce it** at the start — *"Acting as **PM · AUTHOR mode**"* (or engineer/BUILD-PREP) — and note
