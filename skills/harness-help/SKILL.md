@@ -37,8 +37,12 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
 
 **All commands:** `/role` · `/start` · `/scaffold-from-boilerplate` · `/onboard-existing-codebase` ·
 `/compliance-profile` · `/sprint` · `/import-issues` · `/align` · `/to-prd` · `/to-issues` · `/tdd` ·
-`/phi-redaction-check` · `/safe-logging` · `/audit-logging` · `/writing-great-skills` · `/harness-help` ·
-`/harness-update`.
+`/phi-redaction-check` · `/safe-logging` · `/audit-logging` · `/harness-questions` · `/harness-feedback` ·
+`/writing-great-skills` · `/harness-help` · `/harness-update`.
+
+**`/harness-questions`** — see and answer the open "I don't know yet" questions the build logged on your
+current ticket (the ones that gate the push); lists them, resolves each via a popup, reconciles anything
+your answer changes.
 
 **Hooks & tools (run under the hood — you don't call these directly):**
 - **The wall** — `hooks/outward-guard.js`, a `PreToolUse` hook. **Blocks** catastrophic actions

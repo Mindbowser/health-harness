@@ -420,6 +420,7 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
   compliance-profile/ phi-redaction-check/ safe-logging/ audit-logging/   # healthcare governance
   role/                        # your persona (PM / engineer) — picks the /align mode
   writing-great-skills/        # the meta-skill: how to write skills here
+  harness-questions/           # see + answer the open "I don't know yet" questions on your ticket (/harness-questions)
   harness-help/                # in-plugin guide (/harness-help) — usable without repo access
   harness-update/              # one-step plugin update (/harness-update)
   harness-stats/               # your own usage dashboard (/harness-stats) — private, read-only
