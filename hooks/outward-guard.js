@@ -370,9 +370,10 @@ function decideBoundary(toolName, toolInput, cwd, override) {
     if (d) {
       return {
         action: 'ask', why: 'boundary', gate: 'boundary',
-        reason: `health-harness wall: module boundary — \`${d.path}\` is outside this ticket's declared `
-          + `boundaries (${boundaries.join(', ')}). Approve to add it to the boundary list and proceed, or `
-          + `decline and keep the edit inside scope. Set wall.autoApprove.boundary=true to stop asking.`,
+        reason: `⚠️  Out-of-scope change — \`${d.path}\` isn't in this ticket's boundaries.\n`
+          + `     boundaries: ${boundaries.join(', ')}\n\n`
+          + `  ✅ Approve → add it to the boundary list & proceed\n`
+          + `  ✋ Deny    → keep the change inside scope`,
       };
     }
   }

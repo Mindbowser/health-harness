@@ -1,0 +1,13 @@
+{
+  "issueKey": "MBI-138",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "open-questions + boundary wall prompts use the scannable stakes-first / choice-last layout"
+    },
+    {
+      "id": "AC-2",
+      "text": "bin/statusline.js renders dir · ticket · amber open-questions badge (hidden at 0), unit-tested; enablement documented via a version-stable wrapper"
+    }
+  ]
+}

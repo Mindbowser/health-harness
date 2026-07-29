@@ -60,13 +60,17 @@ function gateDecision(ledger) {
   if (!ledger || !Array.isArray(ledger.questions)) return null;
   const open = ledger.questions.filter((q) => q.status === 'open');
   if (open.length === 0) return null;
-  const list = open.map((q) => `  • [${q.ac || '?'}] ${q.question}${q.recommendation ? ` (rec: ${q.recommendation})` : ''}`).join('\n');
+  // Scannable layout (plain-text-safe — the permission dialog renders no ANSI/markdown): the STAKES lead,
+  // each question is isolated with its assumed answer, and the Approve/Deny fork is the last thing read.
+  const key = ledger.issueKey || 'this ticket';
+  const list = open.map((q) => `  ❓ [${q.ac || '?'}] ${q.question}${q.recommendation ? `\n     ↳ assumed: ${q.recommendation}` : ''}`).join('\n');
+  const firstId = open[0].id || '<id>';
   return {
     action: 'ask', why: 'open_questions', gate: 'openQuestions',
-    reason: `health-harness wall: ${open.length} unresolved question(s) on ${ledger.issueKey || 'this ticket'} — `
-      + `ratify each answer before shipping (they're guesses the build made and left open):\n${list}\n`
-      + `Resolve with \`open-questions.js resolve <id> --answer …\`, or approve to ship on the recommendations. `
-      + `Set wall.autoApprove.openQuestions=true to stop asking.`,
+    reason: `⚠️  ${open.length} open question${open.length === 1 ? '' : 's'} on ${key} — the build guessed and needs your OK before it ships.\n\n`
+      + `${list}\n\n`
+      + `  ✅ Approve → ship on the assumption${open.length === 1 ? '' : 's'} above\n`
+      + `  ✋ Deny    → stop & answer first:  open-questions.js resolve ${firstId} --answer "…"`,
   };
 }
 
