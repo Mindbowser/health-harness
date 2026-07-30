@@ -159,7 +159,7 @@ gates tool calls — it's a wall, not a guideline the model might skip:
 - **ASK → a commit (dev-review checkpoint)**: the `commit` gate is **auto-approved by default** (the agent
   commits as it works; you review at the PR). A repo that wants the agent to **pause for review before every
   commit** sets **`wall.autoApprove.commit: false`** in `.health-harness/project.json` — the single, uniform
-  way to tune it (there is no separate `commit.autoCommit`). Base-branch + message guards run first, so this
+  way to tune it (there is no separate `commit.autoCommit`). One command does it: `bin/commit-review.js enable` (persists it committed, so worktrees + teammates inherit — a verbal "don't autocommit" the agent only *remembers* gets forgotten; arm the gate, MBI-141). Base-branch + message guards run first, so this
   is the catch-all "did a human see this?" step. (`hooks/outward-guard.js` `decideCommitReview`.)
 - **ASK → a commit with no linked Jira ticket** (overridable per commit): `commit.requireTicket` is **ON by
   default** — a commit whose ticket isn't resolvable from the **branch or the message** ASKs ("commit
@@ -366,6 +366,7 @@ bin/slice-size.js            # flags an oversized/clubbed issue at slice time (1
 bin/subtask-coverage.js      # story already has sub-tasks? checks /align maps ACs 1:1 onto them (uncovered/stray), not a broader set (+ test/)
 bin/boundary-check.js        # module-boundary guard — ASK before an edit/delete outside the ticket's declared boundaries; approve → living list grows (+ test/)
 bin/open-questions.js        # "I don't know yet" ledger + push gate — ratify unresolved guesses before ship (+ test/)
+bin/commit-review.js        # arm/disarm the commit-review gate (persist "don't autocommit" as a committed setting, MBI-141) (+ test/)
 bin/statusline.js           # opt-in composed statusline — <dir> · <ticket> · amber ❓N open badge (+ test/)
 bin/statusline-setup.js     # one-step enable for the statusline (/start offers it; session-start nudge when off) (+ test/)
 bin/concerns.js              # extensible cross-cutting-concern registry (timezone/audit/errors/scale/…) surfaced at /align + /tdd (+ test/)

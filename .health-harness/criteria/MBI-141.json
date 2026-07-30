@@ -1,0 +1,13 @@
+{
+  "issueKey": "MBI-141",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "commit-review.js enable/disable/status persists wall.autoApprove.commit in the committed repo project.json, preserving all other keys; unit-tested"
+    },
+    {
+      "id": "AC-2",
+      "text": "/start /tdd /ship instruct: a verbal do-not-autocommit is armed via commit-review.js enable (persisted, not remembered) and carry the no-standing-permission rule (a prior approval never authorizes a later commit)"
+    }
+  ]
+}

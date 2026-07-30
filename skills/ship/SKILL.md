@@ -59,6 +59,11 @@ rather than re-implementing it (one definition, no drift).
    `node "${CLAUDE_PLUGIN_ROOT}/bin/ship-grant.js" set`. This suppresses only the wall's *outward ASK* for ~3
    min — **DENY still fires** (a catastrophic command or a PHI/secret in the payload is still blocked, grant or
    not). Run `… ship-grant.js clear` once publishing finishes (or on abort/cancel).
+   > **The grant covers only THIS publish's outward steps — never a commit, and never a *later* action (MBI-141).**
+   > It suppresses the push/PR/tracker ASK for this batch only; it does **not** touch the commit gate, and
+   > approving a `/ship` is **not** standing permission to commit again afterward. If the repo has commit-review
+   > armed (`wall.autoApprove.commit:false`), every commit still ASKs regardless of any grant. Don't rationalize
+   > a past approval into a fresh commit.
    > **Set the grant as its OWN command and let it return BEFORE the push — never combine `ship-grant.js set`
    > with `git push` in one shell line.** The wall's PreToolUse hook evaluates the *entire* command string
    > *before any of it runs*, so a combined `… ship-grant.js set && git push …` is judged while the grant is
