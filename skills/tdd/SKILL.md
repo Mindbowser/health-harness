@@ -216,6 +216,14 @@ Don't make the human do the git plumbing. At the **start** of the slice:
   impose MB's `fix/<KEY>` if the repo differs). Respect the existing flow.
 - **Never commit on the base branch** — branch before the first commit (the wall ASKs on a base-branch
   commit). **During:** small, conventional commits referencing the ticket key. **Don't push without an OK.**
+- **"Don't autocommit" is a SETTING, not a memory (MBI-141).** If the user ever says *don't autocommit* /
+  *ask before every commit* — at the start or mid-session — **arm the gate immediately:**
+  `node "…/bin/commit-review.js" enable` (persists `wall.autoApprove.commit:false` in the committed
+  project.json, so the wall ASKs before every commit and it survives worktrees + long sessions). Do **not**
+  just acknowledge it in prose and rely on remembering — that's exactly how it gets forgotten.
+  **No standing permission:** a prior approval — an earlier commit you were allowed, or a `/ship` batch you
+  approved — **NEVER** authorizes a *later* commit. Each commit stands on its own. The `/ship` grant
+  suppresses only the *outward* push/PR ASK; it never green-lights a commit.
 
 ## Publish — hand off to /ship
 

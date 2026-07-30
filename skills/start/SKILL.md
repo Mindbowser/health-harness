@@ -70,10 +70,11 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
      commits, PRs, and the harness usage metrics); set it if it's missing or personal.
    - **Commit-review mode — settle it once.** By default the agent **commits as it works** (you review at the
-     PR). If the team prefers the agent to **pause for review before every commit**, set
-     **`wall.autoApprove.commit: false`** in `.health-harness/project.json` (the same one way every gate is
-     tuned — see step 3d). Record the choice so `/tdd` behaves as the team expects; it's committed, so
-     teammates inherit it. Changeable later.
+     PR). If the team prefers the agent to **pause for review before every commit**, run
+     **`node "…/bin/commit-review.js" enable`** — it sets `wall.autoApprove.commit:false` in the committed
+     `.health-harness/project.json`, so the wall ASKs before every commit and teammates + worktrees inherit it
+     (MBI-141). This is a **persisted, deterministic** setting on purpose: a verbal "don't autocommit" the agent
+     merely *remembers* gets forgotten or rationalized away — arm the gate instead. (`disable` reverts.)
    - **Publish path (get commits to the remote + open the PR) — settle it here so `/ship` is one command
      later.** `/ship` **auto-detects**: it prefers a real `git push` (keeps your commit history) and falls
      back to a credential-free GitHub MCP. Make sure one is ready:
