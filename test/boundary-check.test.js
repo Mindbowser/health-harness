@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const {
   matchesGlob, pathInBoundaries, boundaryDecision, bashTargets, editTargets,
-  recordBoundary, loadBoundaries, setBoundaries,
+  recordBoundary, loadBoundaries, setBoundaries, isIgnored, checkToolCall,
 } = require('../bin/boundary-check.js');
 
 // Build a throwaway git repo on a ticket branch with a boundaries manifest; returns its root.
@@ -18,6 +18,29 @@ function tmpRepo(key, boundaries) {
   run('git add -A'); run('git commit -qm init'); run(`git checkout -q -b feature/${key}-slice`);
   return fs.realpathSync(root); // canonical (macOS /var → /private/var), matching git rev-parse --show-toplevel
 }
+
+test('[MBI-142] gitignored paths are exempt from the boundary guard (not part of the reviewable diff)', () => {
+  const fs = require('fs'), path = require('path'), cp = require('child_process');
+  const root = tmpRepo('MBI-142', ['src/router/**']);
+  fs.writeFileSync(path.join(root, '.gitignore'), 'dist/\n*.log\ncoverage/\n');
+  cp.execSync('git add .gitignore && git commit -qm ignore', { cwd: root, stdio: 'ignore' });
+
+  // isIgnored: true for ignored paths, false for tracked/normal ones
+  assert.equal(isIgnored(root, 'dist/out.js'), true);
+  assert.equal(isIgnored(root, 'app.log'), true);
+  assert.equal(isIgnored(root, 'config/app.json'), false);
+
+  // checkToolCall: an out-of-bounds but GITIGNORED target → no decision (exempt)
+  assert.equal(checkToolCall('Write', { file_path: path.join(root, 'dist/out.js') }, root), null);
+  assert.equal(checkToolCall('Bash', { command: 'rm ' + path.join(root, 'debug.log') }, root), null);
+  // an out-of-bounds TRACKED (non-ignored) target — even non-code — STILL flags
+  const flagged = checkToolCall('Write', { file_path: path.join(root, 'config/app.json') }, root);
+  assert.ok(flagged && flagged.out === true);
+
+  // the living-list recorder does NOT add a gitignored file to the boundary list
+  assert.equal(recordBoundary(root, path.join(root, 'dist/out.js')), false);
+  assert.deepEqual(loadBoundaries(root).boundaries, ['src/router/**']); // unchanged
+});
 
 test('MBI-124: recordBoundary grows the living list on an approved out-of-bounds edit (idempotent, active only)', () => {
   const fs = require('fs'), path = require('path');

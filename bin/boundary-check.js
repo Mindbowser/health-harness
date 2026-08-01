@@ -129,6 +129,15 @@ function relPath(root, filePath) {
   const rel = path.relative(root || process.cwd(), abs);
   return rel.split(path.sep).join('/');
 }
+/** Impure: is this repo-relative path gitignored? Such files never land in the reviewable diff, so they're
+ * EXEMPT from boundaries (logs, dist/, coverage/, node_modules/, .env, tmp — MBI-142). `git check-ignore`
+ * exits 0 when ignored (execFileSync returns), non-zero otherwise (throws → not ignored / not a git repo). */
+function isIgnored(root, rel) {
+  if (!root || !rel) return false;
+  try { require('child_process').execFileSync('git', ['check-ignore', '-q', '--', rel], { cwd: root, stdio: 'ignore' }); return true; }
+  catch { return false; }
+}
+
 /** Living list: append a now-approved out-of-bounds file to the manifest's boundaries (idempotent). Only
  * runs when the feature is already active (boundaries non-empty) — never auto-populates a dormant ticket. */
 function recordBoundary(cwd, filePath) {
@@ -136,7 +145,7 @@ function recordBoundary(cwd, filePath) {
   const { root, key, boundaries } = loadBoundaries(cwd);
   if (!root || !key || boundaries.length === 0) return false; // dormant → do nothing
   const rel = relPath(root, filePath);
-  if (!rel || pathInBoundaries(rel, boundaries)) return false;
+  if (!rel || pathInBoundaries(rel, boundaries) || isIgnored(root, rel)) return false; // in-bounds or gitignored → skip
   const p = manifestPath(root, key);
   let j; try { j = JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return false; }
   j.boundaries = [...boundaries, rel];
@@ -166,15 +175,16 @@ function checkToolCall(toolName, toolInput, cwd) {
   if (boundaries.length === 0) return null; // dormant
   const raw = toolName === 'Bash' ? bashTargets((toolInput || {}).command) : editTargets(toolName, toolInput);
   for (const t of raw) {
-    const d = boundaryDecision(relPath(root, t), boundaries);
-    if (d) return d; // first out-of-bounds target
+    const rel = relPath(root, t);
+    const d = boundaryDecision(rel, boundaries);
+    if (d && !isIgnored(root, rel)) return d; // first out-of-bounds target that isn't gitignored (MBI-142)
   }
   return null;
 }
 
 module.exports = {
   matchesGlob, pathInBoundaries, boundaryDecision, editTargets, bashTargets,
-  repoRoot, activeKey, loadBoundaries, relPath, recordBoundary, setBoundaries, checkToolCall,
+  repoRoot, activeKey, loadBoundaries, relPath, recordBoundary, setBoundaries, checkToolCall, isIgnored,
 };
 
 // ── PostToolUse CLI: `record` — promote an approved out-of-bounds edit into the boundary list ─────────────

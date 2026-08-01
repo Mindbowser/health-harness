@@ -366,8 +366,9 @@ function decideBoundary(toolName, toolInput, cwd, override) {
   const root = (resolved && resolved.root) || cwd || process.cwd();
   const targets = toolName === 'Bash' ? bc.bashTargets((toolInput || {}).command) : bc.editTargets(toolName, toolInput);
   for (const t of targets) {
-    const d = bc.boundaryDecision(bc.relPath(root, t), boundaries);
-    if (d) {
+    const rel = bc.relPath(root, t);
+    const d = bc.boundaryDecision(rel, boundaries);
+    if (d && !bc.isIgnored(root, rel)) { // gitignored paths (logs/artifacts) are exempt — not in the diff (MBI-142)
       return {
         action: 'ask', why: 'boundary', gate: 'boundary',
         reason: `⚠️  Out-of-scope change — \`${d.path}\` isn't in this ticket's boundaries.\n`
