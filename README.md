@@ -172,7 +172,7 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   files it may touch (`/align` writes `boundaries: [globs]` onto its criteria manifest). The wall then ASKs
   before an **Edit/Write/MultiEdit — or a mutating Bash (`rm`/`mv`/`sed -i`/redirect/`git rm`)** — lands on a
   path **outside** that list, so an agent (or a subagent) can't silently modify/delete an unrelated file.
-  Approving **promotes the file into the boundary list** (a *living list*, via a PostToolUse record) so it
+  **Gitignored paths (logs, `dist/`, `coverage/`, `node_modules/`, `.env`) are exempt** — they never land in the reviewable diff (MBI-142). Approving **promotes the file into the boundary list** (a *living list*, via a PostToolUse record) so it
   isn't re-asked; the manifest ends up an accurate record of everything the ticket touched. **Dormant unless
   boundaries are declared** (behaviour unchanged). Auto-approvable per repo with `wall.autoApprove.boundary`.
   (`bin/boundary-check.js`, `hooks/outward-guard.js` `decideBoundary`.)

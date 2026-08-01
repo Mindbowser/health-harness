@@ -1,0 +1,9 @@
+{
+  "issueKey": "MBI-142",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "an out-of-bounds edit/rm/redirect to a gitignored path (log/artifact) is exempt from the boundary guard (no prompt); a tracked out-of-bounds path — even non-code — still ASKs; the living-list recorder skips gitignored files; unit-tested"
+    }
+  ]
+}
