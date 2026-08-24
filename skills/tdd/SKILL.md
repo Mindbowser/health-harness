@@ -220,7 +220,9 @@ Don't make the human do the git plumbing. At the **start** of the slice:
   the wall DENYs a branch/commit whose branch doesn't carry the key (`branch-name.js conforms`); default is
   recommend-only. Don't impose MB's convention if the repo differs — the captured block is the source of truth.
 - **Never commit on the base branch** — branch before the first commit (the wall ASKs on a base-branch
-  commit). **During:** small, conventional commits referencing the ticket key. **Don't push without an OK.**
+  commit). **During:** small, conventional commits referencing the ticket key. If the repo set
+  `commit.ticketFormat` (MBI-145), carry the key in that placement (e.g. footer `Refs KEY-N`) — the wall
+  suggests the exact carrier if you miss it. **Don't push without an OK.**
 - **"Don't autocommit" is a SETTING, not a memory (MBI-141).** If the user ever says *don't autocommit* /
   *ask before every commit* — at the start or mid-session — **arm the gate immediately:**
   `node "…/bin/commit-review.js" enable` (persists `wall.autoApprove.commit:false` in the committed

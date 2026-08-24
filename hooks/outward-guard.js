@@ -148,9 +148,22 @@ function checkCommitMessage(message, policy, branch) {
     }
   }
   if (p.requireTicket !== false) { // ON by default
-    const hasTicket = TICKET_RE.test(String(message)) || (branch && TICKET_RE.test(String(branch)));
-    if (!hasTicket) {
-      return { kind: 'ticket', reason: 'no Jira ticket linked to this work — name the branch (e.g. feature/ABC-123-…) or add the key to the message, or commit anyway to override (set commit.requireTicket=false to disable).' };
+    // `commit.ticketFormat` selects a commitlint-compatible placement (MBI-145). Default 'anywhere' keeps the
+    // original behavior (a key in the message OR on the branch satisfies). A specific format must appear IN
+    // the message (the branch key doesn't count — the point is the message carries it in a fixed position).
+    const format = p.ticketFormat || 'anywhere';
+    if (format === 'anywhere') {
+      const hasTicket = TICKET_RE.test(String(message)) || (branch && TICKET_RE.test(String(branch)));
+      if (!hasTicket) {
+        return { kind: 'ticket', reason: 'no Jira ticket linked to this work — name the branch (e.g. feature/ABC-123-…) or add the key to the message, or commit anyway to override (set commit.requireTicket=false to disable).' };
+      }
+    } else {
+      const cref = require('../bin/commit-ref.js');
+      if (!cref.hasReference(message, format)) {
+        const km = String(message).match(TICKET_RE) || (branch ? String(branch).match(TICKET_RE) : null);
+        const key = km ? km[0] : 'KEY-N';
+        return { kind: 'ticket', reason: `commit needs a ${format}-style ticket reference — add "${cref.suggestReference(key, format)}" (commitlint-safe), or commit anyway to override (set commit.ticketFormat="anywhere" or commit.requireTicket=false).` };
+      }
     }
   }
   return null;

@@ -261,6 +261,20 @@ test('checkCommitMessage: requireTicket is ON by default; satisfied by branch OR
   assert.strictEqual(checkCommitMessage('no type here', {}, '').kind, 'format');
 });
 
+test('checkCommitMessage: commit.ticketFormat requires a commitlint-safe placement in the message (MBI-145)', () => {
+  const footer = { ticketFormat: 'footer' };
+  // a key in the subject does NOT satisfy footer format → kind 'ticket', suggestion names the carrier
+  const miss = checkCommitMessage('feat: add thing ABC-12', footer, 'feature/ABC-12-x');
+  assert.strictEqual(miss.kind, 'ticket');
+  assert.ok(miss.reason.includes('Refs ABC-12'));                 // resolved key filled into the suggestion
+  // proper footer satisfies it
+  assert.strictEqual(checkCommitMessage('feat: add thing\n\nRefs ABC-12', footer, ''), null);
+  // scope format
+  assert.strictEqual(checkCommitMessage('feat(ABC-12): add', { ticketFormat: 'scope' }, ''), null);
+  // default (no ticketFormat) is unchanged: branch key still satisfies
+  assert.strictEqual(checkCommitMessage('feat: x', {}, 'feature/ABC-12-x'), null);
+});
+
 test('decideCommitMessage: format → DENY (self-correct); missing ticket → ASK with why=no_ticket (overridable per commit)', () => {
   assert.strictEqual(decideCommitMessage('git commit -m "nope no type"', {}, '').action, 'deny');
   const noTicket = decideCommitMessage('git commit -m "feat: x"', {}, ''); // default ON, no branch key
