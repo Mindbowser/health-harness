@@ -1,7 +1,30 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+
+// ── MBI-144: branch-name enforcement (opt-in; recommend-only by default) ──
+test('checkBranchName: dormant unless git.enforceBranch is set', () => {
+  assert.strictEqual(checkBranchName('git checkout -b whatever', {}), null);            // no policy → recommend-only
+  assert.strictEqual(checkBranchName('git checkout -b whatever', { enforceBranch: false }), null);
+});
+
+test('checkBranchName: enforce blocks a non-conforming create, allows prefix/KEY-slug', () => {
+  const pol = { enforceBranch: true, branchPattern: 'feature/<KEY>-<slug>' };
+  assert.strictEqual(checkBranchName('git checkout -b add-login', pol) === null, false); // no prefix/key → blocked
+  assert.ok(checkBranchName('git checkout -b add-login', pol).reason.includes('convention'));
+  assert.strictEqual(checkBranchName('git checkout -b feature/ABC-12-add-login', pol), null); // conforms
+  assert.strictEqual(checkBranchName('git switch -c bugfix/ABC-13-fix', pol), null);          // switch -c too
+  assert.strictEqual(checkBranchName('git status', pol), null);                               // not a create
+});
+
+test('decideBranchName: enforce → DENY with gate=branchName', () => {
+  const pol = { enforceBranch: true };
+  const d = decideBranchName('git checkout -b nope', pol);
+  assert.strictEqual(d.action, 'deny');
+  assert.strictEqual(d.gate, 'branchName');
+  assert.strictEqual(decideBranchName('git checkout -b feature/ABC-1-x', pol), null);
+});
 
 // ── MBI-134: open-questions push gate (ASK to ratify unresolved guesses before ship) ──
 test('decideOpenQuestions: push with an open question ASKs (openQuestions gate); resolved/none/non-push defer', () => {
@@ -236,6 +259,20 @@ test('checkCommitMessage: requireTicket is ON by default; satisfied by branch OR
   assert.strictEqual(checkCommitMessage('feat: x', { requireTicket: false }, ''), null);
   // a format violation is kind 'format' and takes precedence (the agent self-corrects it)
   assert.strictEqual(checkCommitMessage('no type here', {}, '').kind, 'format');
+});
+
+test('checkCommitMessage: commit.ticketFormat requires a commitlint-safe placement in the message (MBI-145)', () => {
+  const footer = { ticketFormat: 'footer' };
+  // a key in the subject does NOT satisfy footer format → kind 'ticket', suggestion names the carrier
+  const miss = checkCommitMessage('feat: add thing ABC-12', footer, 'feature/ABC-12-x');
+  assert.strictEqual(miss.kind, 'ticket');
+  assert.ok(miss.reason.includes('Refs ABC-12'));                 // resolved key filled into the suggestion
+  // proper footer satisfies it
+  assert.strictEqual(checkCommitMessage('feat: add thing\n\nRefs ABC-12', footer, ''), null);
+  // scope format
+  assert.strictEqual(checkCommitMessage('feat(ABC-12): add', { ticketFormat: 'scope' }, ''), null);
+  // default (no ticketFormat) is unchanged: branch key still satisfies
+  assert.strictEqual(checkCommitMessage('feat: x', {}, 'feature/ABC-12-x'), null);
 });
 
 test('decideCommitMessage: format → DENY (self-correct); missing ticket → ASK with why=no_ticket (overridable per commit)', () => {

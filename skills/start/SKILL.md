@@ -67,6 +67,22 @@ ingest a handover. It also makes sure the compliance profile is set, which every
        per-slot if `needsConfirm` is true — ambiguous or missing). Persist with `… jira-transitions.js write`
        → `jira.transitions` in `project.json`. It's **committed**, so teammates and every later ticket reuse
        it with zero input; `/ship` self-heals it if the workflow ever changes.
+   - **Capture the `git` conventions once (so `/tdd` never guesses a branch name).** The same
+     discover→confirm→reuse loop as the transitions map, for the `git` block `/tdd` reads at branch-creation.
+     Run `node "${CLAUDE_PLUGIN_ROOT}/bin/git-config.js" infer` → it reads the repo's existing branches + the
+     project key and returns `{ prefix, pattern, baseBranch, prTarget, needsConfirm }` (a **consistent**
+     existing prefix like `feat/` is adopted; a mix or none → default `feature/<KEY>-<slug>` with
+     `needsConfirm`). **Show it and confirm once** (only ask when `needsConfirm`), then persist with
+     `… git-config.js write '<git-block>'` → the **committed** `git` block. Without this the branch-naming
+     convention (MBI-144) has nothing to read. Then run `… git-config.js check-commitlint` — if the repo has a
+     commitlint config whose `issuePrefixes` can't match the project key (e.g. `['JIRA-']` on an `HTX-` repo,
+     so the reference parser never fires), **surface the mismatch** and offer to fix it to the real key.
+   - **Commit ticket-reference format (optional, MBI-145).** Commits require a ticket key by default
+     (`commit.requireTicket`), satisfied by a key anywhere in the message or on the branch. To make the
+     placement **consistent + commitlint-safe**, set `commit.ticketFormat` in `project.json` to one of
+     `footer` (`Refs KEY-N` — recommended default), `scope` (`feat(KEY-N): …`), or `trailing`
+     (`feat(scope): … (KEY-N)`). Note `<TICKET>: feat: …` is **not** a valid conventional commit, so it isn't
+     offered. Recommend-by-default: a missing/misplaced reference ASKs (overridable per commit), never a hard block.
    - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
      commits, PRs, and the harness usage metrics); set it if it's missing or personal.
    - **Commit-review mode — settle it once.** By default the agent **commits as it works** (you review at the

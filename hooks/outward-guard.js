@@ -148,9 +148,22 @@ function checkCommitMessage(message, policy, branch) {
     }
   }
   if (p.requireTicket !== false) { // ON by default
-    const hasTicket = TICKET_RE.test(String(message)) || (branch && TICKET_RE.test(String(branch)));
-    if (!hasTicket) {
-      return { kind: 'ticket', reason: 'no Jira ticket linked to this work — name the branch (e.g. feature/ABC-123-…) or add the key to the message, or commit anyway to override (set commit.requireTicket=false to disable).' };
+    // `commit.ticketFormat` selects a commitlint-compatible placement (MBI-145). Default 'anywhere' keeps the
+    // original behavior (a key in the message OR on the branch satisfies). A specific format must appear IN
+    // the message (the branch key doesn't count — the point is the message carries it in a fixed position).
+    const format = p.ticketFormat || 'anywhere';
+    if (format === 'anywhere') {
+      const hasTicket = TICKET_RE.test(String(message)) || (branch && TICKET_RE.test(String(branch)));
+      if (!hasTicket) {
+        return { kind: 'ticket', reason: 'no Jira ticket linked to this work — name the branch (e.g. feature/ABC-123-…) or add the key to the message, or commit anyway to override (set commit.requireTicket=false to disable).' };
+      }
+    } else {
+      const cref = require('../bin/commit-ref.js');
+      if (!cref.hasReference(message, format)) {
+        const km = String(message).match(TICKET_RE) || (branch ? String(branch).match(TICKET_RE) : null);
+        const key = km ? km[0] : 'KEY-N';
+        return { kind: 'ticket', reason: `commit needs a ${format}-style ticket reference — add "${cref.suggestReference(key, format)}" (commitlint-safe), or commit anyway to override (set commit.ticketFormat="anywhere" or commit.requireTicket=false).` };
+      }
     }
   }
   return null;
@@ -196,6 +209,38 @@ function suppressAsk(decision, auto) {
 // `wall.autoApprove.commit`. It's **default-ON** (MBI-110), so out of the box a commit doesn't prompt; a repo
 // that wants the agent to pause for review sets `wall.autoApprove.commit: false`. This always returns the ASK;
 // decide() suppresses it when the gate is auto-approved. (There is no separate commit.autoCommit key — MBI-118.)
+// ── branch-name gate → DENY a non-conforming branch when the repo opts into enforcement (MBI-144) ────────
+// Default posture is recommend-only (/tdd shows the derived name; nothing here fires). A repo that sets
+// `git.enforceBranch=true` promotes it to a hard rule: a `git checkout -b` / `git switch -c` creating a
+// branch that doesn't carry a ticket key behind a prefix segment (prefix/KEY-slug) → DENY (the agent
+// re-creates it with the right name; no human needed). Reversible, so it's the agent's to self-correct.
+const BRANCH_CREATE_RE = /\bgit\s+(?:checkout\s+-b|switch\s+-c|branch)\s+(?:-\S+\s+)*(['"]?)([^\s'"]+)\1/i;
+
+/** Pure: given a create-branch command and the repo's `git` policy, block a non-conforming new branch when
+ * enforceBranch is on. null = ok / not applicable. Conforming = a prefix segment + a ticket key. */
+function checkBranchName(command, gitPolicy) {
+  const g = gitPolicy || {};
+  if (!g.enforceBranch) return null;                 // opt-in — dormant by default
+  const m = String(command || '').match(BRANCH_CREATE_RE);
+  if (!m) return null;
+  const name = m[2];
+  if (name.includes('/') && TICKET_RE.test(name)) return null; // prefix/KEY-… → conforms
+  const pat = g.branchPattern || 'feature/<KEY>-<slug>';
+  return { reason: `branch "${name}" doesn't follow this repo's convention (${pat}) — name it <prefix>/<KEY>-<slug> so the ticket is traceable (git.enforceBranch is on). Use bin/branch-name.js recommend <KEY> "<desc>".` };
+}
+
+/** Read the repo's `git` policy block from project.json (branchPattern, enforceBranch, base/pr target). */
+function gitPolicy(dir) {
+  const j = readProjectConfig(dir);
+  return (j && j.git) || {};
+}
+
+function decideBranchName(command, policy) {
+  const bad = checkBranchName(command, policy !== undefined ? policy : gitPolicy());
+  if (!bad) return null;
+  return { action: 'deny', gate: 'branchName', reason: `health-harness wall — branch blocked: ${bad.reason}` };
+}
+
 function decideCommitReview(command) {
   if (!COMMIT_RE.test(String(command || ''))) return null;
   return { action: 'ask', why: 'commit_review', gate: 'commit', reason: 'health-harness wall: commit review — review the staged diff before this commit lands. Approve to commit, or set wall.autoApprove.commit=true (the default) to let the agent commit without asking.' };
@@ -421,6 +466,8 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       if (cov) return cov;
       const det = sa(decideCriteriaDetect(cmd, cwd, detectOverride)); // compliance backstop → ASK (complianceBackstop) / recorded-convention DENY (kept)
       if (det) return det;
+      const branch = decideBranchName(cmd); // enforce-mode branch naming → DENY (opt-in; agent self-corrects)
+      if (branch) return branch;
       const gs = gitState !== undefined ? gitState : gitProbe();
       return sa(dropAsk(bash))                          // outward ASK: grant- and gate-flag-suppressible
         || sa(decideCommitGuard(cmd, gs))              // base-branch commit → ASK (baseBranchCommit)
@@ -439,7 +486,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

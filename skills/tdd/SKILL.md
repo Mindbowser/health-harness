@@ -211,11 +211,18 @@ Don't make the human do the git plumbing. At the **start** of the slice:
   `expand=changelog` + its transitions, write the raw responses to temp JSON files, and run
   `node "${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js" emit-transitions <issue.json> <transitions.json>` (transitions
   optional). Deterministic, metadata-only, dedup-safe — records the In Progress transition for cycle-time.
-- **Create the working branch yourself** — off the repo's **base branch**, using its **naming convention**
-  (read `.health-harness/project.json` `git` block / existing branches — e.g. CH branches off `dev`; don't
-  impose MB's `fix/<KEY>` if the repo differs). Respect the existing flow.
+- **Create the working branch yourself** — off the repo's **base branch**, using its **naming convention**.
+  Don't guess it: run `node "${CLAUDE_PLUGIN_ROOT}/bin/branch-name.js" recommend <KEY> "<short description>"`
+  — it derives `<prefix>/<KEY>-<slug>` from the ticket's issue **type** (recorded by `/align` in the issue
+  graph) and the `git.branchPattern` captured at `/start` (MBI-143), so a Bug becomes `bugfix/…`, a Story
+  `feature/…`, and a repo that pinned its own prefix (e.g. `feat/`) is honored. **Show the recommendation and
+  create it** (accept-or-override — infer-and-inform, never silent). If the repo set `git.enforceBranch=true`,
+  the wall DENYs a branch/commit whose branch doesn't carry the key (`branch-name.js conforms`); default is
+  recommend-only. Don't impose MB's convention if the repo differs — the captured block is the source of truth.
 - **Never commit on the base branch** — branch before the first commit (the wall ASKs on a base-branch
-  commit). **During:** small, conventional commits referencing the ticket key. **Don't push without an OK.**
+  commit). **During:** small, conventional commits referencing the ticket key. If the repo set
+  `commit.ticketFormat` (MBI-145), carry the key in that placement (e.g. footer `Refs KEY-N`) — the wall
+  suggests the exact carrier if you miss it. **Don't push without an OK.**
 - **"Don't autocommit" is a SETTING, not a memory (MBI-141).** If the user ever says *don't autocommit* /
   *ask before every commit* — at the start or mid-session — **arm the gate immediately:**
   `node "…/bin/commit-review.js" enable` (persists `wall.autoApprove.commit:false` in the committed
