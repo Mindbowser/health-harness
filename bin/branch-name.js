@@ -11,9 +11,10 @@
  */
 'use strict';
 
-// Issue type → branch prefix. Everything that isn't a defect is feature-work. (hotfix is severity-driven,
-// not type-driven, so it isn't mapped here — a repo can pin it via the pattern.)
-const TYPE_PREFIX = { bug: 'bugfix', defect: 'bugfix' };
+// Issue type → branch prefix. Defaults match Mindbowser's house convention (branches are `feature/` and
+// `fix/`), NOT a generic bugfix/hotfix scheme — a customer repo overrides via `git.typePrefixes` in
+// project.json (e.g. { Bug: 'bugfix', Hotfix: 'hotfix' }). Everything that isn't a defect is feature-work.
+const TYPE_PREFIX = { bug: 'fix', defect: 'fix' };
 const DEFAULT_PREFIX = 'feature';
 
 /** Pure: free text → a short, safe branch slug (lowercase, hyphenated, punctuation stripped, ≤50 chars). */
@@ -26,9 +27,12 @@ function slugify(text) {
     .replace(/-+$/g, '');
 }
 
-/** Pure: derive the branch prefix from the issue type. */
-function typePrefix(issueType) {
-  return TYPE_PREFIX[String(issueType || '').trim().toLowerCase()] || DEFAULT_PREFIX;
+/** Pure: derive the branch prefix from the issue type, honoring a per-repo override map (keys matched
+ * case-insensitively) layered over the MB defaults. */
+function typePrefix(issueType, overrides) {
+  const map = { ...TYPE_PREFIX };
+  for (const [k, v] of Object.entries(overrides || {})) map[String(k).toLowerCase()] = v;
+  return map[String(issueType || '').trim().toLowerCase()] || DEFAULT_PREFIX;
 }
 
 /** Pure: recommend a branch name for a ticket. The persisted `pattern` decides whether the prefix is
@@ -40,7 +44,7 @@ function recommend(issueType, key, description, opts = {}) {
   const pattern = opts.pattern || `${DEFAULT_PREFIX}/<KEY>-<slug>`;
   const pinned = String(pattern).split('/')[0]; // the literal prefix segment of the pattern
   const usesType = pinned === '<type>' || pinned === DEFAULT_PREFIX;
-  const prefix = usesType ? typePrefix(issueType) : pinned;
+  const prefix = usesType ? typePrefix(issueType, opts.typePrefixes) : pinned;
   return `${prefix}/${key}-${slugify(description)}`;
 }
 
@@ -64,6 +68,7 @@ if (require.main === module) {
   const readJson = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return {}; } };
   const project = readJson(path.join(cwd, '.health-harness', 'project.json'));
   const pattern = (project.git && project.git.branchPattern) || undefined;
+  const typePrefixes = (project.git && project.git.typePrefixes) || undefined;
   const sub = process.argv[2];
 
   if (sub === 'recommend') {
@@ -73,7 +78,7 @@ if (require.main === module) {
     if (!issueType && key) { // fall back to what /align recorded in the issue graph (~/.health-harness)
       try { issueType = (require('./issue-graph.js').loadGraph()[key] || {}).type; } catch { /* none */ }
     }
-    process.stdout.write(recommend(issueType, key, desc, { pattern }));
+    process.stdout.write(recommend(issueType, key, desc, { pattern, typePrefixes }));
     process.exit(0);
   } else if (sub === 'conforms') {
     const ok = conforms(process.argv[3], process.argv[4]);
