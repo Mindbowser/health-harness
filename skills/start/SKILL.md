@@ -80,9 +80,10 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    - **Commit ticket-reference format (optional, MBI-145).** Commits require a ticket key by default
      (`commit.requireTicket`), satisfied by a key anywhere in the message or on the branch. To make the
      placement **consistent + commitlint-safe**, set `commit.ticketFormat` in `project.json` to one of
-     `footer` (`Refs KEY-N` — recommended default), `scope` (`feat(KEY-N): …`), or `trailing`
-     (`feat(scope): … (KEY-N)`). Note `<TICKET>: feat: …` is **not** a valid conventional commit, so it isn't
-     offered. Recommend-by-default: a missing/misplaced reference ASKs (overridable per commit), never a hard block.
+     `trailing` (`type(scope): subject (KEY-N)` — the **MB house style**, also carries the version),
+     `footer` (`Refs KEY-N`), or `scope` (`feat(KEY-N): …`). Note `<TICKET>: feat: …` is **not** a valid
+     conventional commit, so it isn't offered. Recommend-by-default: a missing/misplaced reference ASKs
+     (overridable per commit), never a hard block. For a customer repo, match **their** existing style, not MB's.
    - **Git identity** — confirm `git config user.email` is the **company email** (the work identity used in
      commits, PRs, and the harness usage metrics); set it if it's missing or personal.
    - **Commit-review mode — settle it once.** By default the agent **commits as it works** (you review at the

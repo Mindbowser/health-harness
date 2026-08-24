@@ -23,6 +23,8 @@ test('hasReference: scope requires the key inside the conventional scope', () =>
 test('hasReference: trailing requires "(KEY-N)" at the end of the subject', () => {
   assert.strictEqual(hasReference('feat(api): add thing (ABC-12)', 'trailing'), true);
   assert.strictEqual(hasReference('feat(api): add thing', 'trailing'), false);
+  // MB's real style carries the key AND the version in the trailing parens — must still pass
+  assert.strictEqual(hasReference('feat(start): capture git block (MBI-143, v0.4.18)', 'trailing'), true);
 });
 
 test('suggestReference: fills the key into the configured carrier', () => {

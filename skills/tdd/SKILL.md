@@ -214,8 +214,9 @@ Don't make the human do the git plumbing. At the **start** of the slice:
 - **Create the working branch yourself** — off the repo's **base branch**, using its **naming convention**.
   Don't guess it: run `node "${CLAUDE_PLUGIN_ROOT}/bin/branch-name.js" recommend <KEY> "<short description>"`
   — it derives `<prefix>/<KEY>-<slug>` from the ticket's issue **type** (recorded by `/align` in the issue
-  graph) and the `git.branchPattern` captured at `/start` (MBI-143), so a Bug becomes `bugfix/…`, a Story
-  `feature/…`, and a repo that pinned its own prefix (e.g. `feat/`) is honored. **Show the recommendation and
+  graph) and the `git.branchPattern` captured at `/start` (MBI-143), so a Bug becomes `fix/…`, a Story
+  `feature/…` (the MB convention; override via `git.typePrefixes`), and a repo that pinned its own prefix
+  (e.g. `feat/`) is honored. **Show the recommendation and
   create it** (accept-or-override — infer-and-inform, never silent). If the repo set `git.enforceBranch=true`,
   the wall DENYs a branch/commit whose branch doesn't carry the key (`branch-name.js conforms`); default is
   recommend-only. Don't impose MB's convention if the repo differs — the captured block is the source of truth.

@@ -22,7 +22,7 @@ const MATCHERS = {
   anywhere: new RegExp(`\\b${KEY}\\b`),
   footer:   new RegExp(`^\\s*refs?\\s+${KEY}\\s*$`, 'im'),        // "Refs KEY-N" on its own line (case-insensitive)
   scope:    new RegExp(`^\\w+\\(${KEY}\\)!?:\\s`, 'm'),            // type(KEY-N): …
-  trailing: new RegExp(`\\(${KEY}\\)\\s*$`, 'm'),                  // … (KEY-N) at end of a line
+  trailing: new RegExp(`\\([^)]*${KEY}[^)]*\\)\\s*$`, 'm'),        // … (KEY-N) or (KEY-N, vX.Y.Z) at line end
 };
 
 /** Pure: does the message carry a ticket reference in the given placement? Unknown format → treat as 'anywhere'. */

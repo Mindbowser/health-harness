@@ -3,11 +3,17 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { recommend, conforms, slugify } = require('../bin/branch-name.js');
 
-test('recommend: default pattern derives the prefix from the issue type', () => {
+test('recommend: default prefixes match the MB convention (feature/ + fix/)', () => {
   assert.strictEqual(recommend('Story', 'ABC-12', 'add login'), 'feature/ABC-12-add-login');
-  assert.strictEqual(recommend('Bug', 'ABC-13', 'fix crash'), 'bugfix/ABC-13-fix-crash');
+  assert.strictEqual(recommend('Bug', 'ABC-13', 'fix crash'), 'fix/ABC-13-fix-crash');   // MB uses fix/, not bugfix/
   assert.strictEqual(recommend('Task', 'ABC-14', 'tidy'), 'feature/ABC-14-tidy');
   assert.strictEqual(recommend('Sub-task', 'ABC-15', 'x'), 'feature/ABC-15-x');
+});
+
+test('recommend: a repo can override the type→prefix map (e.g. customer wants bugfix/)', () => {
+  const opts = { typePrefixes: { Bug: 'bugfix' } };
+  assert.strictEqual(recommend('Bug', 'ABC-13', 'x', opts), 'bugfix/ABC-13-x');
+  assert.strictEqual(recommend('Story', 'ABC-1', 'y', opts), 'feature/ABC-1-y'); // untouched types keep defaults
 });
 
 test('recommend: an unknown/blank type falls back to feature', () => {
@@ -21,7 +27,7 @@ test('recommend: a repo that pinned a specific prefix is honored over type-deriv
 });
 
 test('recommend: a <type> token in the pattern is substituted with the derived prefix', () => {
-  assert.strictEqual(recommend('Bug', 'HTX-5', 'patch', { pattern: '<type>/<KEY>-<slug>' }), 'bugfix/HTX-5-patch');
+  assert.strictEqual(recommend('Bug', 'HTX-5', 'patch', { pattern: '<type>/<KEY>-<slug>' }), 'fix/HTX-5-patch');
 });
 
 test('slugify: lowercases, hyphenates, strips punctuation, trims length', () => {
