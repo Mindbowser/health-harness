@@ -167,7 +167,17 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   `commit.requireTicket:false` to opt a repo out. A soft, passive one-line **nudge also fires on the first
   code edit** of a session with no linked ticket (once/session, non-blocking) so work lands on-board before
   the commit. "Off-board work" needs no new telemetry — it's the **absence of `issueKey`** on the existing
-  commit/gate events. (`bin/ticketless-nudge.js`.)
+  commit/gate events. (`bin/ticketless-nudge.js`.) The **placement** of that key can be made consistent +
+  commitlint-safe per repo via `commit.ticketFormat` (`footer` `Refs KEY-N` — recommended, `scope`
+  `feat(KEY-N): …`, or `trailing` `… (KEY-N)`); the wall then suggests the exact carrier when it's missing.
+  (`<TICKET>: feat: …` is deliberately not offered — it isn't a valid conventional commit.) Recommend by
+  default; unset = a key anywhere satisfies (unchanged). MBI-145, `bin/commit-ref.js`.
+- **DENY → a branch that breaks the repo's naming convention** (MBI-144, opt-in): `/tdd` recommends a branch
+  name derived from the ticket's **issue type + key** (`feature/`, `bugfix/`, honoring a repo-pinned prefix) —
+  the convention `/start` captures into `project.json`'s `git` block (`bin/git-config.js`, MBI-143) instead of
+  each dev guessing it. Recommend-only by default; a repo that sets `git.enforceBranch:true` makes the wall
+  **DENY** a `git checkout -b`/`switch -c` whose name doesn't carry the key behind a prefix (the agent
+  re-creates it). `bin/branch-name.js`.
 - **ASK → an edit/delete outside the ticket's module boundaries** (MBI-124, opt-in): a ticket can declare the
   files it may touch (`/align` writes `boundaries: [globs]` onto its criteria manifest). The wall then ASKs
   before an **Edit/Write/MultiEdit — or a mutating Bash (`rm`/`mv`/`sed -i`/redirect/`git rm`)** — lands on a
