@@ -195,8 +195,15 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   ships. Deterministic: a file/status check, resolved off the branch key — no judgment in the gate. **Dormant**
   when the ledger is empty/absent. Auto-approvable with `wall.autoApprove.openQuestions`. (`hooks/outward-guard.js`
   `decideOpenQuestions`.) **You see them before push, too:** the SessionStart line shows `❓N open questions`
-  when you return to a repo, and an **opt-in statusline** keeps `<dir> · <ticket> · ❓N open` (amber badge)
-  live in the CLI. To enable: drop a tiny version-stable wrapper at `~/.claude/health-harness-statusline.sh`
+  when you return to a repo, and an **opt-in statusline** keeps a two-half line live in the CLI:
+  **ticket health** — `<dir> · ✓ on-track · <ticket> · ⚠ N criteria unmet · ❓N open` — where the leading
+  `✓ on-track` / `⚠ off-track` verdict tells you at a glance whether the current task is following harness
+  discipline (a ticket is linked, no acceptance criteria unmet, no open questions), and the specific badges
+  say what's off: `⚠ N criteria unmet` is the same gap the wall blocks a push on, and `⛔ no ticket` flags a
+  keyless work branch. Then a ` ║ ` separator and a **usage** half read from the same session JSON:
+  `model · cost · ctx% · 5h · week` with heat-coloured mini-bars (the weekly bar is the allowance that runs
+  out days before it resets). **Disable options (env):** `HARNESS_STATUSLINE=off` (whole line),
+  `HARNESS_STATUSLINE_TICKET=off` (ticket half), `HARNESS_STATUSLINE_USAGE=off` (usage half). To enable: drop a tiny version-stable wrapper at `~/.claude/health-harness-statusline.sh`
   that execs the plugin's `bin/statusline.js` (plugins can't declare a statusline and `statusLine` doesn't
   expand `${CLAUDE_PLUGIN_ROOT}`, so the wrapper resolves the current installed version), then set
   `"statusLine": { "type": "command", "command": "~/.claude/health-harness-statusline.sh" }` in `settings.json`. **Easiest: `/start` offers to enable it, or run `bin/statusline-setup.js enable` (idempotent, never clobbers your own statusLine); a session-start nudge reminds you when it's off.** On resolve, `open-questions.js reconcile` lists any answer that differed from what was built
@@ -379,7 +386,7 @@ bin/subtask-coverage.js      # story already has sub-tasks? checks /align maps A
 bin/boundary-check.js        # module-boundary guard — ASK before an edit/delete outside the ticket's declared boundaries; approve → living list grows (+ test/)
 bin/open-questions.js        # "I don't know yet" ledger + push gate — ratify unresolved guesses before ship (+ test/)
 bin/commit-review.js        # arm/disarm the commit-review gate (persist "don't autocommit" as a committed setting, MBI-141) (+ test/)
-bin/statusline.js           # opt-in composed statusline — <dir> · <ticket> · amber ❓N open badge (+ test/)
+bin/statusline.js           # opt-in composed statusline — ticket health (<dir>·<ticket>·⚠criteria·❓open) ║ usage (model·cost·ctx·5h·week) (+ test/)
 bin/statusline-setup.js     # one-step enable for the statusline (/start offers it; session-start nudge when off) (+ test/)
 bin/concerns.js              # extensible cross-cutting-concern registry (timezone/audit/errors/scale/…) surfaced at /align + /tdd (+ test/)
 bin/test-detect.js           # detects the test framework + gate command so onboard/scaffold can prove a red→green loop (+ test/)
