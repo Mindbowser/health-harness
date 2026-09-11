@@ -74,7 +74,17 @@ function resolveMode(envFlag, fileCfg) {
   return { enabled, mode: mode || (cfg.mode === 'chime' ? 'chime' : 'voice') }; // default voice
 }
 
-module.exports = { decideSound, classifyNotification, resolveMode, EVENTS, DEFAULT_EVENT_ON };
+/** Pure (MBI-155): fold a per-dev preference into the repo sounds.json config.
+ * Precedence, highest first: MB_HARNESS_SOUNDS env → repo `.health-harness/sounds.json` → the personal
+ * `sound.enabled` setting onboarding persists → default ON. Only an explicit `false` mutes, so an
+ * upgrade never silences anyone who hasn't chosen. */
+function mergeUserPref(fileCfg, userPref) {
+  const cfg = fileCfg || {};
+  if (cfg.enabled === undefined && userPref === false) return { ...cfg, enabled: false };
+  return cfg;
+}
+
+module.exports = { decideSound, classifyNotification, resolveMode, mergeUserPref, EVENTS, DEFAULT_EVENT_ON };
 
 // ── CLI / hook entry ────────────────────────────────────────────────────────────
 if (require.main === module) {
@@ -115,6 +125,8 @@ function main() {
   // MB_HARNESS_SOUNDS: off|0|false → off · voice → spoken · chime → tones · 1|on|true → on (default mode).
   let fileCfg = {};
   try { fileCfg = JSON.parse(fs.readFileSync(path.join(process.cwd(), '.health-harness', 'sounds.json'), 'utf8')); } catch { /* none */ }
+  // personal mute persisted by onboarding — repo sounds.json and the env var still take precedence
+  try { fileCfg = mergeUserPref(fileCfg, require('./harness-config.js').get({}, 'sound.enabled')); } catch { /* no settings */ }
   const { enabled, mode } = resolveMode(process.env.MB_HARNESS_SOUNDS, fileCfg);
 
   // ── clip lookup: user override path, else a bundled file under sounds/[subdir/]<event>.(wav|aiff|mp3) ──

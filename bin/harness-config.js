@@ -116,7 +116,46 @@ function set(dirs, key, rawValue) {
   return { ok: true, file, value: v.value, layer: v.layer };
 }
 
-module.exports = { SCHEMA, coerce, resolve, validateSet, paths, effective, get, set };
+// How settings are grouped when presented interactively. Order matters: governance is shown FIRST (so a
+// dev sees what is enforced before what they can change), then the things they actually choose.
+const GROUPS = [
+  { group: 'Governance (org policy — cannot be turned off)', keys: ['secretScanning', 'branchProtection', 'ticketKeyedCommits', 'testGate', 'redactionEgress'] },
+  { group: 'Git workflow', keys: ['protectedBranches', 'branchNaming'] },
+  { group: 'Pre-commit checks', keys: ['hooks.mergeConflictMarkers', 'hooks.focusedTestGuard', 'hooks.largeFile', 'hooks.debugLeftover', 'hooks.plainEnglishCommit'] },
+  { group: 'Personal (this machine only)', keys: ['diffReviewBeforePush', 'sound.enabled'] },
+];
+
+/** Impure: has each layer been configured yet? Drives first-run detection (`/start` → onboarding). */
+function isConfigured(dirs) {
+  const fs = require('fs');
+  const p = paths(dirs);
+  const has = (f) => { try { return fs.existsSync(f); } catch { return false; } };
+  return { repo: has(p.repo), user: has(p.user), any: has(p.repo) || has(p.user) };
+}
+
+/** Impure: the grouped plan an interactive onboarding renders — current value, default, tier and whether
+ * the row is locked (shown for transparency, never offered as a choice). Deterministic, so the UI layer
+ * never has to re-derive what is configurable. */
+function onboardingPlan(dirs) {
+  const eff = effective(dirs);
+  return GROUPS.map((g) => ({
+    group: g.group,
+    locked: g.keys.every((k) => SCHEMA[k] && SCHEMA[k].tier === 'locked'),
+    items: g.keys.filter((k) => SCHEMA[k]).map((k) => ({
+      key: k,
+      tier: SCHEMA[k].tier,
+      locked: SCHEMA[k].tier === 'locked',
+      type: SCHEMA[k].type,
+      layer: SCHEMA[k].layer,
+      value: eff[k].value,
+      default: SCHEMA[k].default,
+      source: eff[k].source,
+      changed: eff[k].source !== 'default' && eff[k].source !== 'locked',
+    })),
+  }));
+}
+
+module.exports = { SCHEMA, GROUPS, coerce, resolve, validateSet, paths, effective, get, set, isConfigured, onboardingPlan };
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 //   harness-config.js                 → print the effective config (JSON)
@@ -129,6 +168,8 @@ if (require.main === module) {
     const [, , , key, ...rest] = process.argv;
     const r = set({}, key, rest.join(' '));
     done(r, r.ok ? 0 : 2);
+  } else if (sub === 'plan') {
+    done({ configured: isConfigured({}), plan: onboardingPlan({}) });
   } else if (sub === 'get') {
     done({ key: process.argv[3], value: get({}, process.argv[3]) });
   } else {

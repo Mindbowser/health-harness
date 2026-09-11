@@ -29,6 +29,12 @@ ingest a handover. It also makes sure the compliance profile is set, which every
    - **Has existing source code** (any stack) → **existing repo**.
 2. **Confirm with the user** — state the detected archetype and why; let them correct it. Never route
    blind (a near-empty repo might still be an existing clone mid-setup).
+2c. **First run? Offer the settings walkthrough (MBI-155).** Check whether this machine/repo has ever
+   been configured: `node "${CLAUDE_PLUGIN_ROOT}/bin/harness-config.js" plan` → when `configured.any` is
+   **false**, run **/harness-config** so the dev sees what org policy enforces (locked) and accepts or tunes
+   the rest in one batched confirmation. Already configured → say nothing and move on. Skipping is fine:
+   every setting is safe-defaulted, so an unconfigured repo behaves exactly as it does today.
+
 3. **Ensure the compliance profile is set.** If `.health-harness/compliance.json` is missing, run
    `/compliance-profile` (default `hipaa`). Both paths need this before work starts.
 3b. **Record project conventions + gate completeness (one-time → the build loop's compliance checks become

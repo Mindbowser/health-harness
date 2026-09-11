@@ -109,3 +109,18 @@ test('resolveMode: ON by default in voice mode; env disables/overrides config', 
 test('EVENTS is the canonical set', () => {
   assert.deepStrictEqual(EVENTS, ['waiting', 'gate', 'done', 'subagent']);
 });
+
+// ── MBI-155: personal mute layer (env > repo sounds.json > personal setting > default ON) ──
+test('MBI-155: mergeUserPref mutes only on an explicit personal false, and never overrides sounds.json', () => {
+  const { mergeUserPref } = require('../bin/play-sound.js');
+  // no repo opinion + personal mute → muted
+  assert.deepStrictEqual(mergeUserPref({}, false), { enabled: false });
+  // no repo opinion + personal "on"/unset → untouched (stays default ON; an upgrade silences nobody)
+  assert.deepStrictEqual(mergeUserPref({}, true), {});
+  assert.deepStrictEqual(mergeUserPref({}, undefined), {});
+  // repo sounds.json wins over the personal preference in BOTH directions
+  assert.deepStrictEqual(mergeUserPref({ enabled: true }, false), { enabled: true });
+  assert.deepStrictEqual(mergeUserPref({ enabled: false }, true), { enabled: false });
+  // other keys are preserved
+  assert.deepStrictEqual(mergeUserPref({ mode: 'chime' }, false), { mode: 'chime', enabled: false });
+});

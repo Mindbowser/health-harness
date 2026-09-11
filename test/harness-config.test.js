@@ -93,3 +93,36 @@ test('coerce: CLI string values become the schema type', () => {
   assert.deepStrictEqual(cfg.coerce('list', 'main,dev, qa'), ['main', 'dev', 'qa']);
   assert.strictEqual(cfg.coerce('string', 'feature/x'), 'feature/x');
 });
+
+// ── MBI-155: first-run detection + the interactive onboarding plan ──
+test('[AC-1] isConfigured reports each layer; false before anything is written', () => {
+  const d = tmp();
+  assert.deepStrictEqual(cfg.isConfigured(d), { repo: false, user: false, any: false });
+  cfg.set(d, 'branchNaming', 'fix/<slug>');
+  assert.deepStrictEqual(cfg.isConfigured(d), { repo: true, user: false, any: true });
+  cfg.set(d, 'sound.enabled', false);
+  assert.deepStrictEqual(cfg.isConfigured(d), { repo: true, user: true, any: true });
+});
+
+test('[AC-2] onboardingPlan groups settings, marks locked rows, and shows value vs default', () => {
+  const d = tmp();
+  const plan = cfg.onboardingPlan(d);
+  const gov = plan.find((g) => /Governance/.test(g.group));
+  assert.strictEqual(gov.locked, true, 'the governance group is entirely locked');
+  assert.ok(gov.items.every((i) => i.locked && i.value === true), 'locked rows are enforced true');
+  // a configurable group is not locked and reports source/default
+  const workflow = plan.find((g) => g.group === 'Git workflow');
+  assert.strictEqual(workflow.locked, false);
+  const bn = workflow.items.find((i) => i.key === 'branchNaming');
+  assert.strictEqual(bn.source, 'default');
+  assert.strictEqual(bn.changed, false);
+  assert.strictEqual(bn.value, cfg.SCHEMA.branchNaming.default);
+  // after a change, the plan reflects it so onboarding can show "you changed this"
+  cfg.set(d, 'branchNaming', 'wip/<slug>');
+  const after = cfg.onboardingPlan(d).find((g) => g.group === 'Git workflow').items.find((i) => i.key === 'branchNaming');
+  assert.strictEqual(after.value, 'wip/<slug>');
+  assert.strictEqual(after.changed, true);
+  // every schema key appears exactly once across the groups
+  const keys = cfg.onboardingPlan(d).flatMap((g) => g.items.map((i) => i.key));
+  assert.deepStrictEqual(keys.slice().sort(), Object.keys(cfg.SCHEMA).sort());
+});
