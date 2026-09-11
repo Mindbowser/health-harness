@@ -498,6 +498,50 @@ function decideDiffReview(command, cwd, opts) {
   };
 }
 
+// ── configurable pre-commit checks → ASK (MBI-154) ────────────────────────────
+// The advisory half of the hook menu: conflict markers, focused tests, oversized files (on by default),
+// plus debug leftovers and commit-subject wording (opt-in). ASK, not DENY — these are quality checks a
+// repo tunes, unlike the locked rules. No findings ⇒ no prompt, so a clean commit is never interrupted.
+// `opts` = { config, diff, files, subject } for hermetic tests.
+function stagedFiles(cwd) {
+  try {
+    const { execSync } = require('child_process');
+    const fs = require('fs'), path = require('path');
+    const root = cwd || process.cwd();
+    return execSync('git diff --cached --name-only', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' })
+      .split(/\r?\n/).filter(Boolean)
+      .map((p) => { try { return { path: p, bytes: fs.statSync(path.resolve(root, p)).size }; } catch { return null; } })
+      .filter(Boolean);
+  } catch { return []; }
+}
+function decidePreCommitChecks(command, cwd, opts) {
+  if (!COMMIT_RE.test(String(command || ''))) return null;
+  const o = opts || {};
+  const pc = require('../bin/precommit-checks.js');
+  const ds = require('../bin/diff-summary.js');
+  let config = o.config;
+  if (config === undefined) {
+    try {
+      const cfgPath = findConfigPath(cwd);
+      const path = require('path');
+      const root = cfgPath ? path.dirname(path.dirname(cfgPath)) : (cwd || process.cwd());
+      const eff = require('../bin/harness-config.js').effective({ repoDir: root });
+      config = Object.fromEntries(Object.entries(eff).map(([k, v]) => [k, v.value]));
+    } catch { config = {}; }
+  }
+  const findings = pc.runChecks({
+    addedLines: ds.addedLines(o.diff !== undefined ? o.diff : (gitDiffFor('git commit', cwd) || '')),
+    files: o.files !== undefined ? o.files : stagedFiles(cwd),
+    subject: o.subject !== undefined ? o.subject : (extractCommitMessage(command) || ''),
+    config,
+  });
+  if (!findings.length) return null;
+  return {
+    action: 'ask', why: 'precommit_checks', gate: 'preCommitChecks',
+    reason: `health-harness wall: pre-commit checks found ${findings.length} issue${findings.length > 1 ? 's' : ''}:\n\n${pc.formatFindings(findings)}\n\nApprove to commit anyway, or deny and fix.`,
+  };
+}
+
 function decideRedactionMcp(tool, toolInput, cwd) {
   if (!MCP_WRITE.test(String(tool || ''))) return null; // reads carry no outbound content
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
@@ -594,7 +638,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decidePreCommitChecks, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
@@ -608,6 +652,7 @@ if (require.main === module) {
       // (which stays a pure, injectable decision core for the tests). Locked DENY first, configurable ASK last.
       const bashCmd = input.tool_name === 'Bash' ? (input.tool_input || {}).command : null;
       if (bashCmd) d = decideDiffScan(bashCmd, process.cwd());          // MBI-152 locked secret/PHI diff scan
+      if (!d && bashCmd) d = sa(decidePreCommitChecks(bashCmd, process.cwd())); // MBI-154 configurable pre-commit checks
       if (!d) d = decide(input.tool_name, input.tool_input);
       if (!d && bashCmd) { // MBI-153 diff review — never in CI, and never re-asks under a live /ship grant
         let granted = false;

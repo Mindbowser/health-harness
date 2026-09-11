@@ -214,26 +214,10 @@ function gitChangedFiles(mode, base) {
  * Tracks the destination file (`+++ b/<path>`) and the new-file line number from each hunk header.
  * @returns {Array<{file,line,class,snippet}>} */
 function scanDiffAddedLines(diff, opts) {
-  const hits = [];
-  let file = null, newLine = 0;
-  String(diff || '').split(/\r?\n/).forEach((raw) => {
-    if (raw.startsWith('+++ ')) {              // destination-file header (before the '+' test below)
-      const m = raw.match(/^\+\+\+\s+(?:b\/)?(.+?)\s*$/);
-      file = m && m[1] !== '/dev/null' ? m[1] : null;
-      return;
-    }
-    if (raw.startsWith('--- ')) return;        // old-file header
-    const hunk = raw.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-    if (hunk) { newLine = parseInt(hunk[1], 10); return; }
-    if (raw.startsWith('+')) {                  // added line → scan, then advance
-      for (const h of scanText(raw.slice(1), opts)) hits.push({ ...h, file, line: newLine });
-      newLine++;
-      return;
-    }
-    if (raw.startsWith('-')) return;            // removed line → new-file counter does not advance
-    newLine++;                                  // context / blank → advances the new-file line number
-  });
-  return hits;
+  // Shares ONE diff walker with the pre-commit checks (bin/diff-summary.js) so 'added lines only'
+  // cannot drift between the two gates that depend on it.
+  return require('./diff-summary.js').addedLines(diff)
+    .flatMap((a) => scanText(a.text, opts).map((h) => ({ ...h, file: a.file, line: a.line })));
 }
 
 module.exports = { classesForProfile, scanText, scanDiffAddedLines, validate, loadConfig, luhnValid, gitChangedFiles, PROFILE_CLASSES, DEFAULT_PROFILE };

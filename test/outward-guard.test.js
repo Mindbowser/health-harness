@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decidePreCommitChecks, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
 
 // ── MBI-144: branch-name enforcement (opt-in; recommend-only by default) ──
 test('checkBranchName: dormant unless git.enforceBranch is set', () => {
@@ -431,4 +431,24 @@ test('MBI-153: decideDiffReview ASKs with a summary interactively; CI / toggle-o
   assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: shell, numstat: '' }), null);
   // [AC-5] not a push → defer
   assert.strictEqual(decideDiffReview('git status', '.', { enabled: true, env: shell, numstat }), null);
+});
+
+// ── MBI-154: configurable pre-commit checks (advisory ASK; quiet by default) ──
+test('MBI-154: decidePreCommitChecks ASKs on findings; clean commit and non-commit defer', () => {
+  const MARKER = '<'.repeat(7);
+  const diff = ['+++ b/src/x.js', '@@ -1,1 +1,2 @@', ' const a = 1;', '+' + MARKER + ' HEAD'].join('\n');
+  const base = { config: {}, files: [], subject: 'fix(x): y', diff };
+  // a conflict marker on an added line → ASK listing the finding
+  const d = decidePreCommitChecks('git commit -m "fix(x): y"', '.', base);
+  assert.strictEqual(action(d), 'ask');
+  assert.strictEqual(d.gate, 'preCommitChecks');
+  assert.match(d.reason, /mergeConflictMarkers/);
+  assert.match(d.reason, /src\/x\.js:2/);
+  // clean diff → no prompt
+  const clean = ['+++ b/src/x.js', '@@ -1,1 +1,2 @@', '+const b = 2;'].join('\n');
+  assert.strictEqual(decidePreCommitChecks('git commit -m "fix(x): y"', '.', { ...base, diff: clean }), null);
+  // an oversized staged file → ASK
+  assert.strictEqual(action(decidePreCommitChecks('git commit -m x', '.', { ...base, diff: clean, files: [{ path: 'big.bin', bytes: 9 * 1048576 }] })), 'ask');
+  // not a commit → defer
+  assert.strictEqual(decidePreCommitChecks('git status', '.', base), null);
 });

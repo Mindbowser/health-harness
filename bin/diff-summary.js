@@ -59,7 +59,29 @@ function formatSummary(entries, opts) {
   return [`${t.files} file${t.files === 1 ? '' : 's'} changed, +${t.added} -${t.removed}`, ...lines].join('\n');
 }
 
-module.exports = { parseNumstat, summarize, formatSummary, isNonInteractive, CI_VARS };
+/** Pure: walk a unified diff and return every ADDED line as {file, line, text} (new-file line numbers).
+ * ONE implementation shared by the secret scanner and the pre-commit checks — gating on what a change
+ * INTRODUCES (never pre-existing code) is the rule both rely on, so it must not drift between them. */
+function addedLines(diff) {
+  const out = [];
+  let file = null, newLine = 0;
+  String(diff || '').split(/\r?\n/).forEach((raw) => {
+    if (raw.startsWith('+++ ')) {                 // destination-file header (before the '+' test)
+      const m = raw.match(/^\+\+\+\s+(?:b\/)?(.+?)\s*$/);
+      file = m && m[1] !== '/dev/null' ? m[1] : null;
+      return;
+    }
+    if (raw.startsWith('--- ')) return;           // old-file header
+    const hunk = raw.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunk) { newLine = parseInt(hunk[1], 10); return; }
+    if (raw.startsWith('+')) { out.push({ file, line: newLine, text: raw.slice(1) }); newLine++; return; }
+    if (raw.startsWith('-')) return;              // removed → new-file counter does not advance
+    newLine++;                                    // context / blank
+  });
+  return out;
+}
+
+module.exports = { parseNumstat, summarize, formatSummary, isNonInteractive, addedLines, CI_VARS };
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 //   diff-summary.js [<range>]   → print the summary for a range (default: vs upstream, else last commit)
