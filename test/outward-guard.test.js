@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
 
 // ── MBI-144: branch-name enforcement (opt-in; recommend-only by default) ──
 test('checkBranchName: dormant unless git.enforceBranch is set', () => {
@@ -388,4 +388,26 @@ test('decide() routes by tool_name; unknown tools defer', () => {
   assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', {}, ...HERMETIC, {})), 'ask'); // {} = all-off override (trackerWrite is default-ON)
   assert.strictEqual(decide('Read', { file_path: '/x' }, ...HERMETIC), null);
   assert.strictEqual(decide('Edit', {}, ...HERMETIC), null);
+});
+
+// ── MBI-152: diff-scoped secret/PHI scan on commit/push (locked; escape = harness-allowlist) ──
+test('MBI-152: decideDiffScan DENIES a commit/push whose ADDED diff introduces a secret; clean/absent defer', () => {
+  const SECRET = 'AKIA' + 'IOSFODNN7EXAMPLE';
+  const withSecret = ['+++ b/config.js', '@@ -0,0 +1 @@', '+const k = "' + SECRET + '";'].join('\n');
+  const clean = ['+++ b/config.js', '@@ -0,0 +1 @@', '+const k = 1;'].join('\n');
+  // [AC-1] commit introducing a secret → DENY, naming the class and the allowlist escape
+  const d = decideDiffScan('git commit -m x', '.', withSecret);
+  assert.strictEqual(action(d), 'deny');
+  assert.match(d.reason, /secrets/);
+  assert.match(d.reason, /harness-allowlist/);
+  // [AC-5] push introducing a secret → DENY; a clean diff defers
+  assert.strictEqual(action(decideDiffScan('git push', '.', withSecret)), 'deny');
+  assert.strictEqual(decideDiffScan('git push', '.', clean), null);
+  assert.strictEqual(decideDiffScan('git commit -m x', '.', clean), null);
+  // [AC-2] a secret only on a CONTEXT line (pre-existing, untouched) → defer
+  const contextOnly = ['+++ b/config.js', '@@ -1,2 +1,2 @@', ' const k = "' + SECRET + '";', '+const b = 2;'].join('\n');
+  assert.strictEqual(decideDiffScan('git commit -m x', '.', contextOnly), null);
+  // not a commit/push, or no diff → defer
+  assert.strictEqual(decideDiffScan('git status', '.', withSecret), null);
+  assert.strictEqual(decideDiffScan('git commit -m x', '.', ''), null);
 });

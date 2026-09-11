@@ -66,3 +66,49 @@ test('hits carry file + line + class + snippet', () => {
   assert.strictEqual(hits[0].class, 'pii');
   assert.ok(hits[0].snippet.includes('SSN'));
 });
+
+// ── MBI-152: diff-scoped scan + generalized allow-suppression ──
+const rs = require('../bin/redaction-scan.js');
+const SECRET = 'AKIA' + 'IOSFODNN7EXAMPLE'; // canonical synthetic AWS example key
+
+test('[AC-1/AC-2] scanDiffAddedLines: only ADDED lines are scanned, with correct file + new-line number', () => {
+  const diff = [
+    'diff --git a/config.js b/config.js',
+    '--- a/config.js',
+    '+++ b/config.js',
+    '@@ -1,3 +1,4 @@',
+    ' const a = 1;',            // context — not scanned
+    '-const old = "removed";',  // removed — not scanned
+    '+const key = "' + SECRET + '";', // added — scanned (new line 2)
+    ' const b = 2;',
+  ].join('\n');
+  const hits = rs.scanDiffAddedLines(diff, { classes: ['secrets'] });
+  assert.strictEqual(hits.length, 1);
+  assert.strictEqual(hits[0].class, 'secrets');
+  assert.strictEqual(hits[0].file, 'config.js');
+  assert.strictEqual(hits[0].line, 2); // new-file line number within the hunk
+
+  // AC-2: a secret only on a CONTEXT/removed line (already existed) → no hit
+  const unrelated = [
+    '--- a/config.js', '+++ b/config.js', '@@ -1,2 +1,2 @@',
+    ' const key = "' + SECRET + '";', // context (pre-existing) — not scanned
+    '+const c = 3;',
+  ].join('\n');
+  assert.strictEqual(rs.scanDiffAddedLines(unrelated, { classes: ['secrets'] }).length, 0);
+});
+
+test('[AC-3] allow-suppression is generalized to secrets (a line containing an allow value is skipped)', () => {
+  const line = 'const key = "' + SECRET + '";';
+  assert.strictEqual(scanText(line, { classes: ['secrets'] }).length, 1);           // no allow → hit
+  assert.strictEqual(scanText(line, { classes: ['secrets'], allow: [SECRET] }).length, 0); // allow-listed → skipped
+});
+
+test('loadConfig normalizes object allow entries {value,reason,by,at} to values', () => {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rs-allow-'));
+  fs.mkdirSync(path.join(dir, '.health-harness'), { recursive: true });
+  fs.writeFileSync(path.join(dir, '.health-harness', 'compliance.json'),
+    JSON.stringify({ profile: 'hipaa', allow: [{ value: SECRET, reason: 'example key in docs', by: 'x@y', at: '2026-01-01' }, 'plainstring'] }));
+  const cfg = rs.loadConfig(dir);
+  assert.deepStrictEqual(cfg.allow.sort(), [SECRET, 'plainstring'].sort());
+});

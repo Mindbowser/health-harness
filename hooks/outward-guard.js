@@ -430,6 +430,38 @@ function decideRedactionBash(command, cwd) {
   return redactionDecision(redactionHits(cmd + expandFileRefs(cmd, cwd), cwd));
 }
 
+// ── diff-scoped secret/PHI scan → DENY (locked, MBI-152) ──────────────────────
+// The egress gate above scans PR/issue/Jira BODIES. This scans the code DIFF a commit/push introduces —
+// only ADDED lines — so a secret/PHI literal can't be committed or pushed. Locked (never suppressed); the
+// escape is per-finding `harness-allowlist`, not a global off switch. No diff / not a git repo → defer.
+const COMMIT_OR_PUSH_RE = /\bgit\s+(?:commit|push)\b/i;
+function gitDiffFor(command, cwd) {
+  try {
+    const { execSync } = require('child_process');
+    const run = (c) => execSync(c, { cwd: cwd || process.cwd(), stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
+    if (/\bgit\s+commit\b/i.test(command)) return run('git diff --cached --unified=0');
+    try { return run('git diff --unified=0 @{upstream}..HEAD'); } // push: what's ahead of upstream
+    catch { return run('git diff --unified=0 HEAD~1..HEAD'); }    // no upstream → last commit
+  } catch { return null; }
+}
+function decideDiffScan(command, cwd, diffOverride) {
+  if (!COMMIT_OR_PUSH_RE.test(String(command || ''))) return null;
+  const diff = diffOverride !== undefined ? diffOverride : gitDiffFor(command, cwd);
+  if (!diff) return null; // nothing staged / unavailable → defer (the hit-based DENY is the guard)
+  let hits;
+  try {
+    const rs = require('../bin/redaction-scan.js');
+    const cfg = rs.loadConfig(cwd || process.cwd());
+    hits = rs.scanDiffAddedLines(diff, { classes: cfg.classes, allow: cfg.allow, deny: cfg.deny });
+  } catch { return null; } // scanner unavailable → defer
+  if (hits && hits.length) {
+    const classes = [...new Set(hits.map((h) => h.class))].join(', ');
+    const where = hits.slice(0, 3).map((h) => `${h.file || '?'}:${h.line}`).join(', ');
+    return { action: 'deny', gate: 'diffScan', reason: `health-harness wall (org policy): this diff introduces ${classes} (${hits.length} hit${hits.length > 1 ? 's' : ''}: ${where}). Replace with synthetic data and retry. Confirmed false positive? Run: harness-allowlist add "<value>" --reason "<why>".` };
+  }
+  return null;
+}
+
 function decideRedactionMcp(tool, toolInput, cwd) {
   if (!MCP_WRITE.test(String(tool || ''))) return null; // reads carry no outbound content
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
@@ -509,6 +541,9 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       const gs = gitState !== undefined ? gitState : gitProbe();
       const push = decidePushGuard(cmd, gs); // locked: direct push to a protected branch → DENY (MBI-151)
       if (push) return push;
+      // locked: diff-scoped secret/PHI scan (MBI-152). Real runtime only — unit tests inject gitState and
+      // exercise decideDiffScan directly, so the hermetic wall tests stay isolated from the live repo diff.
+      if (gitState === undefined) { const ds = decideDiffScan(cmd, cwd); if (ds) return ds; }
       return sa(dropAsk(bash))                          // outward ASK: grant- and gate-flag-suppressible
         || sa(decideCommitGuard(cmd, gs))              // protected-branch commit → DENY (baseBranchCommit)
         || sa(decideCommitMessage(cmd, undefined, gs && gs.branch)) // format DENY kept; no-ticket ASK (commitTicket)
@@ -526,7 +561,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

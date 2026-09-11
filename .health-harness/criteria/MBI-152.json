@@ -1,0 +1,29 @@
+{
+  "issueKey": "MBI-152",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given a staged diff whose added line contains a secret, When I commit, Then the wall DENIES and names the class and the allowlist command"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given the secret exists only on unchanged context lines, When I commit an unrelated change, Then the diff scan does not fire"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a confirmed false positive, When I run harness-allowlist add with a reason, Then an audit record (value, reason, author, timestamp) is stored and the next scan skips that line"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given no reason is passed, When I run harness-allowlist add, Then it is refused"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given a push whose range adds a secret, When I push, Then the wall DENIES it; a clean push defers"
+    },
+    {
+      "id": "AC-6",
+      "text": "Given there is no way to disable scanning, When I look for one, Then only per-finding allowlisting exists"
+    }
+  ]
+}

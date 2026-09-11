@@ -116,7 +116,11 @@ function scanText(text, opts, file) {
   scannable.split(/\r?\n/).forEach((line, i) => {
     const ln = i + 1;
     const allowed = (m) => m && allow.has(m[0].toLowerCase());
-    const push = (cls) => hits.push({ file: file || null, line: ln, class: cls, snippet: snippet(line) });
+    // Generalized allow-suppression (MBI-152): a line containing a confirmed-false-positive value is
+    // skipped for EVERY class (not just PII/deny). Empty allow → no change (backward compatible).
+    const lineLower = line.toLowerCase();
+    const lineAllowed = allow.size ? [...allow].some((a) => a && lineLower.includes(a)) : false;
+    const push = (cls) => { if (!lineAllowed) hits.push({ file: file || null, line: ln, class: cls, snippet: snippet(line) }); };
 
     if (classes.has('secrets')) {
       if (RE.awsKey.test(line) || RE.privateKey.test(line) || RE.jwt.test(line) ||
@@ -151,7 +155,8 @@ function loadConfig(cwd) {
   try {
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
     profile = j.profile || DEFAULT_PROFILE;
-    allow = j.allow || [];
+    // allow entries may be plain strings OR audit records { value, reason, by, at } (MBI-152) — normalize to values
+    allow = (j.allow || []).map((a) => (typeof a === 'string' ? a : (a && a.value))).filter(Boolean);
     deny = j.deny || [];
     classes = j.dataClasses || null;
   } catch { /* absent ⇒ default hipaa */ }
@@ -199,7 +204,34 @@ function gitChangedFiles(mode, base) {
   catch { return []; }
 }
 
-module.exports = { classesForProfile, scanText, validate, loadConfig, luhnValid, gitChangedFiles, PROFILE_CLASSES, DEFAULT_PROFILE };
+/** Pure (MBI-152): scan ONLY the ADDED lines of a unified diff, so a commit/push is gated on what it
+ * INTRODUCES, not on pre-existing content (fewer false positives, no flagging code you didn't touch).
+ * Tracks the destination file (`+++ b/<path>`) and the new-file line number from each hunk header.
+ * @returns {Array<{file,line,class,snippet}>} */
+function scanDiffAddedLines(diff, opts) {
+  const hits = [];
+  let file = null, newLine = 0;
+  String(diff || '').split(/\r?\n/).forEach((raw) => {
+    if (raw.startsWith('+++ ')) {              // destination-file header (before the '+' test below)
+      const m = raw.match(/^\+\+\+\s+(?:b\/)?(.+?)\s*$/);
+      file = m && m[1] !== '/dev/null' ? m[1] : null;
+      return;
+    }
+    if (raw.startsWith('--- ')) return;        // old-file header
+    const hunk = raw.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunk) { newLine = parseInt(hunk[1], 10); return; }
+    if (raw.startsWith('+')) {                  // added line → scan, then advance
+      for (const h of scanText(raw.slice(1), opts)) hits.push({ ...h, file, line: newLine });
+      newLine++;
+      return;
+    }
+    if (raw.startsWith('-')) return;            // removed line → new-file counter does not advance
+    newLine++;                                  // context / blank → advances the new-file line number
+  });
+  return hits;
+}
+
+module.exports = { classesForProfile, scanText, scanDiffAddedLines, validate, loadConfig, luhnValid, gitChangedFiles, PROFILE_CLASSES, DEFAULT_PROFILE };
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (require.main === module) {
