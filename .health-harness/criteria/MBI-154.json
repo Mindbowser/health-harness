@@ -1,0 +1,29 @@
+{
+  "issueKey": "MBI-154",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given an added line contains a merge-conflict marker, When I commit, Then the check reports it"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given an added line introduces a focused test, When I commit, Then the check reports it"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a staged file exceeds the size limit, When I commit, Then the check reports it"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given debugLeftover and plainEnglishCommit are off by default, When code has a console.log and the subject says seamless, Then neither is reported until enabled"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given a checks pattern appears only on a context line, When I commit, Then it is not reported"
+    },
+    {
+      "id": "AC-6",
+      "text": "Given no findings, When I commit, Then no prompt is raised"
+    }
+  ]
+}

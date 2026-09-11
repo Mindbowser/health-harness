@@ -1,0 +1,29 @@
+{
+  "issueKey": "MBI-157",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given no configuration, When I commit on a protected branch, Then it is denied"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given branchProtection is ask, When I commit on or push to a protected branch, Then I am asked and may approve"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given branchProtection is off, When I commit on or push to a protected branch, Then the guard does not fire"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given the guard denies, When I read the message, Then it names the override"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given an invalid level, When I set it, Then it is refused and the previous value stands"
+    },
+    {
+      "id": "AC-6",
+      "text": "Given a feature branch, When I commit at any level, Then the guard never fires"
+    }
+  ]
+}

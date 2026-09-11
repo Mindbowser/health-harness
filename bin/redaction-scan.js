@@ -99,6 +99,11 @@ function snippet(line) {
 }
 function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
+// RFC 2606 / 6761 reserved domains — set aside by the IETF for documentation, examples and testing, so an
+// address here can NEVER be a real mailbox. Flagging them as PII is a pure false positive that blocks a
+// push over a test fixture or a doc sample, which is the fastest way to make a dev distrust the scanner.
+const RESERVED_EMAIL = /@(?:[\w-]+\.)*(?:example\.(?:com|net|org)|example|test|invalid|localhost)$/i;
+
 /**
  * Scan a string. Pure. opts = { classes?, allow?, deny? }. Defaults to hipaa classes.
  * @returns {Array<{file,line,class,snippet}>}
@@ -116,7 +121,11 @@ function scanText(text, opts, file) {
   scannable.split(/\r?\n/).forEach((line, i) => {
     const ln = i + 1;
     const allowed = (m) => m && allow.has(m[0].toLowerCase());
-    const push = (cls) => hits.push({ file: file || null, line: ln, class: cls, snippet: snippet(line) });
+    // Generalized allow-suppression (MBI-152): a line containing a confirmed-false-positive value is
+    // skipped for EVERY class (not just PII/deny). Empty allow → no change (backward compatible).
+    const lineLower = line.toLowerCase();
+    const lineAllowed = allow.size ? [...allow].some((a) => a && lineLower.includes(a)) : false;
+    const push = (cls) => { if (!lineAllowed) hits.push({ file: file || null, line: ln, class: cls, snippet: snippet(line) }); };
 
     if (classes.has('secrets')) {
       if (RE.awsKey.test(line) || RE.privateKey.test(line) || RE.jwt.test(line) ||
@@ -125,7 +134,7 @@ function scanText(text, opts, file) {
     }
     if (classes.has('pii')) {
       const em = line.match(RE.email);
-      if (em && !allowed(em)) push('pii');
+      if (em && !allowed(em) && !RESERVED_EMAIL.test(em[0])) push('pii');
       else if (RE.ssn.test(line) || RE.phone.test(line)) push('pii');
     }
     if (classes.has('phi')) {
@@ -151,7 +160,8 @@ function loadConfig(cwd) {
   try {
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
     profile = j.profile || DEFAULT_PROFILE;
-    allow = j.allow || [];
+    // allow entries may be plain strings OR audit records { value, reason, by, at } (MBI-152) — normalize to values
+    allow = (j.allow || []).map((a) => (typeof a === 'string' ? a : (a && a.value))).filter(Boolean);
     deny = j.deny || [];
     classes = j.dataClasses || null;
   } catch { /* absent ⇒ default hipaa */ }
@@ -199,7 +209,18 @@ function gitChangedFiles(mode, base) {
   catch { return []; }
 }
 
-module.exports = { classesForProfile, scanText, validate, loadConfig, luhnValid, gitChangedFiles, PROFILE_CLASSES, DEFAULT_PROFILE };
+/** Pure (MBI-152): scan ONLY the ADDED lines of a unified diff, so a commit/push is gated on what it
+ * INTRODUCES, not on pre-existing content (fewer false positives, no flagging code you didn't touch).
+ * Tracks the destination file (`+++ b/<path>`) and the new-file line number from each hunk header.
+ * @returns {Array<{file,line,class,snippet}>} */
+function scanDiffAddedLines(diff, opts) {
+  // Shares ONE diff walker with the pre-commit checks (bin/diff-summary.js) so 'added lines only'
+  // cannot drift between the two gates that depend on it.
+  return require('./diff-summary.js').addedLines(diff)
+    .flatMap((a) => scanText(a.text, opts).map((h) => ({ ...h, file: a.file, line: a.line })));
+}
+
+module.exports = { classesForProfile, scanText, scanDiffAddedLines, validate, loadConfig, luhnValid, gitChangedFiles, PROFILE_CLASSES, DEFAULT_PROFILE };
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (require.main === module) {

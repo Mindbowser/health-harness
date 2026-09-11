@@ -80,6 +80,19 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    JSON file, and run `node "${CLAUDE_PLUGIN_ROOT}/bin/usage-log.js" emit-transitions <issue.json> <transitions.json>`
    (transitions file optional). The CLI derives the category map, accumulates it, de-dupes, and records
    `ticket_transition` events — metadata only. Safe to call on every read; no-op when nothing is new.
+1b. **Follow the references the human gave you (MBI-156).** If a related issue is named — in the `/align`
+   invocation ("align MBI-123, **see also MBI-100**") or inside the fetched ticket's own
+   description/comments ("depends on MBI-90") — that is an explicit instruction to use it as context, and
+   ignoring it means aligning without something the human pointed straight at. Extract the keys
+   deterministically (don't eyeball them — `AC-1`, `UTF-8`, `RFC-2606` are key-shaped but are not issues):
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/bin/issue-refs.js" "<invocation args + ticket description/comments>" \
+     --project <projectKey> --exclude <the target KEY>
+   ```
+   → `{ keys: [...] }` (deduped, capped). **Fetch those issues and fold them into your understanding** —
+   lean fields (`key, issuetype, status, summary`) for the list, and the **full description only** for the
+   one or two most relevant, per the smart-zone rule in `/import-issues`. Say in one line which references
+   you pulled in. **No references → skip silently** (don't announce an empty search).
 2. **Size it** (the rule above): clear → confirm + criteria + at most one fork; fuzzy → grill the open
    branches one question at a time, each with a recommended answer.
 3. **Surface only genuine forks** — real decisions with a trade-off the user must own. Route a

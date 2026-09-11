@@ -1,0 +1,25 @@
+{
+  "issueKey": "MBI-149",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given a repo with no settings file, When I run harness-config, Then every setting prints at its default value marked locked or configurable with its source"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given a configurable setting, When I run harness-config set <key> <value>, Then the value is saved to the correct layer (repo or user)"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a locked setting, When I try to set it, Then the change is refused with a clear message and the enforced value is unchanged"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given both a repo and a user settings file, When settings are resolved, Then user-layer keys read from the user file and repo-layer keys from the repo file, and each resolved setting reports its source"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given an existing settings file with unrelated keys, When I set one key, Then the other keys are preserved (no clobber)"
+    }
+  ]
+}

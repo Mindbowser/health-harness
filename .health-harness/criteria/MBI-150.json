@@ -1,0 +1,21 @@
+{
+  "issueKey": "MBI-150",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given the pattern set includes main and release/*, When I check main, release/1.2, and feature/x, Then main and release/1.2 are protected and feature/x is not"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given a repo whose project.json sets baseBranch develop, When the protected set is resolved, Then develop is included (backward compatible)"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a dev adds dev,qa,stage,uat to protectedBranches, When the set is resolved, Then those names are protected in addition to the defaults with no duplicates"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given branch names are case-sensitive in git, When I check a name whose case differs from a pattern, Then it does not match"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decidePreCommitChecks, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
 
 // ── MBI-144: branch-name enforcement (opt-in; recommend-only by default) ──
 test('checkBranchName: dormant unless git.enforceBranch is set', () => {
@@ -330,15 +330,17 @@ test('MCP: content writes ASK, reversible ops (transition/comment/worklog) DEFER
   assert.strictEqual(decideMcp('mcp__atlassian__searchJiraIssuesUsingJql'), null);
 });
 
-test('commit on a base branch ASKs; feature branch / initial commit defer', () => {
+test('MBI-151: commit on a protected branch is DENIED (locked); feature branch / initial commit defer', () => {
   const onMain = { hasHistory: true, branch: 'main', bases: ['main', 'master'] };
   const onMaster = { hasHistory: true, branch: 'master', bases: ['main', 'master'] };
-  const onDev = { hasHistory: true, branch: 'dev', bases: ['main', 'master', 'dev'] };  // configured baseBranch
+  const onDev = { hasHistory: true, branch: 'dev', bases: ['main', 'master', 'dev'] };  // configured protected
   const onFeature = { hasHistory: true, branch: 'fix/ACME-123', bases: ['main', 'master', 'dev'] };
-  // base branches → ASK
-  assert.strictEqual(action(decideCommitGuard('git commit -m "wip"', onMain)), 'ask');
-  assert.strictEqual(action(decideCommitGuard('git commit --amend', onMaster)), 'ask');
-  assert.strictEqual(action(decideCommitGuard('git commit -m x', onDev)), 'ask');
+  // protected branches → DENY (locked, no override), with a create-a-branch remedy in the reason
+  const d = decideCommitGuard('git commit -m "wip"', onMain);
+  assert.strictEqual(action(d), 'deny');
+  assert.match(d.reason, /feature branch/i);
+  assert.strictEqual(action(decideCommitGuard('git commit --amend', onMaster)), 'deny');
+  assert.strictEqual(action(decideCommitGuard('git commit -m x', onDev)), 'deny');
   // feature branch → defer
   assert.strictEqual(decideCommitGuard('git commit -m x', onFeature), null);
   // initial commit (no history) → defer
@@ -347,11 +349,30 @@ test('commit on a base branch ASKs; feature branch / initial commit defer', () =
   assert.strictEqual(decideCommitGuard('git commit -m x', null), null);
   // non-commit command → defer even on a base branch
   assert.strictEqual(decideCommitGuard('git status', onMain), null);
-  // wired through decide() with injected state. onMain → ASK from the base-branch guard (not an auto-approve
-  // gate). onFeature → the commit-review gate is auto-approved by default (AUTO_APPROVE_DEFAULTS.commit), so a
+  // wired through decide() with injected state. onMain → DENY from the locked branch-protection guard.
+  // onFeature → the commit-review gate is auto-approved by default (AUTO_APPROVE_DEFAULTS.commit), so a
   // normal commit defers. Tuned only via wall.autoApprove.commit (MBI-118) — see wall-autoapprove.test.js.
-  assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onMain)), 'ask');
+  assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onMain)), 'deny');
   assert.strictEqual(decide('Bash', { command: 'git commit -m x' }, onFeature), null);
+});
+
+test('MBI-151: decidePushGuard DENIES a direct push to a protected branch; feature-branch push defers', () => {
+  const onFeature = { hasHistory: true, branch: 'feature/ACME-1', bases: ['main', 'master', 'release/*'] };
+  const onMain = { hasHistory: true, branch: 'main', bases: ['main', 'master'] };
+  // explicit protected destination → DENY
+  assert.strictEqual(action(decidePushGuard('git push origin main', onFeature)), 'deny');
+  assert.strictEqual(action(decidePushGuard('git push origin release/1.2', onFeature)), 'deny');
+  // src:dst refspec pushing INTO a protected branch → DENY
+  assert.strictEqual(action(decidePushGuard('git push origin feature/ACME-1:main', onFeature)), 'deny');
+  // bare push while sitting on a protected branch → DENY
+  assert.strictEqual(action(decidePushGuard('git push', onMain)), 'deny');
+  // [AC-5] push of a feature branch (bare, HEAD, or explicit) → defer
+  assert.strictEqual(decidePushGuard('git push origin HEAD', onFeature), null);
+  assert.strictEqual(decidePushGuard('git push', onFeature), null);
+  assert.strictEqual(decidePushGuard('git push -u origin feature/ACME-1', onFeature), null);
+  // non-push / unknown state → defer
+  assert.strictEqual(decidePushGuard('git status', onMain), null);
+  assert.strictEqual(decidePushGuard('git push origin main', null), null);
 });
 
 test('decideCommitReview: a commit gets the commit-review ASK (gate:commit); non-commits defer', () => {
@@ -367,4 +388,92 @@ test('decide() routes by tool_name; unknown tools defer', () => {
   assert.strictEqual(action(decide('mcp__atlassian__createJiraIssue', {}, ...HERMETIC, {})), 'ask'); // {} = all-off override (trackerWrite is default-ON)
   assert.strictEqual(decide('Read', { file_path: '/x' }, ...HERMETIC), null);
   assert.strictEqual(decide('Edit', {}, ...HERMETIC), null);
+});
+
+// ── MBI-152: diff-scoped secret/PHI scan on commit/push (locked; escape = harness-allowlist) ──
+test('MBI-152: decideDiffScan DENIES a commit/push whose ADDED diff introduces a secret; clean/absent defer', () => {
+  const SECRET = 'AKIA' + 'IOSFODNN7EXAMPLE';
+  const withSecret = ['+++ b/config.js', '@@ -0,0 +1 @@', '+const k = "' + SECRET + '";'].join('\n');
+  const clean = ['+++ b/config.js', '@@ -0,0 +1 @@', '+const k = 1;'].join('\n');
+  // [AC-1] commit introducing a secret → DENY, naming the class and the allowlist escape
+  const d = decideDiffScan('git commit -m x', '.', withSecret);
+  assert.strictEqual(action(d), 'deny');
+  assert.match(d.reason, /secrets/);
+  assert.match(d.reason, /harness-allowlist/);
+  // [AC-5] push introducing a secret → DENY; a clean diff defers
+  assert.strictEqual(action(decideDiffScan('git push', '.', withSecret)), 'deny');
+  assert.strictEqual(decideDiffScan('git push', '.', clean), null);
+  assert.strictEqual(decideDiffScan('git commit -m x', '.', clean), null);
+  // [AC-2] a secret only on a CONTEXT line (pre-existing, untouched) → defer
+  const contextOnly = ['+++ b/config.js', '@@ -1,2 +1,2 @@', ' const k = "' + SECRET + '";', '+const b = 2;'].join('\n');
+  assert.strictEqual(decideDiffScan('git commit -m x', '.', contextOnly), null);
+  // not a commit/push, or no diff → defer
+  assert.strictEqual(decideDiffScan('git status', '.', withSecret), null);
+  assert.strictEqual(decideDiffScan('git commit -m x', '.', ''), null);
+});
+
+// ── MBI-153: diff-review before push (configurable; NEVER blocks a non-interactive run) ──
+test('MBI-153: decideDiffReview ASKs with a summary interactively; CI / toggle-off / nothing-to-show defer', () => {
+  const numstat = '10\t2\tsrc/app.js\n120\t0\tsrc/big.js';
+  const shell = { PATH: '/usr/bin' };
+  // [AC-1] interactive, enabled, has changes → ASK showing files + counts
+  const d = decideDiffReview('git push', '.', { enabled: true, env: shell, numstat });
+  assert.strictEqual(action(d), 'ask');
+  assert.strictEqual(d.gate, 'diffReview');
+  assert.match(d.reason, /src\/app\.js/);
+  assert.match(d.reason, /2 files changed/);
+  // [AC-2] a CI marker → never fires, whatever else is true (the deadlock guard)
+  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: { CI: 'true' }, numstat }), null);
+  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: { GITHUB_ACTIONS: 'true' }, numstat }), null);
+  // [AC-3] toggle off → defer
+  assert.strictEqual(decideDiffReview('git push', '.', { enabled: false, env: shell, numstat }), null);
+  // [AC-4] nothing to show → defer
+  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: shell, numstat: '' }), null);
+  // [AC-5] not a push → defer
+  assert.strictEqual(decideDiffReview('git status', '.', { enabled: true, env: shell, numstat }), null);
+});
+
+// ── MBI-154: configurable pre-commit checks (advisory ASK; quiet by default) ──
+test('MBI-154: decidePreCommitChecks ASKs on findings; clean commit and non-commit defer', () => {
+  const MARKER = '<'.repeat(7);
+  const diff = ['+++ b/src/x.js', '@@ -1,1 +1,2 @@', ' const a = 1;', '+' + MARKER + ' HEAD'].join('\n');
+  const base = { config: {}, files: [], subject: 'fix(x): y', diff };
+  // a conflict marker on an added line → ASK listing the finding
+  const d = decidePreCommitChecks('git commit -m "fix(x): y"', '.', base);
+  assert.strictEqual(action(d), 'ask');
+  assert.strictEqual(d.gate, 'preCommitChecks');
+  assert.match(d.reason, /mergeConflictMarkers/);
+  assert.match(d.reason, /src\/x\.js:2/);
+  // clean diff → no prompt
+  const clean = ['+++ b/src/x.js', '@@ -1,1 +1,2 @@', '+const b = 2;'].join('\n');
+  assert.strictEqual(decidePreCommitChecks('git commit -m "fix(x): y"', '.', { ...base, diff: clean }), null);
+  // an oversized staged file → ASK
+  assert.strictEqual(action(decidePreCommitChecks('git commit -m x', '.', { ...base, diff: clean, files: [{ path: 'big.bin', bytes: 9 * 1048576 }] })), 'ask');
+  // not a commit → defer
+  assert.strictEqual(decidePreCommitChecks('git status', '.', base), null);
+});
+
+// ── MBI-157: branch protection is strict BY DEFAULT but overridable (deny | ask | off) ──
+test('MBI-157: branchProtection level controls commit/push guards; default stays deny', () => {
+  const onMain = { hasHistory: true, branch: 'main', bases: ['main', 'master'] };
+  const onFeature = { hasHistory: true, branch: 'feature/x', bases: ['main', 'master'] };
+  const commit = 'git commit -m x', push = 'git push origin main';
+  // default (no level anywhere) → deny, as before
+  assert.strictEqual(action(decideCommitGuard(commit, onMain)), 'deny');
+  assert.strictEqual(action(decidePushGuard(push, onFeature)), 'deny');
+  // 'ask' restores approve-to-override (the pre-MBI-151 behaviour) and says so
+  const a = decideCommitGuard(commit, onMain, 'ask');
+  assert.strictEqual(action(a), 'ask');
+  assert.match(a.reason, /approve to commit/i);
+  assert.strictEqual(action(decidePushGuard(push, onFeature, 'ask')), 'ask');
+  // 'off' disables the guard entirely (a deliberately trunk-based repo)
+  assert.strictEqual(decideCommitGuard(commit, onMain, 'off'), null);
+  assert.strictEqual(decidePushGuard(push, onFeature, 'off'), null);
+  // the level can ride on the probed git state instead of being passed explicitly
+  assert.strictEqual(action(decideCommitGuard(commit, { ...onMain, protection: 'ask' })), 'ask');
+  assert.strictEqual(decideCommitGuard(commit, { ...onMain, protection: 'off' }), null);
+  // the deny message points at the override rather than leaving the dev stuck
+  assert.match(decideCommitGuard(commit, onMain).reason, /branchProtection/);
+  // a feature branch is untouched at every level
+  for (const lvl of ['deny', 'ask', 'off']) assert.strictEqual(decideCommitGuard(commit, onFeature, lvl), null);
 });

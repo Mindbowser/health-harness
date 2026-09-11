@@ -51,7 +51,7 @@ Governance and the wall run automatically throughout. (A consolidation `prd.md` 
 
 ```mermaid
 flowchart TD
-    SETUP["🔧 ONBOARDING · Inception — once per repo<br/>/start → pre-flight (git/remote/gate/tracker) · scaffold | onboard · /compliance-profile · establish the gate"]
+    SETUP["🔧 ONBOARDING · Inception — once per repo<br/>/start → pre-flight (git/remote/gate/tracker) · scaffold | onboard · /compliance-profile · establish the gate<br/>first run → /harness-config: locked policy shown · configurable defaults accepted in one step"]
 
     subgraph PLAN["📋 SPRINT PLANNING · Requirements"]
         direction TB
@@ -140,8 +140,7 @@ gates tool calls — it's a wall, not a guideline the model might skip:
   to a device. The agent simply cannot run these.
 - **ASK** (you must approve): `git push`, `gh pr create`/merge, `rm -rf`, `git reset --hard`, package
   publish, `docker push`, cloud/infra mutations (`kubectl/terraform/aws … apply|delete|deploy`), `curl`
-  writes, **a `git commit` while you're on the base branch** (`main`/`master`/the configured `baseBranch`
-  — branch first, or approve to commit on base), and **external-system *content* writes via MCP** (Jira/Linear
+  writes, and **external-system *content* writes via MCP** (Jira/Linear
   create/update). **Reversible, low-stakes MCP ops — a status `transition`, a `comment`, a `worklog` — DEFER
   (no prompt)** since they're routine and reversible (MBI-67); the redaction egress scan still runs on them,
   so PHI in a comment is still DENY'd.
@@ -149,6 +148,31 @@ gates tool calls — it's a wall, not a guideline the model might skip:
     reason says *"this is a shipping step — run `/ship`"* (it batches push → PR → Jira → worklog + redaction
     + breaking-change). You can still approve a one-off manual push, but the default path is the flow; inside
     `/ship` the grant suppresses these (one approval for the whole batch).
+- **DENY → strict by default** (MBI-148):
+  - **No commit on, and no direct push to, a protected branch** (MBI-151/157). Two things are yours:
+    **which** branches are protected (`protectedBranches`, names + globs — defaults `main`/`master`/`prod`/
+    `production`/`release/*` plus the repo's own base/PR target; add `dev`/`qa`/`stage`/`uat`), and **how
+    hard it bites** — `branchProtection`: **`deny`** (default), **`ask`** (approve-to-override, the older
+    behaviour), or **`off`**. Strict out of the box, but never a dead end: a deliberately trunk-based repo
+    or a real hotfix has a way through, because a rule with no escape hatch gets worked around rather than
+    followed. The remedy (branch, then PR) is always one command away.
+- **DENY → locked, not overridable** (MBI-152): **a secret/PHI literal in the diff you're committing or
+  pushing.** This is the one rule with no off-switch. Scans **added lines only**,
+    so it gates what a change *introduces* and never flags code you didn't touch. A confirmed false positive
+    is cleared **per finding**, with a required reason, by `bin/harness-allowlist.js add "<value>" --reason
+    "<why>"` — which records value + reason + author + timestamp. There is deliberately **no global
+    off-switch**; the audited allowlist is the only escape. RFC-2606/6761 reserved domains
+    (`example.com`, `.test`, `.invalid`, `.localhost`) are never treated as PII — they can't be real
+    mailboxes, and flagging them blocked pushes over ordinary test fixtures.
+- **ASK → before a push, see what's actually leaving** (`diffReviewBeforePush`, on by default, MBI-153): a
+  compact summary of the push (files, +/- counts, biggest first, truncated). **Never fires in a
+  non-interactive run** — an ASK nobody can answer would deadlock CI and the AFK build loop — nor under a
+  live `/ship` grant. Turn it off with `harness-config set diffReviewBeforePush false`.
+- **ASK → configurable pre-commit checks** (MBI-154): merge-conflict markers, focused tests
+  (`.only`/`fdescribe`/`fit`) and oversized staged files are **on** by default (unambiguous mistakes);
+  leftover `debugger`/`console.log` and marketing filler in the commit subject are **off** by default
+  (plenty of repos log deliberately; subject style is a house preference). Added lines only; no findings
+  means no prompt. Each toggles under `hooks.*` via `/harness-config`.
 - **DENY → agent self-corrects** (no human): a **malformed commit message**. The wall enforces a
   deterministic conventional `type(scope): subject` prefix (on by default); a bad message is blocked with the
   reason so the agent fixes and retries — you're never asked. Policy is `.health-harness/project.json`
@@ -297,12 +321,42 @@ you're never boxed into the pre-picked options. The rule cuts both ways: obvious
 just happen with a one-line note, so the change never *adds* prompts — it removes the noisy ones and makes
 the rest a click.
 
+## Settings — what you can change, and what you can't (`/harness-config`)
+
+Run **`/harness-config`** any time to see every setting with its default and flip what's yours; `/start`
+offers the same walkthrough on **first run** only. Defaults are shown and accepted in **one** confirmation
+— it's a review, not a 15-click wizard. Skipping it is fine: **every setting is safe-defaulted, so an
+unconfigured repo behaves exactly as it did before you upgraded.**
+
+Two tiers, deliberately never blurred:
+
+| | |
+|---|---|
+| 🔒 **Locked (org policy)** | secret/PHI scanning · ticket-keyed commits · the test gate · redaction egress. Shown for transparency, **never offered as a toggle** — no command disables them. A false positive in the scan is cleared per finding via the **audited** `harness-allowlist`. |
+| ⚙️ **Configurable** | `protectedBranches` · **`branchProtection`** (`deny` default / `ask` / `off`) · `branchNaming` · `diffReviewBeforePush` · `sound.enabled` · the `hooks.*` pre-commit checks. |
+
+Two layers, so a personal preference never leaks to your team:
+
+- **repo** → `.health-harness/settings.json`, committed and shared (`protectedBranches`, `branchNaming`, `hooks.*`)
+- **personal** → `~/.health-harness/settings.json`, this machine only (`sound.enabled`, `diffReviewBeforePush`)
+
+```bash
+node bin/harness-config.js                 # every setting: value, default, source, tier
+node bin/harness-config.js set protectedBranches main,dev,qa,uat
+node bin/harness-config.js set sound.enabled false       # personal
+node bin/harness-allowlist.js add "<value>" --reason "example key in docs"
+```
+
+Writes go through the store, which **refuses locked keys and merges rather than clobbers**, so unrelated
+settings (and anything a teammate set) survive.
+
 ## Sound cues (optional)
 
 **Spoken voice** cues for lifecycle events — **Claude waiting** ("Your turn.", People), the **safety gate**
 ("Approval needed.", Integrity), **task done** ("Done.", Excellence), **sub-agent done** (Customer).
 **ON by default** (voice); **disable per-person with `export MB_HARNESS_SOUNDS=off`** (or `=chime` for
-tones). Plays **bundled spoken-voice clips** (`sounds/voice/`) via the OS audio player — real voice on
+tones), or persist it without an env var via `/harness-config` (`sound.enabled`). Precedence: env →
+repo `.health-harness/sounds.json` → your personal setting → default on, so upgrading silences nobody. Plays **bundled spoken-voice clips** (`sounds/voice/`) via the OS audio player — real voice on
 **every OS incl. Ubuntu, no TTS install**. Soft, never clinical-alarm-like. Swap in MB-recorded clips to
 own the brand voice; details in `sounds/README.md`.
 
@@ -397,6 +451,12 @@ bin/error-safety.js          # flags stack traces / raw errors / err.message lea
 bin/local-ignores.js         # ensures .gitignore excludes align/prd dev-local working notes (criteria manifest stays tracked) (+ test/)
 bin/ticketless-nudge.js      # soft once/session reminder when work starts with no linked Jira ticket (+ test/)
 bin/issue-graph.js           # deterministic Jira relatedness (parent/epic/links) so related work keeps context (+ test/)
+bin/harness-config.js        # the ONE layered settings store — repo vs personal, locked vs configurable (+ test/)
+bin/protected-branch.js      # resolves the protected-branch SET (names + globs, backward-compatible with baseBranch) (+ test/)
+bin/harness-allowlist.js     # audited per-finding escape from the secret/PHI scan (reason required; no global off) (+ test/)
+bin/diff-summary.js          # what a push actually sends + the CI detection that keeps prompts out of automation (+ test/)
+bin/precommit-checks.js      # configurable pre-commit checks (merge markers, focused tests, large files, debug, subject) (+ test/)
+bin/issue-refs.js            # extracts explicitly referenced Jira keys (rejecting AC-1/UTF-8 style noise) for /align (+ test/)
 bin/usage-coach.js           # once-a-day (+ Monday weekly) principle-based coaching (+ test/)
 bin/usage-upload.js          # ships the usage log to MBI Atlas — inline, time-boxed, chunked (+ test/)
 bin/harness-stats.js         # /usage-style personal dashboard behind the /harness-stats skill (+ test/)

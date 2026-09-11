@@ -1,0 +1,25 @@
+{
+  "issueKey": "MBI-155",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given nothing has been configured, When I check, Then first-run is reported per layer and becomes false once a setting is written"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given the plan is read, Then settings are grouped, locked rows are marked and never offered as choices, and each row shows value vs default and whether it changed"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given I accept the defaults, When onboarding finishes, Then no settings file is required for correct behavior"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given a personal mute, When sound is resolved, Then it mutes only on an explicit false and never overrides repo sounds.json or the env var"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given every schema setting, When the plan is built, Then each appears exactly once across the groups"
+    }
+  ]
+}

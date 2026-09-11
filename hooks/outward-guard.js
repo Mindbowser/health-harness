@@ -85,14 +85,33 @@ function readProjectConfig(dir) {
   } catch { return null; }
 }
 
+// The protected-branch SET (MBI-150/151): the configurable `protectedBranches` (names + globs) unioned
+// with the repo's baseBranch/prTarget/defaultBranch. Kept named baseBranches() for its existing callers.
+const { resolveProtected, isProtected } = require('../bin/protected-branch.js');
 function baseBranches(dir) {
-  const bases = new Set(['main', 'master']);
-  const j = readProjectConfig(dir);
-  if (j) {
-    const b = (j.git && j.git.baseBranch) || j.defaultBranch;
-    if (b) bases.add(String(b));
-  }
-  return [...bases];
+  const project = readProjectConfig(dir) || {};
+  let configured;
+  try {
+    const cfgPath = findConfigPath(dir);
+    const path = require('path');
+    const root = cfgPath ? path.dirname(path.dirname(cfgPath)) : (dir || process.cwd());
+    const eff = require('../bin/harness-config.js').effective({ repoDir: root });
+    configured = eff.protectedBranches && eff.protectedBranches.value;
+  } catch { /* no settings → schema default kicks in inside resolveProtected */ }
+  return resolveProtected({ config: { protectedBranches: configured }, project });
+}
+
+// How hard branch protection bites: 'deny' (default) | 'ask' (approve-to-override, the pre-MBI-151
+// behaviour) | 'off'. Strict by default but overridable — a rule with no escape hatch gets worked around
+// rather than followed, and a trunk-based repo or a real hotfix needs a way through. The secret/PHI SCAN
+// is the part that stays locked; this is not.
+function protectionLevel(dir) {
+  try {
+    const cfgPath = findConfigPath(dir);
+    const path = require('path');
+    const root = cfgPath ? path.dirname(path.dirname(cfgPath)) : (dir || process.cwd());
+    return require('../bin/harness-config.js').get({ repoDir: root }, 'branchProtection') || 'deny';
+  } catch { return 'deny'; }
 }
 
 function gitProbe(cwd) {
@@ -101,16 +120,58 @@ function gitProbe(cwd) {
     const { execSync } = require('child_process');
     const run = (c) => execSync(c, { cwd: dir, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
     try { run('git rev-parse --verify HEAD'); } catch { return { hasHistory: false }; } // initial commit allowed
-    return { hasHistory: true, branch: run('git rev-parse --abbrev-ref HEAD'), bases: baseBranches(dir) };
+    return { hasHistory: true, branch: run('git rev-parse --abbrev-ref HEAD'), bases: baseBranches(dir), protection: protectionLevel(dir) };
   } catch { return null; } // not a git repo / git missing → defer
 }
 
-function decideCommitGuard(command, st) {
+// Locked branch-protection (MBI-151): committing directly on a protected branch is DENIED (org policy, no
+// override) — the remedy (create a feature branch) is always available, so a hard DENY never strands a dev.
+// WHICH branches are protected is configurable (the set); the enforcement is locked on. Initial commit (no
+// history) and not-a-git-repo still defer.
+function decideCommitGuard(command, st, mode) {
   if (!COMMIT_RE.test(String(command || ''))) return null;
   if (!st || !st.hasHistory || !st.branch) return null; // initial commit / unknown → defer
+  const level = mode || (st && st.protection) || 'deny';
+  if (level === 'off') return null;
   const bases = st.bases && st.bases.length ? st.bases : ['main', 'master'];
-  if (bases.includes(st.branch)) {
-    return { action: 'ask', gate: 'baseBranchCommit', reason: `health-harness wall: committing directly on the base branch (${st.branch}). Create a feature branch first, or approve to commit on ${st.branch}.` };
+  if (isProtected(st.branch, bases)) {
+    const fix = `Create a feature branch (e.g. git switch -c feature/<KEY>-<slug>) and commit there`;
+    return level === 'ask'
+      ? { action: 'ask', gate: 'baseBranchCommit', reason: `health-harness wall: committing directly on the protected branch "${st.branch}". ${fix}, or approve to commit on ${st.branch}.` }
+      : { action: 'deny', gate: 'baseBranchCommit', reason: `health-harness wall: committing directly on the protected branch "${st.branch}" is blocked. ${fix}. (A repo that needs the old approve-to-override behaviour can set branchProtection to "ask".)` };
+  }
+  return null;
+}
+
+// Locked branch-protection — the push side (MBI-151): DENY a direct push whose DESTINATION is a protected
+// branch. Destinations: an explicit refspec's dst (`src:dst` → dst; a bare `branch` → that branch), or the
+// CURRENT branch when the push names none. HEAD resolves to the current branch. Pure over (command, st).
+const PUSH_RE = /\bgit\s+push\b/i;
+function pushDestinations(command, currentBranch) {
+  const m = String(command || '').match(/\bgit\s+push\b(.*)$/is);
+  if (!m) return [];
+  // positional args after "push" = non-flag tokens (flags like -u/--force take no branch value here)
+  const positionals = m[1].split(/\s+/).filter((t) => t && !t.startsWith('-'));
+  const refspecs = positionals.slice(1); // drop the remote (first positional)
+  const specs = refspecs.length ? refspecs : ['HEAD']; // bare push → current branch
+  return specs.map((r) => {
+    const dst = r.includes(':') ? r.split(':').pop() : r;
+    const name = dst.replace(/^refs\/heads\//, '');
+    return name === 'HEAD' || name === '' ? currentBranch : name;
+  }).filter(Boolean);
+}
+function decidePushGuard(command, st, mode) {
+  if (!PUSH_RE.test(String(command || ''))) return null;
+  if (!st || !st.branch) return null; // unknown state → defer
+  const level = mode || (st && st.protection) || 'deny';
+  if (level === 'off') return null;
+  const bases = st.bases && st.bases.length ? st.bases : ['main', 'master'];
+  const hit = pushDestinations(command, st.branch).find((d) => isProtected(d, bases));
+  if (hit) {
+    const fix = 'Push your feature branch and open a pull request';
+    return level === 'ask'
+      ? { action: 'ask', gate: 'protectedPush', reason: `health-harness wall: pushing directly to the protected branch "${hit}". ${fix}, or approve this direct push.` }
+      : { action: 'deny', gate: 'protectedPush', reason: `health-harness wall: pushing directly to the protected branch "${hit}" is blocked. ${fix}. (Set branchProtection to "ask" for approve-to-override.)` };
   }
   return null;
 }
@@ -392,6 +453,118 @@ function decideRedactionBash(command, cwd) {
   return redactionDecision(redactionHits(cmd + expandFileRefs(cmd, cwd), cwd));
 }
 
+// ── diff-scoped secret/PHI scan → DENY (locked, MBI-152) ──────────────────────
+// The egress gate above scans PR/issue/Jira BODIES. This scans the code DIFF a commit/push introduces —
+// only ADDED lines — so a secret/PHI literal can't be committed or pushed. Locked (never suppressed); the
+// escape is per-finding `harness-allowlist`, not a global off switch. No diff / not a git repo → defer.
+const COMMIT_OR_PUSH_RE = /\bgit\s+(?:commit|push)\b/i;
+function gitDiffFor(command, cwd) {
+  try {
+    const { execSync } = require('child_process');
+    const run = (c) => execSync(c, { cwd: cwd || process.cwd(), stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
+    if (/\bgit\s+commit\b/i.test(command)) return run('git diff --cached --unified=0');
+    try { return run('git diff --unified=0 @{upstream}..HEAD'); } // push: what's ahead of upstream
+    catch { return run('git diff --unified=0 HEAD~1..HEAD'); }    // no upstream → last commit
+  } catch { return null; }
+}
+function decideDiffScan(command, cwd, diffOverride) {
+  if (!COMMIT_OR_PUSH_RE.test(String(command || ''))) return null;
+  const diff = diffOverride !== undefined ? diffOverride : gitDiffFor(command, cwd);
+  if (!diff) return null; // nothing staged / unavailable → defer (the hit-based DENY is the guard)
+  let hits;
+  try {
+    const rs = require('../bin/redaction-scan.js');
+    const cfg = rs.loadConfig(cwd || process.cwd());
+    hits = rs.scanDiffAddedLines(diff, { classes: cfg.classes, allow: cfg.allow, deny: cfg.deny });
+  } catch { return null; } // scanner unavailable → defer
+  if (hits && hits.length) {
+    const classes = [...new Set(hits.map((h) => h.class))].join(', ');
+    const where = hits.slice(0, 3).map((h) => `${h.file || '?'}:${h.line}`).join(', ');
+    return { action: 'deny', gate: 'diffScan', reason: `health-harness wall (org policy): this diff introduces ${classes} (${hits.length} hit${hits.length > 1 ? 's' : ''}: ${where}). Replace with synthetic data and retry. Confirmed false positive? Run: harness-allowlist add "<value>" --reason "<why>".` };
+  }
+  return null;
+}
+
+// ── diff-review before push → ASK (configurable, MBI-153) ─────────────────────
+// Show the dev what a push actually sends instead of pushing blind. Configurable via
+// `diffReviewBeforePush` (user layer, default on) and auto-approvable like any gate. HARD RULE: it never
+// fires in a non-interactive run — an ASK nobody can answer would deadlock CI and the AFK build loop.
+// `opts` = { enabled, env, numstat } for hermetic tests; otherwise resolved from config + git.
+function gitNumstat(cwd) {
+  try {
+    const { execSync } = require('child_process');
+    const run = (c) => execSync(c, { cwd: cwd || process.cwd(), stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
+    try { return run('git diff --numstat @{upstream}..HEAD'); }
+    catch { return run('git diff --numstat HEAD~1..HEAD'); }
+  } catch { return ''; }
+}
+function decideDiffReview(command, cwd, opts) {
+  if (!PUSH_RE.test(String(command || ''))) return null;
+  const o = opts || {};
+  const ds = require('../bin/diff-summary.js');
+  if (ds.isNonInteractive(o.env || process.env)) return null; // no human to answer → never block
+  let enabled = o.enabled;
+  if (enabled === undefined) {
+    try {
+      const cfgPath = findConfigPath(cwd);
+      const path = require('path');
+      const root = cfgPath ? path.dirname(path.dirname(cfgPath)) : (cwd || process.cwd());
+      enabled = require('../bin/harness-config.js').get({ repoDir: root }, 'diffReviewBeforePush');
+    } catch { enabled = true; }
+  }
+  if (!enabled) return null;
+  const entries = ds.parseNumstat(o.numstat !== undefined ? o.numstat : gitNumstat(cwd));
+  if (!entries.length) return null; // nothing to show → don't interrupt
+  return {
+    action: 'ask', why: 'diff_review', gate: 'diffReview',
+    reason: `health-harness wall: review what this push sends.\n\n${ds.formatSummary(entries)}\n\nApprove to push, or deny to adjust first.`,
+  };
+}
+
+// ── configurable pre-commit checks → ASK (MBI-154) ────────────────────────────
+// The advisory half of the hook menu: conflict markers, focused tests, oversized files (on by default),
+// plus debug leftovers and commit-subject wording (opt-in). ASK, not DENY — these are quality checks a
+// repo tunes, unlike the locked rules. No findings ⇒ no prompt, so a clean commit is never interrupted.
+// `opts` = { config, diff, files, subject } for hermetic tests.
+function stagedFiles(cwd) {
+  try {
+    const { execSync } = require('child_process');
+    const fs = require('fs'), path = require('path');
+    const root = cwd || process.cwd();
+    return execSync('git diff --cached --name-only', { cwd: root, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' })
+      .split(/\r?\n/).filter(Boolean)
+      .map((p) => { try { return { path: p, bytes: fs.statSync(path.resolve(root, p)).size }; } catch { return null; } })
+      .filter(Boolean);
+  } catch { return []; }
+}
+function decidePreCommitChecks(command, cwd, opts) {
+  if (!COMMIT_RE.test(String(command || ''))) return null;
+  const o = opts || {};
+  const pc = require('../bin/precommit-checks.js');
+  const ds = require('../bin/diff-summary.js');
+  let config = o.config;
+  if (config === undefined) {
+    try {
+      const cfgPath = findConfigPath(cwd);
+      const path = require('path');
+      const root = cfgPath ? path.dirname(path.dirname(cfgPath)) : (cwd || process.cwd());
+      const eff = require('../bin/harness-config.js').effective({ repoDir: root });
+      config = Object.fromEntries(Object.entries(eff).map(([k, v]) => [k, v.value]));
+    } catch { config = {}; }
+  }
+  const findings = pc.runChecks({
+    addedLines: ds.addedLines(o.diff !== undefined ? o.diff : (gitDiffFor('git commit', cwd) || '')),
+    files: o.files !== undefined ? o.files : stagedFiles(cwd),
+    subject: o.subject !== undefined ? o.subject : (extractCommitMessage(command) || ''),
+    config,
+  });
+  if (!findings.length) return null;
+  return {
+    action: 'ask', why: 'precommit_checks', gate: 'preCommitChecks',
+    reason: `health-harness wall: pre-commit checks found ${findings.length} issue${findings.length > 1 ? 's' : ''}:\n\n${pc.formatFindings(findings)}\n\nApprove to commit anyway, or deny and fix.`,
+  };
+}
+
 function decideRedactionMcp(tool, toolInput, cwd) {
   if (!MCP_WRITE.test(String(tool || ''))) return null; // reads carry no outbound content
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
@@ -469,8 +642,10 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       const branch = decideBranchName(cmd); // enforce-mode branch naming → DENY (opt-in; agent self-corrects)
       if (branch) return branch;
       const gs = gitState !== undefined ? gitState : gitProbe();
+      const push = decidePushGuard(cmd, gs); // locked: direct push to a protected branch → DENY (MBI-151)
+      if (push) return push;
       return sa(dropAsk(bash))                          // outward ASK: grant- and gate-flag-suppressible
-        || sa(decideCommitGuard(cmd, gs))              // base-branch commit → ASK (baseBranchCommit)
+        || sa(decideCommitGuard(cmd, gs))              // protected-branch commit → DENY (baseBranchCommit)
         || sa(decideCommitMessage(cmd, undefined, gs && gs.branch)) // format DENY kept; no-ticket ASK (commitTicket)
         || sa(decideCommitReview(cmd));                // per-commit review → ASK (commit gate, default-ON) — MBI-108/110
     }
@@ -486,7 +661,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decidePreCommitChecks, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
@@ -496,7 +671,17 @@ if (require.main === module) {
     let d = null;
     try {
       const input = JSON.parse(raw || '{}');
-      d = decide(input.tool_name, input.tool_input);
+      // These two gates shell out to git, so they live at the real hook entry rather than inside decide()
+      // (which stays a pure, injectable decision core for the tests). Locked DENY first, configurable ASK last.
+      const bashCmd = input.tool_name === 'Bash' ? (input.tool_input || {}).command : null;
+      if (bashCmd) d = decideDiffScan(bashCmd, process.cwd());          // MBI-152 locked secret/PHI diff scan
+      if (!d && bashCmd) d = sa(decidePreCommitChecks(bashCmd, process.cwd())); // MBI-154 configurable pre-commit checks
+      if (!d) d = decide(input.tool_name, input.tool_input);
+      if (!d && bashCmd) { // MBI-153 diff review — never in CI, and never re-asks under a live /ship grant
+        let granted = false;
+        try { granted = require('../bin/ship-grant.js').isShipGrantActive(process.cwd()); } catch { /* no grant */ }
+        if (!granted) d = decideDiffReview(bashCmd, process.cwd());
+      }
     } catch { /* defer */ }
     if (d) {
       try { // metadata-only usage log of the governance decision (best-effort)
