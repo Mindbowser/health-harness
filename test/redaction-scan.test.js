@@ -22,7 +22,8 @@ test('secrets are caught under every profile', () => {
 test('hipaa catches PHI + PII identifiers', () => {
   const opts = { classes: classesForProfile('hipaa') };
   assert.ok(scanText('patient SSN 123-45-6789', opts).some((h) => h.class === 'pii'));
-  assert.ok(scanText('contact: jane.doe@example.com', opts).some((h) => h.class === 'pii'));
+  // a realistic (synthetic) domain — NOT an RFC-2606 reserved one, which is deliberately never PII
+  assert.ok(scanText('contact: jane.doe@acmehealth.co', opts).some((h) => h.class === 'pii'));
   assert.ok(scanText('call (415) 555-0182 today', opts).some((h) => h.class === 'pii'));
   assert.ok(scanText('MRN: 0099123', opts).some((h) => h.class === 'phi'));
   assert.ok(scanText('DOB = 1980-02-11', opts).some((h) => h.class === 'phi'));
@@ -111,4 +112,14 @@ test('loadConfig normalizes object allow entries {value,reason,by,at} to values'
     JSON.stringify({ profile: 'hipaa', allow: [{ value: SECRET, reason: 'example key in docs', by: 'x@y', at: '2026-01-01' }, 'plainstring'] }));
   const cfg = rs.loadConfig(dir);
   assert.deepStrictEqual(cfg.allow.sort(), [SECRET, 'plainstring'].sort());
+});
+
+test('MBI-152: RFC-2606 reserved example domains are never PII (false-positive killer)', () => {
+  // Reserved for documentation/testing by IETF — can never be a real mailbox, so must not block a push.
+  for (const addr of ['a@example.com', 'b@example.net', 'c@example.org', 'd@sub.example.com',
+                      'e@host.invalid', 'f@myhost.test', 'g@thing.localhost', 'h@foo.example']) {
+    assert.deepStrictEqual(scanText(`contact: ${addr}`, { classes: ['pii'] }), [], `${addr} must not be flagged`);
+  }
+  // a real-looking address is still caught
+  assert.strictEqual(scanText('contact: person@acmehospital.com', { classes: ['pii'] }).length, 1);
 });

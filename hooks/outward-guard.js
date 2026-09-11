@@ -462,6 +462,42 @@ function decideDiffScan(command, cwd, diffOverride) {
   return null;
 }
 
+// ── diff-review before push → ASK (configurable, MBI-153) ─────────────────────
+// Show the dev what a push actually sends instead of pushing blind. Configurable via
+// `diffReviewBeforePush` (user layer, default on) and auto-approvable like any gate. HARD RULE: it never
+// fires in a non-interactive run — an ASK nobody can answer would deadlock CI and the AFK build loop.
+// `opts` = { enabled, env, numstat } for hermetic tests; otherwise resolved from config + git.
+function gitNumstat(cwd) {
+  try {
+    const { execSync } = require('child_process');
+    const run = (c) => execSync(c, { cwd: cwd || process.cwd(), stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
+    try { return run('git diff --numstat @{upstream}..HEAD'); }
+    catch { return run('git diff --numstat HEAD~1..HEAD'); }
+  } catch { return ''; }
+}
+function decideDiffReview(command, cwd, opts) {
+  if (!PUSH_RE.test(String(command || ''))) return null;
+  const o = opts || {};
+  const ds = require('../bin/diff-summary.js');
+  if (ds.isNonInteractive(o.env || process.env)) return null; // no human to answer → never block
+  let enabled = o.enabled;
+  if (enabled === undefined) {
+    try {
+      const cfgPath = findConfigPath(cwd);
+      const path = require('path');
+      const root = cfgPath ? path.dirname(path.dirname(cfgPath)) : (cwd || process.cwd());
+      enabled = require('../bin/harness-config.js').get({ repoDir: root }, 'diffReviewBeforePush');
+    } catch { enabled = true; }
+  }
+  if (!enabled) return null;
+  const entries = ds.parseNumstat(o.numstat !== undefined ? o.numstat : gitNumstat(cwd));
+  if (!entries.length) return null; // nothing to show → don't interrupt
+  return {
+    action: 'ask', why: 'diff_review', gate: 'diffReview',
+    reason: `health-harness wall: review what this push sends.\n\n${ds.formatSummary(entries)}\n\nApprove to push, or deny to adjust first.`,
+  };
+}
+
 function decideRedactionMcp(tool, toolInput, cwd) {
   if (!MCP_WRITE.test(String(tool || ''))) return null; // reads carry no outbound content
   return redactionDecision(redactionHits(JSON.stringify(toolInput || {}), cwd));
@@ -541,9 +577,6 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       const gs = gitState !== undefined ? gitState : gitProbe();
       const push = decidePushGuard(cmd, gs); // locked: direct push to a protected branch → DENY (MBI-151)
       if (push) return push;
-      // locked: diff-scoped secret/PHI scan (MBI-152). Real runtime only — unit tests inject gitState and
-      // exercise decideDiffScan directly, so the hermetic wall tests stay isolated from the live repo diff.
-      if (gitState === undefined) { const ds = decideDiffScan(cmd, cwd); if (ds) return ds; }
       return sa(dropAsk(bash))                          // outward ASK: grant- and gate-flag-suppressible
         || sa(decideCommitGuard(cmd, gs))              // protected-branch commit → DENY (baseBranchCommit)
         || sa(decideCommitMessage(cmd, undefined, gs && gs.branch)) // format DENY kept; no-ticket ASK (commitTicket)
@@ -561,7 +594,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
@@ -571,7 +604,16 @@ if (require.main === module) {
     let d = null;
     try {
       const input = JSON.parse(raw || '{}');
-      d = decide(input.tool_name, input.tool_input);
+      // These two gates shell out to git, so they live at the real hook entry rather than inside decide()
+      // (which stays a pure, injectable decision core for the tests). Locked DENY first, configurable ASK last.
+      const bashCmd = input.tool_name === 'Bash' ? (input.tool_input || {}).command : null;
+      if (bashCmd) d = decideDiffScan(bashCmd, process.cwd());          // MBI-152 locked secret/PHI diff scan
+      if (!d) d = decide(input.tool_name, input.tool_input);
+      if (!d && bashCmd) { // MBI-153 diff review — never in CI, and never re-asks under a live /ship grant
+        let granted = false;
+        try { granted = require('../bin/ship-grant.js').isShipGrantActive(process.cwd()); } catch { /* no grant */ }
+        if (!granted) d = decideDiffReview(bashCmd, process.cwd());
+      }
     } catch { /* defer */ }
     if (d) {
       try { // metadata-only usage log of the governance decision (best-effort)

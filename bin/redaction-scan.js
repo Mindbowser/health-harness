@@ -99,6 +99,11 @@ function snippet(line) {
 }
 function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
+// RFC 2606 / 6761 reserved domains — set aside by the IETF for documentation, examples and testing, so an
+// address here can NEVER be a real mailbox. Flagging them as PII is a pure false positive that blocks a
+// push over a test fixture or a doc sample, which is the fastest way to make a dev distrust the scanner.
+const RESERVED_EMAIL = /@(?:[\w-]+\.)*(?:example\.(?:com|net|org)|example|test|invalid|localhost)$/i;
+
 /**
  * Scan a string. Pure. opts = { classes?, allow?, deny? }. Defaults to hipaa classes.
  * @returns {Array<{file,line,class,snippet}>}
@@ -129,7 +134,7 @@ function scanText(text, opts, file) {
     }
     if (classes.has('pii')) {
       const em = line.match(RE.email);
-      if (em && !allowed(em)) push('pii');
+      if (em && !allowed(em) && !RESERVED_EMAIL.test(em[0])) push('pii');
       else if (RE.ssn.test(line) || RE.phone.test(line)) push('pii');
     }
     if (classes.has('phi')) {

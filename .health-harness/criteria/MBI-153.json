@@ -1,0 +1,29 @@
+{
+  "issueKey": "MBI-153",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given the toggle is on and a push has changes, When I push interactively, Then the wall ASKs and shows the changed files with added and removed counts"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given the run is non-interactive (a CI marker is set), When a push happens, Then the diff review does not fire"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given the dev sets diffReviewBeforePush false, When they push, Then the diff review does not fire"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given a push with nothing to show, When it runs, Then the diff review does not fire"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given a non-push command, When it runs, Then the diff review does not fire"
+    },
+    {
+      "id": "AC-6",
+      "text": "Given a numstat with many files, When the summary is formatted, Then it lists the largest changes and truncates"
+    }
+  ]
+}

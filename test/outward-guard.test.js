@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
 
 // ── MBI-144: branch-name enforcement (opt-in; recommend-only by default) ──
 test('checkBranchName: dormant unless git.enforceBranch is set', () => {
@@ -410,4 +410,25 @@ test('MBI-152: decideDiffScan DENIES a commit/push whose ADDED diff introduces a
   // not a commit/push, or no diff → defer
   assert.strictEqual(decideDiffScan('git status', '.', withSecret), null);
   assert.strictEqual(decideDiffScan('git commit -m x', '.', ''), null);
+});
+
+// ── MBI-153: diff-review before push (configurable; NEVER blocks a non-interactive run) ──
+test('MBI-153: decideDiffReview ASKs with a summary interactively; CI / toggle-off / nothing-to-show defer', () => {
+  const numstat = '10\t2\tsrc/app.js\n120\t0\tsrc/big.js';
+  const shell = { PATH: '/usr/bin' };
+  // [AC-1] interactive, enabled, has changes → ASK showing files + counts
+  const d = decideDiffReview('git push', '.', { enabled: true, env: shell, numstat });
+  assert.strictEqual(action(d), 'ask');
+  assert.strictEqual(d.gate, 'diffReview');
+  assert.match(d.reason, /src\/app\.js/);
+  assert.match(d.reason, /2 files changed/);
+  // [AC-2] a CI marker → never fires, whatever else is true (the deadlock guard)
+  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: { CI: 'true' }, numstat }), null);
+  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: { GITHUB_ACTIONS: 'true' }, numstat }), null);
+  // [AC-3] toggle off → defer
+  assert.strictEqual(decideDiffReview('git push', '.', { enabled: false, env: shell, numstat }), null);
+  // [AC-4] nothing to show → defer
+  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: shell, numstat: '' }), null);
+  // [AC-5] not a push → defer
+  assert.strictEqual(decideDiffReview('git status', '.', { enabled: true, env: shell, numstat }), null);
 });
