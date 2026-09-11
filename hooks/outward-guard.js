@@ -675,7 +675,9 @@ if (require.main === module) {
       // (which stays a pure, injectable decision core for the tests). Locked DENY first, configurable ASK last.
       const bashCmd = input.tool_name === 'Bash' ? (input.tool_input || {}).command : null;
       if (bashCmd) d = decideDiffScan(bashCmd, process.cwd());          // MBI-152 locked secret/PHI diff scan
-      if (!d && bashCmd) d = sa(decidePreCommitChecks(bashCmd, process.cwd())); // MBI-154 configurable pre-commit checks
+      // `sa` is local to decide(); at this scope it must be built explicitly (MBI-159).
+      const autoHere = { ...AUTO_APPROVE_DEFAULTS, ...wallAutoApprove(process.cwd()) };
+      if (!d && bashCmd) d = suppressAsk(decidePreCommitChecks(bashCmd, process.cwd()), autoHere); // MBI-154
       if (!d) d = decide(input.tool_name, input.tool_input);
       if (!d && bashCmd) { // MBI-153 diff review — never in CI, and never re-asks under a live /ship grant
         let granted = false;
