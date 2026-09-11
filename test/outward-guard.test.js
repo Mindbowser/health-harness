@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
 
 // ── MBI-144: branch-name enforcement (opt-in; recommend-only by default) ──
 test('checkBranchName: dormant unless git.enforceBranch is set', () => {
@@ -330,15 +330,17 @@ test('MCP: content writes ASK, reversible ops (transition/comment/worklog) DEFER
   assert.strictEqual(decideMcp('mcp__atlassian__searchJiraIssuesUsingJql'), null);
 });
 
-test('commit on a base branch ASKs; feature branch / initial commit defer', () => {
+test('MBI-151: commit on a protected branch is DENIED (locked); feature branch / initial commit defer', () => {
   const onMain = { hasHistory: true, branch: 'main', bases: ['main', 'master'] };
   const onMaster = { hasHistory: true, branch: 'master', bases: ['main', 'master'] };
-  const onDev = { hasHistory: true, branch: 'dev', bases: ['main', 'master', 'dev'] };  // configured baseBranch
+  const onDev = { hasHistory: true, branch: 'dev', bases: ['main', 'master', 'dev'] };  // configured protected
   const onFeature = { hasHistory: true, branch: 'fix/ACME-123', bases: ['main', 'master', 'dev'] };
-  // base branches → ASK
-  assert.strictEqual(action(decideCommitGuard('git commit -m "wip"', onMain)), 'ask');
-  assert.strictEqual(action(decideCommitGuard('git commit --amend', onMaster)), 'ask');
-  assert.strictEqual(action(decideCommitGuard('git commit -m x', onDev)), 'ask');
+  // protected branches → DENY (locked, no override), with a create-a-branch remedy in the reason
+  const d = decideCommitGuard('git commit -m "wip"', onMain);
+  assert.strictEqual(action(d), 'deny');
+  assert.match(d.reason, /feature branch/i);
+  assert.strictEqual(action(decideCommitGuard('git commit --amend', onMaster)), 'deny');
+  assert.strictEqual(action(decideCommitGuard('git commit -m x', onDev)), 'deny');
   // feature branch → defer
   assert.strictEqual(decideCommitGuard('git commit -m x', onFeature), null);
   // initial commit (no history) → defer
@@ -347,11 +349,30 @@ test('commit on a base branch ASKs; feature branch / initial commit defer', () =
   assert.strictEqual(decideCommitGuard('git commit -m x', null), null);
   // non-commit command → defer even on a base branch
   assert.strictEqual(decideCommitGuard('git status', onMain), null);
-  // wired through decide() with injected state. onMain → ASK from the base-branch guard (not an auto-approve
-  // gate). onFeature → the commit-review gate is auto-approved by default (AUTO_APPROVE_DEFAULTS.commit), so a
+  // wired through decide() with injected state. onMain → DENY from the locked branch-protection guard.
+  // onFeature → the commit-review gate is auto-approved by default (AUTO_APPROVE_DEFAULTS.commit), so a
   // normal commit defers. Tuned only via wall.autoApprove.commit (MBI-118) — see wall-autoapprove.test.js.
-  assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onMain)), 'ask');
+  assert.strictEqual(action(decide('Bash', { command: 'git commit -m x' }, onMain)), 'deny');
   assert.strictEqual(decide('Bash', { command: 'git commit -m x' }, onFeature), null);
+});
+
+test('MBI-151: decidePushGuard DENIES a direct push to a protected branch; feature-branch push defers', () => {
+  const onFeature = { hasHistory: true, branch: 'feature/ACME-1', bases: ['main', 'master', 'release/*'] };
+  const onMain = { hasHistory: true, branch: 'main', bases: ['main', 'master'] };
+  // explicit protected destination → DENY
+  assert.strictEqual(action(decidePushGuard('git push origin main', onFeature)), 'deny');
+  assert.strictEqual(action(decidePushGuard('git push origin release/1.2', onFeature)), 'deny');
+  // src:dst refspec pushing INTO a protected branch → DENY
+  assert.strictEqual(action(decidePushGuard('git push origin feature/ACME-1:main', onFeature)), 'deny');
+  // bare push while sitting on a protected branch → DENY
+  assert.strictEqual(action(decidePushGuard('git push', onMain)), 'deny');
+  // [AC-5] push of a feature branch (bare, HEAD, or explicit) → defer
+  assert.strictEqual(decidePushGuard('git push origin HEAD', onFeature), null);
+  assert.strictEqual(decidePushGuard('git push', onFeature), null);
+  assert.strictEqual(decidePushGuard('git push -u origin feature/ACME-1', onFeature), null);
+  // non-push / unknown state → defer
+  assert.strictEqual(decidePushGuard('git status', onMain), null);
+  assert.strictEqual(decidePushGuard('git push origin main', null), null);
 });
 
 test('decideCommitReview: a commit gets the commit-review ASK (gate:commit); non-commits defer', () => {

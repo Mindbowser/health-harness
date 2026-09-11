@@ -85,14 +85,20 @@ function readProjectConfig(dir) {
   } catch { return null; }
 }
 
+// The protected-branch SET (MBI-150/151): the configurable `protectedBranches` (names + globs) unioned
+// with the repo's baseBranch/prTarget/defaultBranch. Kept named baseBranches() for its existing callers.
+const { resolveProtected, isProtected } = require('../bin/protected-branch.js');
 function baseBranches(dir) {
-  const bases = new Set(['main', 'master']);
-  const j = readProjectConfig(dir);
-  if (j) {
-    const b = (j.git && j.git.baseBranch) || j.defaultBranch;
-    if (b) bases.add(String(b));
-  }
-  return [...bases];
+  const project = readProjectConfig(dir) || {};
+  let configured;
+  try {
+    const cfgPath = findConfigPath(dir);
+    const path = require('path');
+    const root = cfgPath ? path.dirname(path.dirname(cfgPath)) : (dir || process.cwd());
+    const eff = require('../bin/harness-config.js').effective({ repoDir: root });
+    configured = eff.protectedBranches && eff.protectedBranches.value;
+  } catch { /* no settings → schema default kicks in inside resolveProtected */ }
+  return resolveProtected({ config: { protectedBranches: configured }, project });
 }
 
 function gitProbe(cwd) {
@@ -105,12 +111,44 @@ function gitProbe(cwd) {
   } catch { return null; } // not a git repo / git missing → defer
 }
 
+// Locked branch-protection (MBI-151): committing directly on a protected branch is DENIED (org policy, no
+// override) — the remedy (create a feature branch) is always available, so a hard DENY never strands a dev.
+// WHICH branches are protected is configurable (the set); the enforcement is locked on. Initial commit (no
+// history) and not-a-git-repo still defer.
 function decideCommitGuard(command, st) {
   if (!COMMIT_RE.test(String(command || ''))) return null;
   if (!st || !st.hasHistory || !st.branch) return null; // initial commit / unknown → defer
   const bases = st.bases && st.bases.length ? st.bases : ['main', 'master'];
-  if (bases.includes(st.branch)) {
-    return { action: 'ask', gate: 'baseBranchCommit', reason: `health-harness wall: committing directly on the base branch (${st.branch}). Create a feature branch first, or approve to commit on ${st.branch}.` };
+  if (isProtected(st.branch, bases)) {
+    return { action: 'deny', gate: 'baseBranchCommit', reason: `health-harness wall (org policy): committing directly on the protected branch "${st.branch}" is not allowed. Create a feature branch (e.g. git switch -c feature/<KEY>-<slug>) and commit there.` };
+  }
+  return null;
+}
+
+// Locked branch-protection — the push side (MBI-151): DENY a direct push whose DESTINATION is a protected
+// branch. Destinations: an explicit refspec's dst (`src:dst` → dst; a bare `branch` → that branch), or the
+// CURRENT branch when the push names none. HEAD resolves to the current branch. Pure over (command, st).
+const PUSH_RE = /\bgit\s+push\b/i;
+function pushDestinations(command, currentBranch) {
+  const m = String(command || '').match(/\bgit\s+push\b(.*)$/is);
+  if (!m) return [];
+  // positional args after "push" = non-flag tokens (flags like -u/--force take no branch value here)
+  const positionals = m[1].split(/\s+/).filter((t) => t && !t.startsWith('-'));
+  const refspecs = positionals.slice(1); // drop the remote (first positional)
+  const specs = refspecs.length ? refspecs : ['HEAD']; // bare push → current branch
+  return specs.map((r) => {
+    const dst = r.includes(':') ? r.split(':').pop() : r;
+    const name = dst.replace(/^refs\/heads\//, '');
+    return name === 'HEAD' || name === '' ? currentBranch : name;
+  }).filter(Boolean);
+}
+function decidePushGuard(command, st) {
+  if (!PUSH_RE.test(String(command || ''))) return null;
+  if (!st || !st.branch) return null; // unknown state → defer
+  const bases = st.bases && st.bases.length ? st.bases : ['main', 'master'];
+  const hit = pushDestinations(command, st.branch).find((d) => isProtected(d, bases));
+  if (hit) {
+    return { action: 'deny', gate: 'protectedPush', reason: `health-harness wall (org policy): pushing directly to the protected branch "${hit}" is not allowed. Push your feature branch and open a pull request.` };
   }
   return null;
 }
@@ -469,8 +507,10 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
       const branch = decideBranchName(cmd); // enforce-mode branch naming → DENY (opt-in; agent self-corrects)
       if (branch) return branch;
       const gs = gitState !== undefined ? gitState : gitProbe();
+      const push = decidePushGuard(cmd, gs); // locked: direct push to a protected branch → DENY (MBI-151)
+      if (push) return push;
       return sa(dropAsk(bash))                          // outward ASK: grant- and gate-flag-suppressible
-        || sa(decideCommitGuard(cmd, gs))              // base-branch commit → ASK (baseBranchCommit)
+        || sa(decideCommitGuard(cmd, gs))              // protected-branch commit → DENY (baseBranchCommit)
         || sa(decideCommitMessage(cmd, undefined, gs && gs.branch)) // format DENY kept; no-ticket ASK (commitTicket)
         || sa(decideCommitReview(cmd));                // per-commit review → ASK (commit gate, default-ON) — MBI-108/110
     }
@@ -486,7 +526,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {

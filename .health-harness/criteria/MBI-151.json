@@ -1,0 +1,25 @@
+{
+  "issueKey": "MBI-151",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given I am on a protected branch, When I run git commit, Then the wall DENIES it and tells me to create a feature branch"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given I am on a feature branch, When I run git commit, Then the branch-protection guard does not fire"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a repo first commit (no history) or a non-git dir, When I commit, Then the guard defers"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given a push whose destination is a protected branch, When it runs, Then the wall DENIES the direct push"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given a push to a non-protected branch, When it runs, Then the push guard does not fire"
+    }
+  ]
+}
