@@ -1,0 +1,29 @@
+{
+  "issueKey": "MBI-156",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given the invocation names extra keys, When align starts, Then those keys are extracted in order without duplicates"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given the ticket body references another key, When align starts, Then that key is extracted too"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given the text contains AC-1, UTF-8, RFC-2606 or SHA-256, When keys are extracted, Then none is treated as an issue key"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given the target key itself appears, When keys are extracted, Then it is excluded"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given the repo project key is known, When keys are extracted, Then only keys for that project are returned"
+    },
+    {
+      "id": "AC-6",
+      "text": "Given many references, When keys are extracted, Then the list is capped"
+    }
+  ]
+}
