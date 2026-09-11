@@ -1,0 +1,25 @@
+{
+  "issueKey": "MBI-158",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given the repo is checked out on main, When the gate runs, Then the wall tests pass"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given the repo is checked out on a feature branch, When the gate runs, Then the wall tests pass"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given an injected protected branch, When a push is decided, Then it is denied"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given an injected feature branch, When a push is decided, Then the ordinary outward push ASK is returned"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given the shared fixture, When it is inspected, Then it injects git state rather than leaving it ambient"
+    }
+  ]
+}
