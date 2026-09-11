@@ -115,7 +115,12 @@ test('MBI-130: the wall config resolves from a subdirectory by walking up to the
 // Hermetic override args for decide() routing tests (MBI-72): gitState=undefined, shipGrant=false,
 // covOverride=no-manifest, detectOverride=no-triggers, gateOverride=verified — so routing assertions don't
 // depend on a live ship-grant / gate-evidence / branch diff. Spread after (toolName, toolInput).
-const HERMETIC = [undefined, false, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }];
+// A NEUTRAL git state, not `undefined`. Passing undefined made decide() fall through to a live gitProbe(),
+// so these tests silently depended on whichever branch the run happened to be standing on — green on a
+// feature branch, red on main once branch protection landed (MBI-158). Every other injected override here
+// is explicit for the same reason; git state must be too.
+const NEUTRAL_GIT = { hasHistory: true, branch: 'feature/HERMETIC-1', bases: ['main', 'master'] };
+const HERMETIC = [NEUTRAL_GIT, false, { hasManifest: false }, { profile: 'none', phi: [], logging: false, datetime: false, kinds: [] }, { state: 'verified' }];
 
 test('decideCriteriaCoverage: uncovered acceptance criterion DENIES the push; defer→ask; covered/no-manifest→defer', () => {
   const push = 'git push origin HEAD';
@@ -476,4 +481,20 @@ test('MBI-157: branchProtection level controls commit/push guards; default stays
   assert.match(decideCommitGuard(commit, onMain).reason, /branchProtection/);
   // a feature branch is untouched at every level
   for (const lvl of ['deny', 'ask', 'off']) assert.strictEqual(decideCommitGuard(commit, onFeature, lvl), null);
+});
+
+// ── MBI-158: decide() results must not depend on the branch the test run stands on ──
+test('MBI-158: decide() takes injected git state, so the same command is branch-independent', () => {
+  // The regression: HERMETIC passed `undefined` git state, so decide() fell through to a live gitProbe().
+  // These tests were green on a feature branch and red on main once branch protection landed — the release
+  // workflow (which runs on main) caught what every local run missed.
+  const rest = HERMETIC.slice(1);
+  const onProtected = { hasHistory: true, branch: 'main', bases: ['main', 'master'] };
+  // injected protected branch → the push guard denies
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, onProtected, ...rest)), 'deny');
+  // injected feature branch → falls through to the ordinary outward push ASK
+  assert.strictEqual(action(decide('Bash', { command: 'git push' }, ...HERMETIC)), 'ask');
+  // the shared fixture must never go back to undefined (that is what made the result ambient)
+  assert.notStrictEqual(HERMETIC[0], undefined, 'HERMETIC must inject git state, not leave it ambient');
+  assert.ok(HERMETIC[0].branch);
 });
