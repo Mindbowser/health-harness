@@ -126,3 +126,17 @@ test('[AC-2] onboardingPlan groups settings, marks locked rows, and shows value 
   const keys = cfg.onboardingPlan(d).flatMap((g) => g.items.map((i) => i.key));
   assert.deepStrictEqual(keys.slice().sort(), Object.keys(cfg.SCHEMA).sort());
 });
+
+test('MBI-157: branchProtection is configurable (not locked), enum-validated, default deny', () => {
+  const d = tmp();
+  assert.strictEqual(cfg.SCHEMA.branchProtection.tier, 'configurable');
+  assert.strictEqual(cfg.effective(d).branchProtection.value, 'deny');
+  // valid levels are accepted and normalized
+  assert.strictEqual(cfg.set(d, 'branchProtection', 'ASK').ok, true);
+  assert.strictEqual(cfg.effective(d).branchProtection.value, 'ask');
+  // an invalid level is refused rather than silently written
+  const bad = cfg.set(d, 'branchProtection', 'sometimes');
+  assert.strictEqual(bad.ok, false);
+  assert.match(bad.error, /deny, ask, off/);
+  assert.strictEqual(cfg.effective(d).branchProtection.value, 'ask'); // unchanged
+});

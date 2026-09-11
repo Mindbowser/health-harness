@@ -101,13 +101,26 @@ function baseBranches(dir) {
   return resolveProtected({ config: { protectedBranches: configured }, project });
 }
 
+// How hard branch protection bites: 'deny' (default) | 'ask' (approve-to-override, the pre-MBI-151
+// behaviour) | 'off'. Strict by default but overridable — a rule with no escape hatch gets worked around
+// rather than followed, and a trunk-based repo or a real hotfix needs a way through. The secret/PHI SCAN
+// is the part that stays locked; this is not.
+function protectionLevel(dir) {
+  try {
+    const cfgPath = findConfigPath(dir);
+    const path = require('path');
+    const root = cfgPath ? path.dirname(path.dirname(cfgPath)) : (dir || process.cwd());
+    return require('../bin/harness-config.js').get({ repoDir: root }, 'branchProtection') || 'deny';
+  } catch { return 'deny'; }
+}
+
 function gitProbe(cwd) {
   const dir = cwd || process.cwd();
   try {
     const { execSync } = require('child_process');
     const run = (c) => execSync(c, { cwd: dir, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' }).trim();
     try { run('git rev-parse --verify HEAD'); } catch { return { hasHistory: false }; } // initial commit allowed
-    return { hasHistory: true, branch: run('git rev-parse --abbrev-ref HEAD'), bases: baseBranches(dir) };
+    return { hasHistory: true, branch: run('git rev-parse --abbrev-ref HEAD'), bases: baseBranches(dir), protection: protectionLevel(dir) };
   } catch { return null; } // not a git repo / git missing → defer
 }
 
@@ -115,12 +128,17 @@ function gitProbe(cwd) {
 // override) — the remedy (create a feature branch) is always available, so a hard DENY never strands a dev.
 // WHICH branches are protected is configurable (the set); the enforcement is locked on. Initial commit (no
 // history) and not-a-git-repo still defer.
-function decideCommitGuard(command, st) {
+function decideCommitGuard(command, st, mode) {
   if (!COMMIT_RE.test(String(command || ''))) return null;
   if (!st || !st.hasHistory || !st.branch) return null; // initial commit / unknown → defer
+  const level = mode || (st && st.protection) || 'deny';
+  if (level === 'off') return null;
   const bases = st.bases && st.bases.length ? st.bases : ['main', 'master'];
   if (isProtected(st.branch, bases)) {
-    return { action: 'deny', gate: 'baseBranchCommit', reason: `health-harness wall (org policy): committing directly on the protected branch "${st.branch}" is not allowed. Create a feature branch (e.g. git switch -c feature/<KEY>-<slug>) and commit there.` };
+    const fix = `Create a feature branch (e.g. git switch -c feature/<KEY>-<slug>) and commit there`;
+    return level === 'ask'
+      ? { action: 'ask', gate: 'baseBranchCommit', reason: `health-harness wall: committing directly on the protected branch "${st.branch}". ${fix}, or approve to commit on ${st.branch}.` }
+      : { action: 'deny', gate: 'baseBranchCommit', reason: `health-harness wall: committing directly on the protected branch "${st.branch}" is blocked. ${fix}. (A repo that needs the old approve-to-override behaviour can set branchProtection to "ask".)` };
   }
   return null;
 }
@@ -142,13 +160,18 @@ function pushDestinations(command, currentBranch) {
     return name === 'HEAD' || name === '' ? currentBranch : name;
   }).filter(Boolean);
 }
-function decidePushGuard(command, st) {
+function decidePushGuard(command, st, mode) {
   if (!PUSH_RE.test(String(command || ''))) return null;
   if (!st || !st.branch) return null; // unknown state → defer
+  const level = mode || (st && st.protection) || 'deny';
+  if (level === 'off') return null;
   const bases = st.bases && st.bases.length ? st.bases : ['main', 'master'];
   const hit = pushDestinations(command, st.branch).find((d) => isProtected(d, bases));
   if (hit) {
-    return { action: 'deny', gate: 'protectedPush', reason: `health-harness wall (org policy): pushing directly to the protected branch "${hit}" is not allowed. Push your feature branch and open a pull request.` };
+    const fix = 'Push your feature branch and open a pull request';
+    return level === 'ask'
+      ? { action: 'ask', gate: 'protectedPush', reason: `health-harness wall: pushing directly to the protected branch "${hit}". ${fix}, or approve this direct push.` }
+      : { action: 'deny', gate: 'protectedPush', reason: `health-harness wall: pushing directly to the protected branch "${hit}" is blocked. ${fix}. (Set branchProtection to "ask" for approve-to-override.)` };
   }
   return null;
 }

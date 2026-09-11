@@ -23,6 +23,10 @@ const SCHEMA = {
   // ── configurable (defaults shown; dev may change) ──
   branchNaming:            { tier: 'configurable', layer: 'repo', default: 'feature/<KEY>-<slug>', type: 'string' },
   protectedBranches:       { tier: 'configurable', layer: 'repo', default: ['main', 'master', 'prod', 'production', 'release/*'], type: 'list' },
+  // Strict BY DEFAULT, but overridable: a trunk-based repo or a genuine hotfix needs a way through, and a
+  // rule with no escape hatch gets worked around instead of followed. 'ask' restores the pre-MBI-151
+  // approve-to-override behaviour; 'off' disables it entirely. The SCAN is what stays locked, not this.
+  branchProtection:        { tier: 'configurable', layer: 'repo', default: 'deny', type: 'enum', values: ['deny', 'ask', 'off'] },
   diffReviewBeforePush:    { tier: 'configurable', layer: 'user', default: true, type: 'boolean' },
   'sound.enabled':         { tier: 'configurable', layer: 'user', default: true, type: 'boolean' },
   // pre-hook practices menu (slice 6 wires the checks; the toggles live here now)
@@ -33,7 +37,6 @@ const SCHEMA = {
   'hooks.plainEnglishCommit':   { tier: 'configurable', layer: 'repo', default: false, type: 'boolean' },
   // ── locked (org policy; cannot be disabled) ──
   secretScanning:          { tier: 'locked', layer: 'repo', default: true, type: 'boolean' },
-  branchProtection:        { tier: 'locked', layer: 'repo', default: true, type: 'boolean' },
   ticketKeyedCommits:      { tier: 'locked', layer: 'repo', default: true, type: 'boolean' },
   testGate:                { tier: 'locked', layer: 'repo', default: true, type: 'boolean' },
   redactionEgress:         { tier: 'locked', layer: 'repo', default: true, type: 'boolean' },
@@ -42,6 +45,7 @@ const SCHEMA = {
 /** Pure: coerce a CLI string (or already-typed value) to the schema type. */
 function coerce(type, raw) {
   if (type === 'boolean') return raw === true || String(raw).toLowerCase() === 'true';
+  if (type === 'enum') return String(raw).trim().toLowerCase();
   if (type === 'list') return Array.isArray(raw)
     ? raw
     : String(raw).split(',').map((s) => s.trim()).filter(Boolean);
@@ -73,7 +77,11 @@ function validateSet(key, rawValue) {
   const spec = SCHEMA[key];
   if (!spec) return { ok: false, error: `unknown setting "${key}"` };
   if (spec.tier === 'locked') return { ok: false, error: `"${key}" is locked (org policy) and cannot be changed` };
-  return { ok: true, value: coerce(spec.type, rawValue), layer: spec.layer };
+  const value = coerce(spec.type, rawValue);
+  if (spec.values && !spec.values.includes(value)) {
+    return { ok: false, error: `"${key}" must be one of: ${spec.values.join(', ')}` };
+  }
+  return { ok: true, value, layer: spec.layer };
 }
 
 // ── impure helpers (disk) — dirs = { repoDir, homeDir } ──
@@ -119,8 +127,8 @@ function set(dirs, key, rawValue) {
 // How settings are grouped when presented interactively. Order matters: governance is shown FIRST (so a
 // dev sees what is enforced before what they can change), then the things they actually choose.
 const GROUPS = [
-  { group: 'Governance (org policy — cannot be turned off)', keys: ['secretScanning', 'branchProtection', 'ticketKeyedCommits', 'testGate', 'redactionEgress'] },
-  { group: 'Git workflow', keys: ['protectedBranches', 'branchNaming'] },
+  { group: 'Governance (org policy — cannot be turned off)', keys: ['secretScanning', 'ticketKeyedCommits', 'testGate', 'redactionEgress'] },
+  { group: 'Git workflow', keys: ['protectedBranches', 'branchProtection', 'branchNaming'] },
   { group: 'Pre-commit checks', keys: ['hooks.mergeConflictMarkers', 'hooks.focusedTestGuard', 'hooks.largeFile', 'hooks.debugLeftover', 'hooks.plainEnglishCommit'] },
   { group: 'Personal (this machine only)', keys: ['diffReviewBeforePush', 'sound.enabled'] },
 ];

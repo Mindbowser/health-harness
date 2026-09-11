@@ -148,14 +148,16 @@ gates tool calls — it's a wall, not a guideline the model might skip:
     reason says *"this is a shipping step — run `/ship`"* (it batches push → PR → Jira → worklog + redaction
     + breaking-change). You can still approve a one-off manual push, but the default path is the flow; inside
     `/ship` the grant suppresses these (one approval for the whole batch).
-- **DENY → org policy, not overridable** (MBI-148): three rules ship **locked** — there is no setting that
-  turns them off.
-  - **No commit on, and no direct push to, a protected branch** (MBI-151). WHICH branches are protected is
-    yours to configure (`protectedBranches`, names + globs — defaults `main`/`master`/`prod`/`production`/
-    `release/*` plus the repo's own base/PR target; add `dev`/`qa`/`stage`/`uat`), so a deliberately
-    trunk-based repo shapes the set rather than being broken. The enforcement itself is locked. The remedy
-    (branch, then PR) is always one command away, so the hard DENY redirects rather than strands.
-  - **A secret/PHI literal in the diff you're committing or pushing** (MBI-152). Scans **added lines only**,
+- **DENY → strict by default** (MBI-148):
+  - **No commit on, and no direct push to, a protected branch** (MBI-151/157). Two things are yours:
+    **which** branches are protected (`protectedBranches`, names + globs — defaults `main`/`master`/`prod`/
+    `production`/`release/*` plus the repo's own base/PR target; add `dev`/`qa`/`stage`/`uat`), and **how
+    hard it bites** — `branchProtection`: **`deny`** (default), **`ask`** (approve-to-override, the older
+    behaviour), or **`off`**. Strict out of the box, but never a dead end: a deliberately trunk-based repo
+    or a real hotfix has a way through, because a rule with no escape hatch gets worked around rather than
+    followed. The remedy (branch, then PR) is always one command away.
+- **DENY → locked, not overridable** (MBI-152): **a secret/PHI literal in the diff you're committing or
+  pushing.** This is the one rule with no off-switch. Scans **added lines only**,
     so it gates what a change *introduces* and never flags code you didn't touch. A confirmed false positive
     is cleared **per finding**, with a required reason, by `bin/harness-allowlist.js add "<value>" --reason
     "<why>"` — which records value + reason + author + timestamp. There is deliberately **no global
@@ -330,8 +332,8 @@ Two tiers, deliberately never blurred:
 
 | | |
 |---|---|
-| 🔒 **Locked (org policy)** | secret/PHI scanning · branch protection · ticket-keyed commits · the test gate · redaction egress. Shown for transparency, **never offered as a toggle** — no command disables them. A false positive in the scan is cleared per finding via the **audited** `harness-allowlist`. |
-| ⚙️ **Configurable** | `protectedBranches` · `branchNaming` · `diffReviewBeforePush` · `sound.enabled` · the `hooks.*` pre-commit checks. |
+| 🔒 **Locked (org policy)** | secret/PHI scanning · ticket-keyed commits · the test gate · redaction egress. Shown for transparency, **never offered as a toggle** — no command disables them. A false positive in the scan is cleared per finding via the **audited** `harness-allowlist`. |
+| ⚙️ **Configurable** | `protectedBranches` · **`branchProtection`** (`deny` default / `ask` / `off`) · `branchNaming` · `diffReviewBeforePush` · `sound.enabled` · the `hooks.*` pre-commit checks. |
 
 Two layers, so a personal preference never leaks to your team:
 

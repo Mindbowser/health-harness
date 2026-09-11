@@ -452,3 +452,28 @@ test('MBI-154: decidePreCommitChecks ASKs on findings; clean commit and non-comm
   // not a commit → defer
   assert.strictEqual(decidePreCommitChecks('git status', '.', base), null);
 });
+
+// ── MBI-157: branch protection is strict BY DEFAULT but overridable (deny | ask | off) ──
+test('MBI-157: branchProtection level controls commit/push guards; default stays deny', () => {
+  const onMain = { hasHistory: true, branch: 'main', bases: ['main', 'master'] };
+  const onFeature = { hasHistory: true, branch: 'feature/x', bases: ['main', 'master'] };
+  const commit = 'git commit -m x', push = 'git push origin main';
+  // default (no level anywhere) → deny, as before
+  assert.strictEqual(action(decideCommitGuard(commit, onMain)), 'deny');
+  assert.strictEqual(action(decidePushGuard(push, onFeature)), 'deny');
+  // 'ask' restores approve-to-override (the pre-MBI-151 behaviour) and says so
+  const a = decideCommitGuard(commit, onMain, 'ask');
+  assert.strictEqual(action(a), 'ask');
+  assert.match(a.reason, /approve to commit/i);
+  assert.strictEqual(action(decidePushGuard(push, onFeature, 'ask')), 'ask');
+  // 'off' disables the guard entirely (a deliberately trunk-based repo)
+  assert.strictEqual(decideCommitGuard(commit, onMain, 'off'), null);
+  assert.strictEqual(decidePushGuard(push, onFeature, 'off'), null);
+  // the level can ride on the probed git state instead of being passed explicitly
+  assert.strictEqual(action(decideCommitGuard(commit, { ...onMain, protection: 'ask' })), 'ask');
+  assert.strictEqual(decideCommitGuard(commit, { ...onMain, protection: 'off' }), null);
+  // the deny message points at the override rather than leaving the dev stuck
+  assert.match(decideCommitGuard(commit, onMain).reason, /branchProtection/);
+  // a feature branch is untouched at every level
+  for (const lvl of ['deny', 'ask', 'off']) assert.strictEqual(decideCommitGuard(commit, onFeature, lvl), null);
+});
