@@ -1,0 +1,29 @@
+{
+  "issueKey": "MBI-159",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given an outward command, When the hook runs as a process, Then it emits a decision rather than nothing"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given a catastrophic command, When the hook runs, Then it denies"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a read-only command, When the hook runs, Then it defers with no output"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given a staged diff introducing a secret, When a commit is attempted, Then the hook denies and names the allowlist command"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given malformed stdin, When the hook runs, Then it defers without crashing"
+    },
+    {
+      "id": "AC-6",
+      "text": "Given the entry bug is reintroduced, When the suite runs, Then it fails"
+    }
+  ]
+}
