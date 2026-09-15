@@ -28,6 +28,7 @@ rather than re-implementing it (one definition, no drift).
    About to publish <TICKET>:
      PR        "<title>"  → base: <base>
                body: <the verification summary, shown in full>
+     Diff      <N files changed, +X -Y — biggest first>   (what this push actually sends)
      Gate      <verified ✓ · <sha> | ⚠ UNVERIFIED — no passing gate for this commit>
      Tests     <added ✓ | ⚠ NO new tests in this slice — was the new behavior tested?>
      Status    <from-status> → <to-status>        (transition id <onShip.id>)
@@ -44,6 +45,9 @@ rather than re-implementing it (one definition, no drift).
    this slice's diff actually changed source without any test changes (`behaviorChangeNoTests`). If so, flag
    it in the preview — a green gate proves tests *pass*, not that the *new behavior* was tested. (Telemetry
    records this per ticket regardless, so skipped tests are visible on the dashboard.)
+   **The Diff line shows what's actually going out (MBI-160)** — the SUMMARY by default, so a dev sees the
+   shape of the push without a wall of lines: `node "${CLAUDE_PLUGIN_ROOT}/bin/diff-summary.js"`. Don't paste
+   the full diff into the preview; it's available on demand via the option below.
    Detect availability up front (publish path per the order below; tracker MCP connected?) and adapt.
    **Then ask for the decision as a STRUCTURED QUESTION** (the AskUserQuestion dialog), not a free-text "say
    the word" — so it's a click, with edit/skip as first-class options. Keep the rich preview above as text
@@ -51,6 +55,9 @@ rather than re-implementing it (one definition, no drift).
    so it's the highlighted default — approving is then a single Enter** (not 3–4 keys); the other options are
    navigated only when wanted:
    - **Approve all** — publish every step as previewed. *(first option = one-keypress approve)*
+   - **Show full diff** — render the actual changed lines
+     (`node "${CLAUDE_PLUGIN_ROOT}/bin/diff-summary.js" --full`) as readable text, then **re-show this same
+     question** (the summary stays the default; this is the "let me eyeball the lines first" path — MBI-160).
    - **Edit a field** — let them change the worklog value, PR title/body, comment, or status (free-text via the
      "Other" option), then **re-render the preview** and ask again.
    - **Skip a step** — e.g. PR-only (no comment / no worklog), or skip the transition.

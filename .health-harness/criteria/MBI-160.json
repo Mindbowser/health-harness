@@ -1,0 +1,29 @@
+{
+  "issueKey": "MBI-160",
+  "criteria": [
+    {
+      "id": "AC-1",
+      "text": "Given a bare git push that is not granted, When the wall asks, Then the prompt includes the diff summary (files and counts)"
+    },
+    {
+      "id": "AC-2",
+      "text": "Given a non-interactive run, When a push happens, Then no diff summary is added"
+    },
+    {
+      "id": "AC-3",
+      "text": "Given a push under a live ship grant, When it runs, Then the push ASK and its summary do not appear"
+    },
+    {
+      "id": "AC-4",
+      "text": "Given diff-summary is asked for the full diff, When run with the full flag, Then it outputs the actual changed lines"
+    },
+    {
+      "id": "AC-5",
+      "text": "Given the ship preview, When it is shown, Then it includes the diff summary and the approve question offers Show full diff"
+    },
+    {
+      "id": "AC-6",
+      "text": "Given nothing to show, When a push has no changes, Then no summary is added"
+    }
+  ]
+}
