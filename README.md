@@ -164,10 +164,12 @@ gates tool calls — it's a wall, not a guideline the model might skip:
     off-switch**; the audited allowlist is the only escape. RFC-2606/6761 reserved domains
     (`example.com`, `.test`, `.invalid`, `.localhost`) are never treated as PII — they can't be real
     mailboxes, and flagging them blocked pushes over ordinary test fixtures.
-- **ASK → before a push, see what's actually leaving** (`diffReviewBeforePush`, on by default, MBI-153): a
-  compact summary of the push (files, +/- counts, biggest first, truncated). **Never fires in a
-  non-interactive run** — an ASK nobody can answer would deadlock CI and the AFK build loop — nor under a
-  live `/ship` grant. Turn it off with `harness-config set diffReviewBeforePush false`.
+- **See what's actually leaving before a push** (`diffReviewBeforePush`, on by default, MBI-153/160): a
+  compact summary of the push (files, +/- counts, biggest first). It lives **where the approval already
+  is** — folded into `/ship`'s preview (with a **"Show full diff"** option on the approve question), and
+  into the wall's push prompt on a bare `git push`. Not a separate prompt. **Never added in a
+  non-interactive run** (CI is never noised or blocked), nor under a live `/ship` grant. The full diff is on
+  demand (`bin/diff-summary.js --full`). Turn it off with `harness-config set diffReviewBeforePush false`.
 - **ASK → configurable pre-commit checks** (MBI-154): merge-conflict markers, focused tests
   (`.only`/`fdescribe`/`fit`) and oversized staged files are **on** by default (unambiguous mistakes);
   leftover `debugger`/`console.log` and marketing filler in the commit subject are **off** by default

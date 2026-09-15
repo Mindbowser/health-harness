@@ -85,12 +85,22 @@ module.exports = { parseNumstat, summarize, formatSummary, isNonInteractive, add
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 //   diff-summary.js [<range>]   → print the summary for a range (default: vs upstream, else last commit)
+// CLI:
+//   diff-summary.js [<range>]          → the compact summary (default; what the push prompt / ship preview show)
+//   diff-summary.js --full [<range>]   → the actual changed lines (the "Show full diff" option)
 if (require.main === module) {
   const { execSync } = require('child_process');
-  const run = (c) => execSync(c, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
-  const range = process.argv[2];
-  let text = '';
-  try { text = run(`git diff --numstat ${range || '@{upstream}..HEAD'}`); }
-  catch { try { text = run('git diff --numstat HEAD~1..HEAD'); } catch { text = ''; } }
-  process.stdout.write(formatSummary(parseNumstat(text)) + '\n');
+  const run = (c) => execSync(c, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  const args = process.argv.slice(2);
+  const full = args.includes('--full');
+  const range = args.filter((a) => !a.startsWith('--'))[0];
+  const withRange = (base) => {
+    try { return run(`${base} ${range || '@{upstream}..HEAD'}`); }
+    catch { try { return run(`${base} HEAD~1..HEAD`); } catch { return ''; } }
+  };
+  if (full) {
+    process.stdout.write(withRange('git diff') || '(no changes to show)\n');
+  } else {
+    process.stdout.write(formatSummary(parseNumstat(withRange('git diff --numstat'))) + '\n');
+  }
 }

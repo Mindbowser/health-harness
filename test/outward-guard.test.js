@@ -1,7 +1,7 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decidePreCommitChecks, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
+const { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, augmentPushAsk, decidePreCommitChecks, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, decideRedactionBash, decideRedactionMcp, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, wallAutoApprove, commitPolicy, baseBranches, findConfigPath } = require('../hooks/outward-guard.js');
 
 // ── MBI-144: branch-name enforcement (opt-in; recommend-only by default) ──
 test('checkBranchName: dormant unless git.enforceBranch is set', () => {
@@ -417,26 +417,7 @@ test('MBI-152: decideDiffScan DENIES a commit/push whose ADDED diff introduces a
   assert.strictEqual(decideDiffScan('git commit -m x', '.', ''), null);
 });
 
-// ── MBI-153: diff-review before push (configurable; NEVER blocks a non-interactive run) ──
-test('MBI-153: decideDiffReview ASKs with a summary interactively; CI / toggle-off / nothing-to-show defer', () => {
-  const numstat = '10\t2\tsrc/app.js\n120\t0\tsrc/big.js';
-  const shell = { PATH: '/usr/bin' };
-  // [AC-1] interactive, enabled, has changes → ASK showing files + counts
-  const d = decideDiffReview('git push', '.', { enabled: true, env: shell, numstat });
-  assert.strictEqual(action(d), 'ask');
-  assert.strictEqual(d.gate, 'diffReview');
-  assert.match(d.reason, /src\/app\.js/);
-  assert.match(d.reason, /2 files changed/);
-  // [AC-2] a CI marker → never fires, whatever else is true (the deadlock guard)
-  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: { CI: 'true' }, numstat }), null);
-  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: { GITHUB_ACTIONS: 'true' }, numstat }), null);
-  // [AC-3] toggle off → defer
-  assert.strictEqual(decideDiffReview('git push', '.', { enabled: false, env: shell, numstat }), null);
-  // [AC-4] nothing to show → defer
-  assert.strictEqual(decideDiffReview('git push', '.', { enabled: true, env: shell, numstat: '' }), null);
-  // [AC-5] not a push → defer
-  assert.strictEqual(decideDiffReview('git status', '.', { enabled: true, env: shell, numstat }), null);
-});
+
 
 // ── MBI-154: configurable pre-commit checks (advisory ASK; quiet by default) ──
 test('MBI-154: decidePreCommitChecks ASKs on findings; clean commit and non-commit defer', () => {
@@ -497,4 +478,30 @@ test('MBI-158: decide() takes injected git state, so the same command is branch-
   // the shared fixture must never go back to undefined (that is what made the result ambient)
   assert.notStrictEqual(HERMETIC[0], undefined, 'HERMETIC must inject git state, not leave it ambient');
   assert.ok(HERMETIC[0].branch);
+});
+
+// ── MBI-160: the diff summary is folded INTO the push ASK (not a separate, shadowed gate) ──
+test('MBI-160: augmentPushAsk prepends the diff summary to the push ASK; interactive + has changes', () => {
+  const pushAsk = { action: 'ask', gate: 'push', reason: 'pushing is a shipping step — run /ship or approve.' };
+  const numstat = '10\t2\tsrc/app.js\n120\t0\tsrc/big.js';
+  const shell = { PATH: '/usr/bin' };
+  // [AC-1] interactive, enabled, has changes → reason now carries the summary, keeping the original text
+  const out = augmentPushAsk(pushAsk, 'git push', '.', { enabled: true, env: shell, numstat });
+  assert.strictEqual(out.action, 'ask');
+  assert.match(out.reason, /What this push sends/);
+  assert.match(out.reason, /src\/app\.js/);
+  assert.match(out.reason, /2 files changed/);
+  assert.match(out.reason, /shipping step/); // original push-ask text preserved
+  // [AC-2] non-interactive → left exactly as-is (a summary is noise in CI)
+  assert.strictEqual(augmentPushAsk(pushAsk, 'git push', '.', { enabled: true, env: { CI: 'true' }, numstat }), pushAsk);
+  // toggle off → unchanged
+  assert.strictEqual(augmentPushAsk(pushAsk, 'git push', '.', { enabled: false, env: shell, numstat }), pushAsk);
+  // [AC-6] nothing to show → unchanged
+  assert.strictEqual(augmentPushAsk(pushAsk, 'git push', '.', { enabled: true, env: shell, numstat: '' }), pushAsk);
+  // only ever touches the push ASK — a DENY, a different gate, or null pass straight through
+  const deny = { action: 'deny', gate: 'protectedPush', reason: 'x' };
+  assert.strictEqual(augmentPushAsk(deny, 'git push', '.', { enabled: true, env: shell, numstat }), deny);
+  const otherAsk = { action: 'ask', gate: 'commit', reason: 'x' };
+  assert.strictEqual(augmentPushAsk(otherAsk, 'git commit', '.', { enabled: true, env: shell, numstat }), otherAsk);
+  assert.strictEqual(augmentPushAsk(null, 'git push', '.', { enabled: true, env: shell, numstat }), null);
 });

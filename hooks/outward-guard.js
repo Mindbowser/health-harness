@@ -498,11 +498,17 @@ function gitNumstat(cwd) {
     catch { return run('git diff --numstat HEAD~1..HEAD'); }
   } catch { return ''; }
 }
-function decideDiffReview(command, cwd, opts) {
-  if (!PUSH_RE.test(String(command || ''))) return null;
+// Fold "what this push sends" INTO the push ASK instead of a separate gate (MBI-160). The standalone
+// diff-review never fired: engineers publish with /ship (which shows the summary in its own preview), and
+// on a bare `git push` the older push ASK returns first and shadowed it. So we enrich that one push ASK
+// rather than adding a second prompt. Interactive only (a summary is noise in CI); the `diffReviewBeforePush`
+// toggle still turns it off; under a /ship grant decide() has already dropped the push ASK, so there's
+// nothing to enrich. Pure over (decision, opts) — opts.numstat/env/enabled make it testable without git.
+function augmentPushAsk(decision, command, cwd, opts) {
+  if (!decision || decision.action !== 'ask' || decision.gate !== 'push') return decision;
   const o = opts || {};
   const ds = require('../bin/diff-summary.js');
-  if (ds.isNonInteractive(o.env || process.env)) return null; // no human to answer → never block
+  if (ds.isNonInteractive(o.env || process.env)) return decision; // no human → don't add noise
   let enabled = o.enabled;
   if (enabled === undefined) {
     try {
@@ -512,13 +518,10 @@ function decideDiffReview(command, cwd, opts) {
       enabled = require('../bin/harness-config.js').get({ repoDir: root }, 'diffReviewBeforePush');
     } catch { enabled = true; }
   }
-  if (!enabled) return null;
+  if (enabled === false) return decision;
   const entries = ds.parseNumstat(o.numstat !== undefined ? o.numstat : gitNumstat(cwd));
-  if (!entries.length) return null; // nothing to show → don't interrupt
-  return {
-    action: 'ask', why: 'diff_review', gate: 'diffReview',
-    reason: `health-harness wall: review what this push sends.\n\n${ds.formatSummary(entries)}\n\nApprove to push, or deny to adjust first.`,
-  };
+  if (!entries.length) return decision; // nothing to show → leave the ASK as-is
+  return { ...decision, reason: `What this push sends:\n\n${ds.formatSummary(entries)}\n\n${decision.reason}` };
 }
 
 // ── configurable pre-commit checks → ASK (MBI-154) ────────────────────────────
@@ -661,7 +664,7 @@ function decide(toolName, toolInput, gitState, shipGrant, covOverride, detectOve
   return null;
 }
 
-module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, decideDiffReview, decidePreCommitChecks, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
+module.exports = { decide, decideBash, decideMcp, decideCommitGuard, decidePushGuard, decideDiffScan, augmentPushAsk, decidePreCommitChecks, decideCommitReview, decideCommitMessage, extractCommitMessage, checkCommitMessage, checkBranchName, decideBranchName, gitPolicy, decideRedactionBash, decideRedactionMcp, decideGateEvidence, decideCriteriaCoverage, decideCriteriaDetect, decideBoundary, decideOpenQuestions, gitProbe, baseBranches, wallAutoApprove, commitPolicy, findConfigPath, readProjectConfig, suppressAsk, isTrackerWrite };
 
 // ── hook entry ────────────────────────────────────────────────────────────────
 if (require.main === module) {
@@ -679,11 +682,9 @@ if (require.main === module) {
       const autoHere = { ...AUTO_APPROVE_DEFAULTS, ...wallAutoApprove(process.cwd()) };
       if (!d && bashCmd) d = suppressAsk(decidePreCommitChecks(bashCmd, process.cwd()), autoHere); // MBI-154
       if (!d) d = decide(input.tool_name, input.tool_input);
-      if (!d && bashCmd) { // MBI-153 diff review — never in CI, and never re-asks under a live /ship grant
-        let granted = false;
-        try { granted = require('../bin/ship-grant.js').isShipGrantActive(process.cwd()); } catch { /* no grant */ }
-        if (!granted) d = decideDiffReview(bashCmd, process.cwd());
-      }
+      // MBI-160: fold the diff summary INTO the push ASK (never a separate gate). Under a /ship grant
+      // decide() has already dropped the push ASK, so this only fires on a real, ungranted bare push.
+      if (d && d.gate === 'push' && bashCmd) d = augmentPushAsk(d, bashCmd, process.cwd());
     } catch { /* defer */ }
     if (d) {
       try { // metadata-only usage log of the governance decision (best-effort)

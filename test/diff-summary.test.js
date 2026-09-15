@@ -50,3 +50,20 @@ test('[AC-2] isNonInteractive: true under any standard CI marker, false for a no
   assert.strictEqual(ds.isNonInteractive({}), false);
   assert.strictEqual(ds.isNonInteractive({ CI: 'false' }), false); // explicitly disabled CI var
 });
+
+// ── MBI-160: the CLI can render the FULL diff on request (the "Show full diff" option) ──
+test('[AC-4] diff-summary --full outputs the actual changed lines, not just counts', () => {
+  const { execFileSync } = require('node:child_process');
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-full-'));
+  const git = (a) => execFileSync('git', a, { cwd: dir, stdio: 'ignore' });
+  git(['init', '-q', '-b', 'main']); git(['config', 'user.email', 'd@acme.test']); git(['config', 'user.name', 'D']);
+  fs.writeFileSync(path.join(dir, 'app.js'), 'const a = 1;\n'); git(['add', '-A']); git(['commit', '-qm', 'init']);
+  fs.appendFileSync(path.join(dir, 'app.js'), 'const b = 2;\n'); git(['add', '-A']); git(['commit', '-qm', 'more']);
+  const bin = path.join(__dirname, '..', 'bin', 'diff-summary.js');
+  const summary = execFileSync('node', [bin], { cwd: dir, encoding: 'utf8' });
+  const full = execFileSync('node', [bin, '--full'], { cwd: dir, encoding: 'utf8' });
+  assert.match(summary, /1 file changed/);              // default = counts
+  assert.doesNotMatch(summary, /^\+const b = 2;/m);     // default has no diff lines
+  assert.match(full, /\+const b = 2;/);                 // --full shows the added line
+});
