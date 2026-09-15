@@ -19,6 +19,9 @@ it — their conventions, their architecture, their IP.
    (a link in the README or docs), note it and fetch what's accessible rather than ignoring it. Map: the
    stack, how to run it, how to test it, the high-level architecture, the key seams, and the conventions in
    use. **Produce a short project-understanding summary** — it seeds the repo `CLAUDE.md` in step 2.
+   **Then offer to draw it (MBI-161):** one soft line — *"say 'show the flow' for an architecture diagram"* —
+   so the dev can *see* the layout as they get oriented (`/flow` renders it, inline in the terminal when the
+   diagram mod is on). An offer, not a step; a picture of an unfamiliar repo is where it helps most.
 2. **Create OR augment the repo `CLAUDE.md` — never clobber.** If a `CLAUDE.md` (or `ARCHITECTURE.md`,
    `AiRules.md`) **already exists**, READ it and **add only what's missing** (e.g. a short harness
    section: the gate command, compliance profile, seams) — do not overwrite a rich existing doc. If none

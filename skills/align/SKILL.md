@@ -155,6 +155,9 @@ Infer + inform by default; **only stop to ask on a genuine mismatch or when it's
    multi-line text** (never crammed into popup option labels) and get a yes. This reflect-back is
    conversational — *don't* turn it into an `AskUserQuestion`; the structured popup (step 6) is only for
    the **decisions** (the outward write, the `/tdd` offer), not for reading back content.
+   **If the story has real flow (a path, branches, several moving parts), add ONE soft line offering to draw
+   it (MBI-161):** *"say 'show the flow' for a diagram."* It's an optional invitation, never a popup and
+   never a step — the human triggers `/flow` if a picture would help them agree; skip it for a flat item.
 6. **Write the criteria where they belong — don't make the human run a second command.**
    **Confirm the outward write as a structured popup, not free text** — apply the *structured-decision
    convention* (CONTEXT.md): an `AskUserQuestion` with **"Approve & write" FIRST** (so approving is one
