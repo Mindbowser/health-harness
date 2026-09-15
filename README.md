@@ -499,6 +499,7 @@ skills/                      # one folder per skill (FLAT — Claude Code discov
   onboard-existing-codebase/   # front door — existing repo
   sprint/ import-issues/       # sprint container + pull tracker items
   align/ to-prd/ to-issues/ tdd/ ship/    # the Build Loop (ship = publish: push→PR→Jira→worklog)
+  flow/                        # draw the flow as a diagram (story / change / architecture) — offered at align + onboarding, or any time
   compliance-profile/ phi-redaction-check/ safe-logging/ audit-logging/   # healthcare governance
   role/                        # your persona (PM / engineer) — picks the /align mode
   writing-great-skills/        # the meta-skill: how to write skills here

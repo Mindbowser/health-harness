@@ -38,7 +38,11 @@ Progress → In Review → Done**, and a worklog is logged from your git activit
 **All commands:** `/role` · `/start` · `/scaffold-from-boilerplate` · `/onboard-existing-codebase` ·
 `/compliance-profile` · `/sprint` · `/import-issues` · `/align` · `/to-prd` · `/to-issues` · `/tdd` ·
 `/phi-redaction-check` · `/safe-logging` · `/audit-logging` · `/harness-questions` · `/harness-feedback` ·
-`/writing-great-skills` · `/harness-help` · `/harness-update`.
+`/harness-config` · `/flow` · `/writing-great-skills` · `/harness-help` · `/harness-update`.
+
+**`/flow`** — draw the flow as a diagram (a story, a change, or the repo's architecture) to build a shared
+mental model. Offered as a soft one-liner during `/align` and onboarding; runnable any time. Renders inline
+in the terminal if the diagram add-on is enabled, otherwise in chat.
 
 **`/harness-questions`** — see and answer the open "I don't know yet" questions the build logged on your
 current ticket (the ones that gate the push); lists them, resolves each via a popup, reconciles anything
