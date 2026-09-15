@@ -1,0 +1,5 @@
+{
+  "hooks.plainEnglishCommit": true,
+  "hooks.debugLeftover": true,
+  "branchProtection": "ask"
+}
